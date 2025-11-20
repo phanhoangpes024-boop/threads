@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import CreateThreadInput from '@/components/CreateThreadInput';
-import ThreadFeed from '@/components/ThreadFeed';
+import ThreadFeed from '@/components/ThreadFeed';  // GIỮ NGUYÊN - dùng component này
 import { useThreads } from '@/contexts/ThreadsContext';
 import { MOCK_USER } from '@/lib/currentUser';
 import styles from './page.module.css';

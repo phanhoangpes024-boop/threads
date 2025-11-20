@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ThreadCard from '@/components/ThreadCard';
+import CommentInput from '@/components/CommentInput';
+import { useThreads } from '@/contexts/ThreadsContext';
 import styles from './ThreadFeed.module.css';
 
 interface Thread {
@@ -20,22 +22,40 @@ interface ThreadFeedProps {
 }
 
 export default function ThreadFeed({ threads }: ThreadFeedProps) {
+  const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
+  const { refreshThreads } = useThreads();
+
+  const handleCommentSubmit = async () => {
+    await refreshThreads();
+    setActiveCommentThreadId(null);
+  };
+
   return (
     <div className={styles.threadFeed}>
       {threads.map((thread) => (
-        <ThreadCard
-          key={thread.id}
-          id={thread.id}
-          username={thread.username}
-          timestamp={thread.created_at}
-          content={thread.content}
-          imageUrl={thread.image_url}
-          likes={thread.likes_count.toString()}
-          comments={thread.comments_count.toString()}
-          reposts={thread.reposts_count.toString()}
-          verified={thread.verified}
-          avatarText={thread.avatar_text}
-        />
+        <div key={thread.id}>
+          <ThreadCard
+            id={thread.id}
+            username={thread.username}
+            timestamp={thread.created_at}
+            content={thread.content}
+            imageUrl={thread.image_url}
+            likes={thread.likes_count.toString()}
+            comments={thread.comments_count.toString()}
+            reposts={thread.reposts_count.toString()}
+            verified={thread.verified}
+            avatarText={thread.avatar_text}
+            onCommentClick={() => setActiveCommentThreadId(thread.id)}
+          />
+          
+          {activeCommentThreadId === thread.id && (
+            <CommentInput
+              threadId={thread.id}
+              onCommentSubmit={handleCommentSubmit}
+              autoFocus={true}
+            />
+          )}
+        </div>
       ))}
     </div>
   );

@@ -15,6 +15,9 @@ interface ThreadCardProps {
   reposts: string;
   verified?: boolean;
   avatarText?: string;
+  isDetailView?: boolean;
+  onCommentClick?: () => void;
+  onLikeUpdate?: () => void;
 }
 
 export default function ThreadCard({
@@ -28,13 +31,15 @@ export default function ThreadCard({
   reposts,
   verified = false,
   avatarText = 'K',
+  isDetailView = false,
+  onCommentClick,
+  onLikeUpdate,  
 }: ThreadCardProps) {
   const { toggleLike, checkIfLiked } = useThreads();
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
 
   useEffect(() => {
-    // Check liked status khi component mount
     checkIfLiked(id).then(setIsLiked);
   }, [id]);
 
@@ -42,13 +47,15 @@ export default function ThreadCard({
     if (isLiking) return;
     
     setIsLiking(true);
-    setIsLiked(!isLiked); // Toggle UI ngay lập tức
+    setIsLiked(!isLiked);
     await toggleLike(id);
     
-    // Check lại status sau khi toggle
     const newStatus = await checkIfLiked(id);
     setIsLiked(newStatus);
     setIsLiking(false);
+    if (onLikeUpdate) {
+    onLikeUpdate();
+  }
   };
 
   const formatTimestamp = (ts: string) => {
@@ -64,8 +71,28 @@ export default function ThreadCard({
     return date.toLocaleDateString('vi-VN');
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isDetailView) return;
+    
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('button') ||
+      target.closest(`.${styles.actionButton}`) ||
+      target.closest(`.${styles.menuButton}`) ||
+      target.closest('img')
+    ) {
+      return;
+    }
+    
+    window.location.href = `/thread/${id}`;
+  };
+
   return (
-    <article className={styles.threadCard}>
+    <article 
+      className={styles.threadCard} 
+      onClick={handleCardClick}
+      style={{ cursor: isDetailView ? 'default' : 'pointer' }}
+    >
       <div className={styles.threadContainer}>
         <div className={styles.threadAvatar}>
           <div className={styles.avatar}>{avatarText}</div>
@@ -104,7 +131,10 @@ export default function ThreadCard({
           <div className={styles.threadActions}>
             <div 
               className={`${styles.actionButton} ${isLiked ? styles.active : ''}`}
-              onClick={handleLike}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLike();
+              }}
             >
               <div className={styles.actionIcon}>
                 <svg viewBox="0 0 24 24">
@@ -114,7 +144,15 @@ export default function ThreadCard({
               <span className={styles.actionCount}>{likes}</span>
             </div>
 
-            <div className={styles.actionButton}>
+            <div 
+              className={styles.actionButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onCommentClick) {
+                  onCommentClick();
+                }
+              }}
+            >
               <div className={styles.actionIcon}>
                 <svg viewBox="0 0 24 24">
                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
