@@ -1,7 +1,7 @@
-// components/CreateThreadInput/index.tsx
 'use client';
 
 import React, { useState } from 'react';
+import { useThreads } from '@/contexts/ThreadsContext';
 import styles from './CreateThreadInput.module.css';
 
 interface CreateThreadInputProps {
@@ -14,6 +14,17 @@ export default function CreateThreadInput({
   placeholder = 'Có gì mới?',
 }: CreateThreadInputProps) {
   const [value, setValue] = useState('');
+  const { createThread } = useThreads();
+  const [posting, setPosting] = useState(false);
+
+  const handlePost = async () => {
+    if (!value.trim() || posting) return;
+    
+    setPosting(true);
+    await createThread(value.trim());
+    setValue('');
+    setPosting(false);
+  };
 
   return (
     <div className={styles.createThreadContainer}>
@@ -30,15 +41,17 @@ export default function CreateThreadInput({
               rows={1}
               value={value}
               onChange={(e) => setValue(e.target.value)}
+              disabled={posting}
             />
           </div>
         </div>
 
         <button
           className={`${styles.postButton} ${value.trim() ? styles.active : ''}`}
-          disabled={!value.trim()}
+          disabled={!value.trim() || posting}
+          onClick={handlePost}
         >
-          Đăng
+          {posting ? 'Đang đăng...' : 'Đăng'}
         </button>
       </div>
     </div>

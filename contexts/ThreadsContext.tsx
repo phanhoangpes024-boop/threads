@@ -1,0 +1,167 @@
+'use client';
+
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { MOCK_USER } from '@/lib/currentUser';
+
+interface Thread {
+  id: string;
+  username: string;
+  avatar_text: string;
+  verified: boolean;
+  content: string;
+  image_url?: string;
+  likes_count: number;
+  comments_count: number;
+  reposts_count: number;
+  created_at: string;
+  user_id: string;
+}
+
+interface ThreadsContextType {
+  threads: Thread[];
+  loading: boolean;
+  createThread: (content: string, imageUrl?: string) => Promise<void>;
+  toggleLike: (threadId: string) => Promise<void>;
+  refreshThreads: () => Promise<void>;
+  checkIfLiked: (threadId: string) => Promise<boolean>;
+}
+
+const ThreadsContext = createContext<ThreadsContextType | undefined>(undefined);
+
+export function ThreadsProvider({ children }: { children: ReactNode }) {
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [likedThreads, setLikedThreads] = useState<Set<string>>(new Set());
+
+  const fetchThreads = async () => {
+    try {
+      const res = await fetch('/api/threads');
+      const data = await res.json();
+      setThreads(data);
+    } catch (error) {
+      console.error('Error fetching threads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchThreads();
+  }, []);
+
+  const createThread = async (content: string, imageUrl?: string) => {
+    try {
+      const res = await fetch('/api/threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: MOCK_USER.id,
+          content,
+          image_url: imageUrl,
+        }),
+      });
+      
+      if (res.ok) {
+        await fetchThreads();
+      }
+    } catch (error) {
+      console.error('Error creating thread:', error);
+    }
+  };
+
+  const toggleLike = async (threadId: string) => {
+    const isCurrentlyLiked = likedThreads.has(threadId);
+    
+    // Optimistic update - UI respond ngay
+    setLikedThreads(prev => {
+      const newSet = new Set(prev);
+      if (isCurrentlyLiked) {
+        newSet.delete(threadId);
+      } else {
+        newSet.add(threadId);
+      }
+      return newSet;
+    });
+    
+    setThreads(prevThreads =>
+      prevThreads.map(thread =>
+        thread.id === threadId
+          ? {
+              ...thread,
+              likes_count: isCurrentlyLiked 
+                ? Math.max(0, thread.likes_count - 1)
+                : thread.likes_count + 1
+            }
+          : thread
+      )
+    );
+
+    try {
+      const res = await fetch(`/api/threads/${threadId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: MOCK_USER.id }),
+      });
+      
+      if (res.ok) {
+        // Fetch lại để có count chính xác từ DB
+        await fetchThreads();
+      } else {
+        // Revert nếu lỗi
+        setLikedThreads(prev => {
+          const newSet = new Set(prev);
+          if (isCurrentlyLiked) {
+            newSet.add(threadId);
+          } else {
+            newSet.delete(threadId);
+          }
+          return newSet;
+        });
+        await fetchThreads();
+      }
+      
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      await fetchThreads();
+    }
+  };
+
+  const checkIfLiked = async (threadId: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/threads/${threadId}/like?user_id=${MOCK_USER.id}`);
+      const data = await res.json();
+      
+      if (data.isLiked) {
+        setLikedThreads(prev => new Set(prev).add(threadId));
+      }
+      
+      return data.isLiked;
+    } catch (error) {
+      console.error('Error checking like:', error);
+      return false;
+    }
+  };
+
+  return (
+    <ThreadsContext.Provider
+      value={{
+        threads,
+        loading,
+        createThread,
+        toggleLike,
+        refreshThreads: fetchThreads,
+        checkIfLiked,
+      }}
+    >
+      {children}
+    </ThreadsContext.Provider>
+  );
+}
+
+export function useThreads() {
+  const context = useContext(ThreadsContext);
+  if (!context) {
+    throw new Error('useThreads must be used within ThreadsProvider');
+  }
+  return context;
+}

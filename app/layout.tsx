@@ -1,5 +1,6 @@
 import Navbar from '@/components/Navbar/Navbar';
 import Header from '@/components/Header';
+import { ThreadsProvider } from '@/contexts/ThreadsContext';
 import './globals.css';
 
 export default function RootLayout({
@@ -10,11 +11,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        <Header />
-        <main style={{ marginLeft: '80px', paddingTop: '60px' }} className="main-content">
-  {children}
-</main>
+        <ThreadsProvider>
+          <Navbar />
+          <Header />
+          <main style={{ marginLeft: '80px', paddingTop: '60px' }} className="main-content">
+            {children}
+          </main>
+        </ThreadsProvider>
       </body>
     </html>
   );

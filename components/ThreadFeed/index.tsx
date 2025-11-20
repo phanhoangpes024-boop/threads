@@ -1,4 +1,3 @@
-// components/ThreadFeed/index.tsx
 import React from 'react';
 import ThreadCard from '@/components/ThreadCard';
 import styles from './ThreadFeed.module.css';
@@ -6,14 +5,14 @@ import styles from './ThreadFeed.module.css';
 interface Thread {
   id: string;
   username: string;
-  timestamp: string;
+  created_at: string;
   content: string;
-  imageUrl?: string;
-  likes: string;
-  comments: string;
-  reposts: string;
+  image_url?: string;
+  likes_count: number;
+  comments_count: number;
+  reposts_count: number;
   verified?: boolean;
-  avatarText: string;
+  avatar_text: string;
 }
 
 interface ThreadFeedProps {
@@ -26,15 +25,16 @@ export default function ThreadFeed({ threads }: ThreadFeedProps) {
       {threads.map((thread) => (
         <ThreadCard
           key={thread.id}
+          id={thread.id}
           username={thread.username}
-          timestamp={thread.timestamp}
+          timestamp={thread.created_at}
           content={thread.content}
-          imageUrl={thread.imageUrl}
-          likes={thread.likes}
-          comments={thread.comments}
-          reposts={thread.reposts}
+          imageUrl={thread.image_url}
+          likes={thread.likes_count.toString()}
+          comments={thread.comments_count.toString()}
+          reposts={thread.reposts_count.toString()}
           verified={thread.verified}
-          avatarText={thread.avatarText}
+          avatarText={thread.avatar_text}
         />
       ))}
     </div>

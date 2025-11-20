@@ -1,8 +1,11 @@
-// components/ThreadCard/index.tsx
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useThreads } from '@/contexts/ThreadsContext';
 import styles from './ThreadCard.module.css';
 
 interface ThreadCardProps {
+  id: string;
   username: string;
   timestamp: string;
   content: string;
@@ -15,6 +18,7 @@ interface ThreadCardProps {
 }
 
 export default function ThreadCard({
+  id,
   username,
   timestamp,
   content,
@@ -25,6 +29,41 @@ export default function ThreadCard({
   verified = false,
   avatarText = 'K',
 }: ThreadCardProps) {
+  const { toggleLike, checkIfLiked } = useThreads();
+  const [isLiked, setIsLiked] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
+
+  useEffect(() => {
+    // Check liked status khi component mount
+    checkIfLiked(id).then(setIsLiked);
+  }, [id]);
+
+  const handleLike = async () => {
+    if (isLiking) return;
+    
+    setIsLiking(true);
+    setIsLiked(!isLiked); // Toggle UI ngay lập tức
+    await toggleLike(id);
+    
+    // Check lại status sau khi toggle
+    const newStatus = await checkIfLiked(id);
+    setIsLiked(newStatus);
+    setIsLiking(false);
+  };
+
+  const formatTimestamp = (ts: string) => {
+    const date = new Date(ts);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'Vừa xong';
+    if (diffHours < 24) return `${diffHours} giờ`;
+    if (diffHours < 48) return 'Hôm qua';
+    
+    return date.toLocaleDateString('vi-VN');
+  };
+
   return (
     <article className={styles.threadCard}>
       <div className={styles.threadContainer}>
@@ -43,7 +82,7 @@ export default function ThreadCard({
                   </svg>
                 </div>
               )}
-              <span className={styles.timestamp}>{timestamp}</span>
+              <span className={styles.timestamp}>{formatTimestamp(timestamp)}</span>
             </div>
             <div className={styles.menuButton}>
               <svg viewBox="0 0 24 24">
@@ -63,7 +102,10 @@ export default function ThreadCard({
           )}
 
           <div className={styles.threadActions}>
-            <div className={styles.actionButton}>
+            <div 
+              className={`${styles.actionButton} ${isLiked ? styles.active : ''}`}
+              onClick={handleLike}
+            >
               <div className={styles.actionIcon}>
                 <svg viewBox="0 0 24 24">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
