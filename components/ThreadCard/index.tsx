@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useThreads } from '@/contexts/ThreadsContext';
+import ImageModal from '@/components/ImageModal/ImageModal';
 import styles from './ThreadCard.module.css';
 
 interface ThreadCardProps {
@@ -38,6 +39,7 @@ export default function ThreadCard({
   const { toggleLike, checkIfLiked } = useThreads();
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
 
   useEffect(() => {
     checkIfLiked(id).then(setIsLiked);
@@ -54,8 +56,8 @@ export default function ThreadCard({
     setIsLiked(newStatus);
     setIsLiking(false);
     if (onLikeUpdate) {
-    onLikeUpdate();
-  }
+      onLikeUpdate();
+    }
   };
 
   const formatTimestamp = (ts: string) => {
@@ -123,9 +125,24 @@ export default function ThreadCard({
           <div className={styles.threadText}>{content}</div>
 
           {imageUrl && (
-            <div className={styles.threadMedia}>
-              <img src={imageUrl} alt="Thread media" />
-            </div>
+            <>
+              <div 
+                className={styles.threadMedia}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowImageModal(true);
+                }}
+              >
+                <img src={imageUrl} alt="Thread media" />
+              </div>
+              
+              {showImageModal && (
+                <ImageModal 
+                  imageUrl={imageUrl} 
+                  onClose={() => setShowImageModal(false)} 
+                />
+              )}
+            </>
           )}
 
           <div className={styles.threadActions}>
