@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useThreads } from '@/contexts/ThreadsContext';
+import React from 'react';
 import styles from './CreateThreadInput.module.css';
 
 interface CreateThreadInputProps {
@@ -13,19 +12,6 @@ export default function CreateThreadInput({
   avatarText = 'U',
   placeholder = 'Có gì mới?',
 }: CreateThreadInputProps) {
-  const [value, setValue] = useState('');
-  const { createThread } = useThreads();
-  const [posting, setPosting] = useState(false);
-
-  const handlePost = async () => {
-    if (!value.trim() || posting) return;
-    
-    setPosting(true);
-    await createThread(value.trim());
-    setValue('');
-    setPosting(false);
-  };
-
   return (
     <div className={styles.createThreadContainer}>
       <div className={styles.createThreadWrapper}>
@@ -34,24 +20,11 @@ export default function CreateThreadInput({
         </div>
 
         <div className={styles.createInputSection}>
-          <div className={styles.inputWrapper}>
-            <textarea
-              className={styles.threadInput}
-              placeholder={placeholder}
-              rows={1}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              disabled={posting}
-            />
-          </div>
+          <div className={styles.placeholder}>{placeholder}</div>
         </div>
 
-        <button
-          className={`${styles.postButton} ${value.trim() ? styles.active : ''}`}
-          disabled={!value.trim() || posting}
-          onClick={handlePost}
-        >
-          {posting ? 'Đang đăng...' : 'Đăng'}
+        <button className={styles.postButton}>
+          Đăng
         </button>
       </div>
     </div>

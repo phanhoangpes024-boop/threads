@@ -2,13 +2,20 @@
 
 import { useState } from 'react';
 import CreateThreadInput from '@/components/CreateThreadInput';
-import ThreadFeed from '@/components/ThreadFeed';  // GIỮ NGUYÊN - dùng component này
+import CreateThreadModal from '@/components/CreateThreadModal';
+import ThreadFeed from '@/components/ThreadFeed';
 import { useThreads } from '@/contexts/ThreadsContext';
 import { MOCK_USER } from '@/lib/currentUser';
 import styles from './page.module.css';
 
 export default function Home() {
   const { threads, loading } = useThreads();
+  const [showModal, setShowModal] = useState(false);
+
+  const handlePostThread = async (content: string) => {
+    console.log('New thread:', content);
+    // TODO: Call createThread from context
+  };
 
   if (loading) {
     return (
@@ -20,7 +27,18 @@ export default function Home() {
 
   return (
     <div className={styles.mainContainer}>
-      <CreateThreadInput avatarText={MOCK_USER.avatar_text} />
+      <div onClick={() => setShowModal(true)}>
+        <CreateThreadInput avatarText={MOCK_USER.avatar_text} />
+      </div>
+      
+      <CreateThreadModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handlePostThread}
+        username={MOCK_USER.username}
+        avatarText={MOCK_USER.avatar_text}
+      />
+      
       <ThreadFeed threads={threads} />
     </div>
   );

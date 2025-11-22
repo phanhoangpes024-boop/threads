@@ -139,7 +139,10 @@ export default function ThreadCard({
               {showImageModal && (
                 <ImageModal 
                   imageUrl={imageUrl} 
-                  onClose={() => setShowImageModal(false)} 
+                  onClose={(e) => {
+                    e?.stopPropagation?.();
+                    setShowImageModal(false);
+                  }} 
                 />
               )}
             </>
