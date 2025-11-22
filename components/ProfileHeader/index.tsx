@@ -1,3 +1,4 @@
+// components/ProfileHeader/index.tsx
 'use client';
 
 import React from 'react';
@@ -11,6 +12,7 @@ interface ProfileHeaderProps {
   verified?: boolean;
   followersCount: number;
   followersAvatars?: string[];
+  onEditClick?: () => void;
 }
 
 export default function ProfileHeader({
@@ -20,7 +22,8 @@ export default function ProfileHeader({
   avatarText,
   verified = false,
   followersCount,
-  followersAvatars = ['A', 'B', 'C']
+  followersAvatars = ['A', 'B', 'C'],
+  onEditClick,
 }: ProfileHeaderProps) {
   return (
     <div className={styles.profileHeader}>
@@ -78,7 +81,7 @@ export default function ProfileHeader({
         </div>
       </div>
       
-      <button className={styles.editButton}>
+      <button className={styles.editButton} onClick={onEditClick}>
         Chỉnh sửa trang cá nhân
       </button>
     </div>

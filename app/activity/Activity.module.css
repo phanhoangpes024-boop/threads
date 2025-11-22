@@ -1,0 +1,54 @@
+/* app/activity/Activity.module.css */
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  min-height: 100vh;
+}
+
+.header {
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.loading {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999999;
+  font-size: 15px;
+}
+
+.empty {
+  padding: 80px 20px;
+  text-align: center;
+  color: #999999;
+}
+
+.empty svg {
+  margin-bottom: 16px;
+}
+
+.empty p {
+  font-size: 16px;
+  margin: 0;
+}
+
+.threadsList {
+  background: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .container {
+    border-left: none;
+    border-right: none;
+  }
+}

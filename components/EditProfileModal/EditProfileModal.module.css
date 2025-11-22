@@ -1,0 +1,216 @@
+/* components/EditProfileModal/EditProfileModal.module.css */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: 20px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+}
+
+.closeBtn {
+  position: absolute;
+  left: 20px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  color: #000000;
+}
+
+.closeBtn:hover {
+  background: #f5f5f5;
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+}
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.field {
+  margin-bottom: 24px;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 8px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.input {
+  flex: 1;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #000000;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.input:focus {
+  border-color: #000000;
+}
+
+.input::placeholder {
+  color: #999999;
+}
+
+.input.disabled {
+  background: #f5f5f5;
+  color: #666666;
+  cursor: not-allowed;
+}
+
+.avatarPreview {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.usernameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.lockIcon {
+  color: #666666;
+  flex-shrink: 0;
+}
+
+.usernameRow .input {
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #000000;
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.4;
+}
+
+.textarea:focus {
+  border-color: #000000;
+}
+
+.textarea::placeholder {
+  color: #999999;
+}
+
+.charCount {
+  text-align: right;
+  font-size: 13px;
+  color: #999999;
+  margin-top: 4px;
+}
+
+.footer {
+  padding: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.saveBtn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: #000000;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.saveBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .overlay {
+    padding: 0;
+  }
+
+  .modal {
+    border-radius: 0;
+    max-height: 100vh;
+    height: 100vh;
+  }
+}

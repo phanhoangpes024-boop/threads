@@ -1,33 +1,62 @@
 // components/Header/index.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import React, { useState, useEffect } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import styles from './Header.module.css';
 
 export default function Header() {
   const [activeTab, setActiveTab] = useState<'for-you' | 'following'>('following');
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
+  const [canGoBack, setCanGoBack] = useState(false);
+
+  useEffect(() => {
+    // Check if can go back (not first page in history)
+    setCanGoBack(window.history.length > 1);
+  }, [pathname]);
+
   // Check if we're on thread detail page
   const isThreadDetail = pathname?.startsWith('/thread/');
+  // Check if we're on search results page
+  const isSearchResults = pathname === '/search/results';
+  // Check if we're on home page
+  const isHomePage = pathname === '/';
+
+  const handleBack = () => {
+    router.back();
+  };
+
+  // Determine what to show in header
+  const showBackButton = !isHomePage && canGoBack;
+  
+  // Get page title
+  const getPageTitle = () => {
+    if (isThreadDetail) return 'Thread';
+    if (isSearchResults) {
+      const query = searchParams.get('q');
+      return query || 'Tìm kiếm';
+    }
+    return '';
+  };
 
   return (
     <>
       {/* Desktop Header */}
       <header className={styles.desktopHeader}>
-        {isThreadDetail ? (
+        {showBackButton ? (
           <>
             <button 
               className={styles.backButton}
-              onClick={() => router.push('/')}
+              onClick={handleBack}
             >
               <svg viewBox="0 0 24 24" width="20" height="20">
                 <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
               </svg>
             </button>
-            <div className={styles.threadTitle}>Thread</div>
+            <div className={styles.threadTitle}>{getPageTitle()}</div>
             <button className={styles.desktopMenuButton}>
               <svg viewBox="0 0 24 24">
                 <circle cx="12" cy="5" r="1.5" />
@@ -58,17 +87,17 @@ export default function Header() {
       {/* Mobile Header */}
       <header className={styles.mobileHeader}>
         <div className={styles.mobileHeaderTop}>
-          {isThreadDetail ? (
+          {showBackButton ? (
             <>
               <button 
                 className={styles.mobileBackButton}
-                onClick={() => router.push('/')}
+                onClick={handleBack}
               >
                 <svg viewBox="0 0 24 24" width="24" height="24">
                   <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                 </svg>
               </button>
-              <div className={styles.mobileThreadTitle}>Thread</div>
+              <div className={styles.mobileThreadTitle}>{getPageTitle()}</div>
               <button className={styles.mobileMenuButton}>
                 <svg viewBox="0 0 24 24">
                   <line x1="3" y1="12" x2="21" y2="12" />
@@ -91,7 +120,7 @@ export default function Header() {
           )}
         </div>
         
-        {!isThreadDetail && (
+        {!showBackButton && (
           <nav className={styles.mobileTabs}>
             <button
               className={`${styles.mobileTab} ${activeTab === 'for-you' ? styles.active : ''}`}
