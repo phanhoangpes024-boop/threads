@@ -60,18 +60,39 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { user_id, content, image_url } = await request.json()
-  
-  const { data, error } = await supabase
-    .from('threads')
-    .insert({ user_id, content, image_url })
-    .select()
-    .single()
-  
-  if (error) {
-    console.error('Error creating thread:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  try {
+    const { user_id, content, image_url } = await request.json()
+    
+    // Validate input
+    if (!user_id || !content?.trim()) {
+      return NextResponse.json(
+        { error: 'user_id and content are required' }, 
+        { status: 400 }
+      )
+    }
+    
+    // Insert thread vào database
+    const { data, error } = await supabase
+      .from('threads')
+      .insert({ 
+        user_id, 
+        content: content.trim(), 
+        image_url: image_url || null 
+      })
+      .select()
+      .single()
+    
+    if (error) {
+      console.error('Error creating thread:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    
+    return NextResponse.json(data, { status: 201 })
+  } catch (error) {
+    console.error('Error in POST /api/threads:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' }, 
+      { status: 500 }
+    )
   }
-  
-  return NextResponse.json(data)
 }

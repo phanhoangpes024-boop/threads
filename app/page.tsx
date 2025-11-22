@@ -9,12 +9,14 @@ import { MOCK_USER } from '@/lib/currentUser';
 import styles from './page.module.css';
 
 export default function Home() {
-  const { threads, loading } = useThreads();
+  const { threads, loading, createThread } = useThreads();
   const [showModal, setShowModal] = useState(false);
 
   const handlePostThread = async (content: string) => {
-    console.log('New thread:', content);
-    // TODO: Call createThread from context
+    const success = await createThread(content);
+    if (success) {
+      setShowModal(false);
+    }
   };
 
   if (loading) {

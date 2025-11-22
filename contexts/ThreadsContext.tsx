@@ -20,7 +20,7 @@ interface Thread {
 interface ThreadsContextType {
   threads: Thread[];
   loading: boolean;
-  createThread: (content: string, imageUrl?: string) => Promise<void>;
+  createThread: (content: string, imageUrl?: string) => Promise<boolean>;
   toggleLike: (threadId: string) => Promise<void>;
   refreshThreads: () => Promise<void>;
   checkIfLiked: (threadId: string) => Promise<boolean>;
@@ -49,7 +49,7 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
     fetchThreads();
   }, []);
 
-  const createThread = async (content: string, imageUrl?: string) => {
+  const createThread = async (content: string, imageUrl?: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/threads', {
         method: 'POST',
@@ -61,11 +61,18 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
         }),
       });
       
-      if (res.ok) {
-        await fetchThreads();
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to create thread');
       }
+      
+      // Refresh toàn bộ thread list để có thread mới
+      await fetchThreads();
+      
+      return true;
     } catch (error) {
       console.error('Error creating thread:', error);
+      return false;
     }
   };
 
