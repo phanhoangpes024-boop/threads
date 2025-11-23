@@ -1,3 +1,4 @@
+// contexts/ThreadsContext.tsx - OPTIMIZED
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -5,8 +6,8 @@ import { MOCK_USER } from '@/lib/currentUser';
 
 interface Thread {
   id: string;
-  username: string;
-  avatar_text: string;
+  username: string | null;
+  avatar_text: string | null;
   verified: boolean;
   content: string;
   image_url?: string;
@@ -37,9 +38,10 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch('/api/threads');
       const data = await res.json();
-      setThreads(data);
+      setThreads(data.threads || data || []); // Support both formats
     } catch (error) {
       console.error('Error fetching threads:', error);
+      setThreads([]);
     } finally {
       setLoading(false);
     }
@@ -66,8 +68,18 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
         throw new Error(error.error || 'Failed to create thread');
       }
       
-      // Refresh toàn bộ thread list để có thread mới
-      await fetchThreads();
+      const newThread = await res.json();
+      
+      // Optimistic update - thêm thread mới vào đầu list
+      setThreads(prev => [{
+        ...newThread,
+        username: MOCK_USER.username,
+        avatar_text: MOCK_USER.avatar_text,
+        verified: false,
+        likes_count: 0,
+        comments_count: 0,
+        reposts_count: 0,
+      }, ...prev]);
       
       return true;
     } catch (error) {
@@ -79,7 +91,7 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
   const toggleLike = async (threadId: string) => {
     const isCurrentlyLiked = likedThreads.has(threadId);
     
-    // Optimistic update - UI respond ngay
+    // Optimistic update
     setLikedThreads(prev => {
       const newSet = new Set(prev);
       if (isCurrentlyLiked) {
@@ -110,11 +122,8 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ user_id: MOCK_USER.id }),
       });
       
-      if (res.ok) {
-        // Fetch lại để có count chính xác từ DB
-        await fetchThreads();
-      } else {
-        // Revert nếu lỗi
+      if (!res.ok) {
+        // Revert on error
         setLikedThreads(prev => {
           const newSet = new Set(prev);
           if (isCurrentlyLiked) {
@@ -124,12 +133,22 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
           }
           return newSet;
         });
-        await fetchThreads();
+        
+        setThreads(prevThreads =>
+          prevThreads.map(thread =>
+            thread.id === threadId
+              ? {
+                  ...thread,
+                  likes_count: isCurrentlyLiked 
+                    ? thread.likes_count + 1
+                    : Math.max(0, thread.likes_count - 1)
+                }
+              : thread
+          )
+        );
       }
-      
     } catch (error) {
       console.error('Error toggling like:', error);
-      await fetchThreads();
     }
   };
 

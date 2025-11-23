@@ -26,10 +26,7 @@ export default function ThreadDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showCommentInput, setShowCommentInput] = useState(false);
   
-  // Dùng threads từ context + refreshThreads
   const { threads, refreshThreads } = useThreads();
-  
-  // Tìm thread hiện tại từ context
   const thread = threads.find(t => t.id === threadId);
 
   const fetchComments = async () => {
@@ -52,7 +49,7 @@ export default function ThreadDetailPage() {
 
   const handleCommentSubmit = async () => {
     await fetchComments();
-    await refreshThreads();  // Refresh để cập nhật comments_count
+    await refreshThreads();
     setShowCommentInput(false);
   };
 
@@ -68,7 +65,7 @@ export default function ThreadDetailPage() {
     <div className={styles.container}>
       <ThreadCard
         id={thread.id}
-        username={thread.username}
+        username={thread.username || 'Unknown'}
         timestamp={thread.created_at}
         content={thread.content}
         imageUrl={thread.image_url}
@@ -76,7 +73,7 @@ export default function ThreadDetailPage() {
         comments={thread.comments_count.toString()}
         reposts={thread.reposts_count.toString()}
         verified={thread.verified}
-        avatarText={thread.avatar_text}
+        avatarText={thread.avatar_text || 'U'}
         isDetailView={true}
         onCommentClick={() => setShowCommentInput(true)}
       />

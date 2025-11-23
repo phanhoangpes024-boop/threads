@@ -1,121 +1,74 @@
-// app/api/users/[id]/activity/route.ts
+// app/api/users/[id]/activity/route.ts - OPTIMIZED
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+
+const THREAD_SELECT = `
+  id,
+  user_id,
+  content,
+  image_url,
+  created_at,
+  likes_count,
+  comments_count,
+  reposts_count,
+  users (username, avatar_text, verified)
+`;
 
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const params = await context.params
-  const userId = params.id
+  const { id: userId } = await context.params;
 
   try {
-    // Get threads where user is author
-    const { data: authorThreads } = await supabase
-      .from('threads')
-      .select(`
-        *,
-        users!inner (
-          username,
-          avatar_text,
-          verified
-        )
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+    // Parallel fetch: author threads + liked/commented IDs
+    const [authorThreads, likedIds, commentedIds] = await Promise.all([
+      supabase.from('threads').select(THREAD_SELECT).eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('likes').select('thread_id').eq('user_id', userId),
+      supabase.from('comments').select('thread_id').eq('user_id', userId)
+    ]);
 
-    // Get threads where user has liked
-    const { data: likedThreadIds } = await supabase
-      .from('likes')
-      .select('thread_id')
-      .eq('user_id', userId)
+    // Get unique thread IDs from likes/comments
+    const threadIds = new Set([
+      ...(likedIds.data?.map(l => l.thread_id) || []),
+      ...(commentedIds.data?.map(c => c.thread_id) || [])
+    ]);
 
-    const likedIds = likedThreadIds?.map(l => l.thread_id) || []
-
-    let likedThreads: any[] = []
-    if (likedIds.length > 0) {
+    // Fetch related threads if any
+    let relatedThreads: any[] = [];
+    if (threadIds.size > 0) {
       const { data } = await supabase
         .from('threads')
-        .select(`
-          *,
-          users!inner (
-            username,
-            avatar_text,
-            verified
-          )
-        `)
-        .in('id', likedIds)
-        .order('created_at', { ascending: false })
-      
-      likedThreads = data || []
+        .select(THREAD_SELECT)
+        .in('id', Array.from(threadIds))
+        .order('created_at', { ascending: false });
+      relatedThreads = data || [];
     }
 
-    // Get threads where user has commented
-    const { data: commentedThreadIds } = await supabase
-      .from('comments')
-      .select('thread_id')
-      .eq('user_id', userId)
+    // Combine + deduplicate
+    const allThreads = [...(authorThreads.data || []), ...relatedThreads];
+    const uniqueMap = new Map(allThreads.map(t => [t.id, t]));
+    const uniqueThreads = Array.from(uniqueMap.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    const commentedIds = commentedThreadIds?.map(c => c.thread_id) || []
-
-    let commentedThreads: any[] = []
-    if (commentedIds.length > 0) {
-      const { data } = await supabase
-        .from('threads')
-        .select(`
-          *,
-          users!inner (
-            username,
-            avatar_text,
-            verified
-          )
-        `)
-        .in('id', commentedIds)
-        .order('created_at', { ascending: false })
-      
-      commentedThreads = data || []
-    }
-
-    // Combine and deduplicate
-    const allThreads = [...(authorThreads || []), ...likedThreads, ...commentedThreads]
-    const uniqueThreadsMap = new Map()
-    allThreads.forEach(thread => {
-      if (!uniqueThreadsMap.has(thread.id)) {
-        uniqueThreadsMap.set(thread.id, thread)
-      }
-    })
-
-    const uniqueThreads = Array.from(uniqueThreadsMap.values())
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-    // Get stats for each thread
-    const threadsWithStats = await Promise.all(
-      uniqueThreads.map(async (thread) => {
-        const [likesResult, commentsResult, repostsResult] = await Promise.all([
-          supabase.from('likes').select('*', { count: 'exact', head: true }).eq('thread_id', thread.id),
-          supabase.from('comments').select('*', { count: 'exact', head: true }).eq('thread_id', thread.id),
-          supabase.from('reposts').select('*', { count: 'exact', head: true }).eq('thread_id', thread.id),
-        ])
-
-        return {
-          id: thread.id,
-          user_id: thread.user_id,
-          content: thread.content,
-          image_url: thread.image_url,
-          created_at: thread.created_at,
-          username: thread.users.username,
-          avatar_text: thread.users.avatar_text,
-          verified: thread.users.verified,
-          likes_count: likesResult.count || 0,
-          comments_count: commentsResult.count || 0,
-          reposts_count: repostsResult.count || 0,
-        }
-      })
-    )
-
-    return NextResponse.json(threadsWithStats)
+    // Format response - NO COUNT queries
+    return NextResponse.json(
+      uniqueThreads.map((t: any) => ({
+        id: t.id,
+        user_id: t.user_id,
+        content: t.content,
+        image_url: t.image_url,
+        created_at: t.created_at,
+        username: t.users?.username ?? null,
+        avatar_text: t.users?.avatar_text ?? null,
+        verified: t.users?.verified ?? false,
+        likes_count: t.likes_count || 0,
+        comments_count: t.comments_count || 0,
+        reposts_count: t.reposts_count || 0,
+      }))
+    );
   } catch (error) {
-    console.error('Error fetching activity:', error)
-    return NextResponse.json({ error: 'Failed to fetch activity' }, { status: 500 })
+    console.error('Error fetching activity:', error);
+    return NextResponse.json({ error: 'Failed to fetch activity' }, { status: 500 });
   }
 }

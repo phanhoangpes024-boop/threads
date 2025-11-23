@@ -1,11 +1,23 @@
-// app/api/search/route.ts
+// app/api/search/route.ts - OPTIMIZED
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+
+const THREAD_SELECT = `
+  id,
+  user_id,
+  content,
+  image_url,
+  created_at,
+  likes_count,
+  comments_count,
+  reposts_count,
+  users (username, avatar_text, verified)
+`;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const query = searchParams.get('q')
-  const type = searchParams.get('type') || 'all' // 'threads', 'users', 'all'
+  const type = searchParams.get('type') || 'all'
   
   if (!query || query.trim().length < 3) {
     return NextResponse.json({ error: 'Query must be at least 3 characters' }, { status: 400 })
@@ -14,56 +26,37 @@ export async function GET(request: Request) {
   try {
     const results: any = {}
 
-    // Search threads
+    // Search threads - NO COUNT queries
     if (type === 'threads' || type === 'all') {
       const { data: threads, error: threadsError } = await supabase
         .from('threads')
-        .select(`
-          *,
-          users!inner (
-            username,
-            avatar_text,
-            verified
-          )
-        `)
+        .select(THREAD_SELECT)
         .ilike('content', `%${query}%`)
         .order('created_at', { ascending: false })
         .limit(20)
 
       if (threadsError) throw threadsError
 
-      const threadsWithStats = await Promise.all(
-        (threads || []).map(async (thread: any) => {
-          const [likesResult, commentsResult, repostsResult] = await Promise.all([
-            supabase.from('likes').select('*', { count: 'exact', head: true }).eq('thread_id', thread.id),
-            supabase.from('comments').select('*', { count: 'exact', head: true }).eq('thread_id', thread.id),
-            supabase.from('reposts').select('*', { count: 'exact', head: true }).eq('thread_id', thread.id),
-          ])
-
-          return {
-            id: thread.id,
-            user_id: thread.user_id,
-            content: thread.content,
-            image_url: thread.image_url,
-            created_at: thread.created_at,
-            username: thread.users.username,
-            avatar_text: thread.users.avatar_text,
-            verified: thread.users.verified,
-            likes_count: likesResult.count || 0,
-            comments_count: commentsResult.count || 0,
-            reposts_count: repostsResult.count || 0,
-          }
-        })
-      )
-
-      results.threads = threadsWithStats
+      results.threads = (threads || []).map((t: any) => ({
+        id: t.id,
+        user_id: t.user_id,
+        content: t.content,
+        image_url: t.image_url,
+        created_at: t.created_at,
+        username: t.users?.username ?? null,
+        avatar_text: t.users?.avatar_text ?? null,
+        verified: t.users?.verified ?? false,
+        likes_count: t.likes_count || 0,
+        comments_count: t.comments_count || 0,
+        reposts_count: t.reposts_count || 0,
+      }))
     }
 
     // Search users
     if (type === 'users' || type === 'all') {
       const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('*')
+        .select('id, username, bio, avatar_text, verified')
         .or(`username.ilike.%${query}%,bio.ilike.%${query}%`)
         .limit(20)
 

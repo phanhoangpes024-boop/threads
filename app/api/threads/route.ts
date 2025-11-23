@@ -1,77 +1,82 @@
+// app/api/threads/route.ts
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-export async function GET() {
-  // Bước 1: Lấy threads + join users
-  const { data: threads, error } = await supabase
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
+  const cursor = searchParams.get('cursor')
+  
+  let query = supabase
     .from('threads')
     .select(`
-      *,
-      users!inner (
+      id,
+      user_id,
+      content,
+      image_url,
+      created_at,
+      likes_count,
+      comments_count,
+      reposts_count,
+      users (
         username,
         avatar_text,
         verified
       )
     `)
     .order('created_at', { ascending: false })
+    .limit(limit)
+  
+  if (cursor) {
+    query = query.lt('created_at', cursor)
+  }
+  
+  const { data, error } = await query
   
   if (error) {
-    console.error('Error fetching threads:', error)
+    console.error('Error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   
-  // Bước 2: Đếm likes, comments, reposts cho từng thread
-  const threadsWithStats = await Promise.all(
-    threads.map(async (thread) => {
-      // Đếm realtime từ các bảng
-      const [likesResult, commentsResult, repostsResult] = await Promise.all([
-        supabase
-          .from('likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('thread_id', thread.id),
-        supabase
-          .from('comments')
-          .select('*', { count: 'exact', head: true })
-          .eq('thread_id', thread.id),
-        supabase
-          .from('reposts')
-          .select('*', { count: 'exact', head: true })
-          .eq('thread_id', thread.id),
-      ])
-      
-      // Bước 3: Ghép data
-      return {
-        id: thread.id,
-        user_id: thread.user_id,
-        content: thread.content,
-        image_url: thread.image_url,
-        created_at: thread.created_at,
-        username: thread.users.username,
-        avatar_text: thread.users.avatar_text,
-        verified: thread.users.verified,
-        likes_count: likesResult.count || 0,
-        comments_count: commentsResult.count || 0,
-        reposts_count: repostsResult.count || 0,
-      }
-    })
-  )
+  // Fix: Type assertion vì Supabase types chưa update
+  const threads = (data as any)?.map((t: any) => ({
+    id: t.id,
+    user_id: t.user_id,
+    content: t.content,
+    image_url: t.image_url,
+    created_at: t.created_at,
+    likes_count: t.likes_count || 0,
+    comments_count: t.comments_count || 0,
+    reposts_count: t.reposts_count || 0,
+    username: t.users?.username ?? null,
+    avatar_text: t.users?.avatar_text ?? null,
+    verified: t.users?.verified ?? false,
+  })) || []
   
-  return NextResponse.json(threadsWithStats)
+  return NextResponse.json({
+    threads,
+    nextCursor: threads.length === limit ? threads[threads.length - 1].created_at : null
+  })
 }
 
 export async function POST(request: Request) {
   try {
     const { user_id, content, image_url } = await request.json()
     
-    // Validate input
     if (!user_id || !content?.trim()) {
       return NextResponse.json(
-        { error: 'user_id and content are required' }, 
+        { error: 'user_id and content required' }, 
         { status: 400 }
       )
     }
     
-    // Insert thread vào database
+    if (content.length > 500) {
+      return NextResponse.json(
+        { error: 'Content max 500 chars' }, 
+        { status: 400 }
+      )
+    }
+    
     const { data, error } = await supabase
       .from('threads')
       .insert({ 
@@ -83,16 +88,13 @@ export async function POST(request: Request) {
       .single()
     
     if (error) {
-      console.error('Error creating thread:', error)
+      console.error('Error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     
     return NextResponse.json(data, { status: 201 })
   } catch (error) {
-    console.error('Error in POST /api/threads:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' }, 
-      { status: 500 }
-    )
+    console.error('Error:', error)
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

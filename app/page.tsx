@@ -41,7 +41,7 @@ export default function Home() {
         avatarText={MOCK_USER.avatar_text}
       />
       
-      <ThreadFeed threads={threads} />
+      <ThreadFeed threads={threads as any} />
     </div>
   );
 }
