@@ -2,14 +2,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import styles from './Header.module.css';
 
 export default function Header() {
   const [activeTab, setActiveTab] = useState<'for-you' | 'following'>('following');
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   
   const [canGoBack, setCanGoBack] = useState(false);
 
@@ -32,13 +31,12 @@ export default function Header() {
   // Determine what to show in header
   const showBackButton = !isHomePage && canGoBack;
   
-  // Get page title
+  // Get page title - bỏ query params để tránh useSearchParams
   const getPageTitle = () => {
     if (isThreadDetail) return 'Thread';
-    if (isSearchResults) {
-      const query = searchParams.get('q');
-      return query || 'Tìm kiếm';
-    }
+    if (isSearchResults) return 'Tìm kiếm';
+    if (pathname?.startsWith('/activity')) return 'Hoạt động';
+    if (pathname?.startsWith('/profile')) return 'Trang cá nhân';
     return '';
   };
 
