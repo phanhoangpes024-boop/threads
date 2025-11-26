@@ -1,0 +1,283 @@
+.threadCard {
+  max-width: 600px;
+  width: 100%;
+  padding: 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #ffffff;
+}
+
+.threadContainer {
+  display: flex;
+  gap: 16px;
+}
+
+.threadAvatar {
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.threadContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.threadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.threadHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.username {
+  font-weight: 600;
+  color: #000000;
+  font-size: 15px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.username:hover {
+  opacity: 0.7;
+}
+
+.verifiedBadge {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.verifiedBadge svg {
+  width: 100%;
+  height: 100%;
+  fill: #0095f6;
+}
+
+.timestamp {
+  color: #999999;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.menuButton {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.menuButton:hover {
+  background-color: #f5f5f5;
+}
+
+.menuButton svg {
+  width: 20px;
+  height: 20px;
+  fill: #999999;
+}
+
+.threadText {
+  color: #000000;
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  word-wrap: break-word;
+}
+
+.threadMedia {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.threadMedia img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.threadActions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding-top: 4px;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.actionIcon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.actionButton:hover .actionIcon {
+  background-color: #f5f5f5;
+}
+
+.actionIcon svg {
+  width: 20px;
+  height: 20px;
+  stroke: #999999;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.2s ease;
+}
+
+.actionButton.active .actionIcon svg {
+  stroke: #000000;
+  fill: #000000;
+}
+
+.actionCount {
+  color: #999999;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .threadCard {
+    max-width: 100%;
+    padding: 16px;
+    margin: 0;
+  }
+
+  .threadContainer {
+    gap: 12px;
+  }
+
+  .avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+  }
+
+  .username {
+    font-size: 14px;
+  }
+
+  .timestamp {
+    font-size: 14px;
+  }
+
+  .threadText {
+    font-size: 14px;
+  }
+
+  .actionIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .actionIcon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .actionCount {
+    font-size: 13px;
+  }
+
+  .threadActions {
+    gap: 20px;
+  }
+
+  .imageModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+.imageModalClose {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 10000;
+}
+
+.imageModalClose:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.imageModalClose svg {
+  width: 24px;
+  height: 24px;
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.imageModalImg {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  cursor: default;
+}
+
+@media (max-width: 768px) {
+  .imageModalClose {
+    top: 10px;
+    right: 10px;
+  }
+}
+.threadMedia {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f5f5f5;
+  aspect-ratio: 1 / 1; /* Tránh layout shift */
+}
+}

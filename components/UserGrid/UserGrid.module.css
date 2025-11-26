@@ -1,0 +1,89 @@
+/* components/UserGrid/UserGrid.module.css */
+
+.userGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.userCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.userCard:hover {
+  transform: translateY(-2px);
+}
+
+.avatarWrapper {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 28px;
+}
+
+.addButton {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.addButton:hover {
+  transform: scale(1.1);
+}
+
+.addButton.added {
+  background: #0095f6;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: #000000;
+  margin-bottom: 2px;
+}
+
+.name {
+  font-size: 13px;
+  color: #999999;
+}
+
+@media (max-width: 768px) {
+  .userGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .avatar {
+    width: 70px;
+    height: 70px;
+    font-size: 24px;
+  }
+}

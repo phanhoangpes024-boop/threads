@@ -1,0 +1,155 @@
+.desktopNav {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 80px;
+  height: 100%;
+  background: #ffffff;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.navLogo {
+  padding-top: 16px;
+}
+
+.navItems {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+
+.navItem {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+}
+
+.navItem:hover {
+  background: #f5f5f5;
+}
+
+.navItem svg {
+  width: 26px;
+  height: 26px;
+  stroke: #999999;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: all 0.2s ease;
+}
+
+.navItem.active svg {
+  stroke: #000000;
+  fill: #000000;
+}
+
+.navItem svg.filled {
+  fill: #999999;
+}
+
+.navItem.active svg.filled {
+  fill: #000000;
+}
+
+.navMenu {
+  padding-bottom: 16px;
+}
+
+/* Mobile Bottom Navigation */
+.mobileNav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: #ffffff;
+  border-top: 1px solid #e0e0e0;
+  z-index: 1000;
+}
+
+.mobileNavItems {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: 100%;
+  padding: 0 16px;
+  position: relative;
+}
+
+.mobileNavItem {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.mobileNavItem svg {
+  width: 26px;
+  height: 26px;
+  stroke: #999999;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: all 0.2s ease;
+}
+
+.mobileNavItem.active svg {
+  stroke: #000000;
+  fill: #000000;
+}
+
+.mobileNavItem.active svg.filled {
+  fill: #000000;
+}
+
+.mobileNavItem svg.filled {
+  fill: #999999;
+}
+
+/* Plus button - larger and elevated */
+.mobileNavItem.plusBtn {
+  width: 56px;
+  height: 56px;
+  background: #000000;
+  border-radius: 16px;
+  position: relative;
+  top: -8px;
+}
+
+.mobileNavItem.plusBtn svg {
+  stroke: #ffffff;
+  width: 28px;
+  height: 28px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .desktopNav {
+    display: none;
+  }
+
+  .mobileNav {
+    display: block;
+  }
+}

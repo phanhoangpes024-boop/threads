@@ -1,0 +1,63 @@
+/* components/CustomScrollbar/CustomScrollbar.module.css */
+
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  overflow-y: scroll !important; /* Force scroll */
+  overflow-x: hidden;
+  
+  /* Ẩn scrollbar gốc */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.scrollbar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 8px;
+  height: 100vh;
+  background: transparent;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.thumb {
+  position: absolute;
+  right: 0;
+  width: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  transition: background 0.2s, width 0.2s;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.thumb:active {
+  cursor: grabbing;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+@media (max-width: 768px) {
+  .scrollbar {
+    width: 6px;
+  }
+  
+  .thumb {
+    width: 6px;
+  }
+}
