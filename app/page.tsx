@@ -8,7 +8,7 @@ import CreateThreadInput from '@/components/CreateThreadInput'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
 import { useThreads, useCreateThread } from '@/hooks/useThreads'
-import { MOCK_USER } from '@/lib/currentUser'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import styles from './page.module.css'
 
 const CreateThreadModal = dynamic(
@@ -19,6 +19,7 @@ const CreateThreadModal = dynamic(
 export default function Home() {
   const { data: threads = [], isLoading } = useThreads()
   const createMutation = useCreateThread()
+  const { user, loading: userLoading } = useCurrentUser()
   const [showModal, setShowModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
@@ -27,7 +28,7 @@ export default function Home() {
     setShowModal(false)
   }
 
-  if (isLoading) {
+  if (isLoading || userLoading) {
     return (
       <div className={styles.mainContainer}>
         <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
@@ -38,7 +39,7 @@ export default function Home() {
   return (
     <CustomScrollbar className={styles.mainContainer}>
       <div onClick={() => setShowModal(true)}>
-        <CreateThreadInput avatarText={MOCK_USER.avatar_text} />
+        <CreateThreadInput avatarText={user.avatar_text} />
       </div>
       
       {showModal && (
@@ -46,8 +47,8 @@ export default function Home() {
           isOpen={showModal}
           onClose={() => setShowModal(false)}
           onSubmit={handlePostThread}
-          username={MOCK_USER.username}
-          avatarText={MOCK_USER.avatar_text}
+          username={user.username}
+          avatarText={user.avatar_text}
         />
       )}
       

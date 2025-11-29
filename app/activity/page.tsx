@@ -1,77 +1,83 @@
-// app/activity/page.tsx
-'use client';
+// app/page.tsx - Với Custom Scrollbar
+'use client'
 
-import { useMemo, useState } from 'react';
-import CustomScrollbar from '@/components/CustomScrollbar';
-import ThreadCard from '@/components/ThreadCard';
-import CommentInput from '@/components/CommentInput';
-import { useThreads } from '@/hooks/useThreads';
-import { MOCK_USER } from '@/lib/currentUser';
-import styles from './Activity.module.css';
+import { useState } from 'react'
+import dynamic from 'next/dynamic'
+import CustomScrollbar from '@/components/CustomScrollbar'
+import CreateThreadInput from '@/components/CreateThreadInput'
+import ThreadCard from '@/components/ThreadCard'
+import CommentInput from '@/components/CommentInput'
+import { useThreads, useCreateThread } from '@/hooks/useThreads'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
+import styles from './Activity.module.css'
 
-export default function ActivityPage() {
-  const { data: threads = [], isLoading } = useThreads();
-  const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
+const CreateThreadModal = dynamic(
+  () => import('@/components/CreateThreadModal'),
+  { ssr: false }
+)
 
-  const activityThreads = useMemo(() => {
-    return threads.filter(thread => {
-      if (thread.user_id === MOCK_USER.id) return true;
-      if (thread.isLiked) return true;
-      return false;
-    });
-  }, [threads]);
+export default function Home() {
+  const { data: threads = [], isLoading } = useThreads()
+  const createMutation = useCreateThread()
+  const { user, loading: userLoading } = useCurrentUser()
+  const [showModal, setShowModal] = useState(false)
+  const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  if (isLoading) {
+  const handlePostThread = async (content: string) => {
+    await createMutation.mutateAsync({ content })
+    setShowModal(false)
+  }
+
+  if (isLoading || userLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Đang tải...</div>
+      <div className={styles.mainContainer}>
+        <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
       </div>
-    );
+    )
   }
 
   return (
-    <CustomScrollbar className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Hoạt động</h1>
+    <CustomScrollbar className={styles.mainContainer}>
+      <div onClick={() => setShowModal(true)}>
+        <CreateThreadInput avatarText={user.avatar_text} />
       </div>
-
-      {activityThreads.length === 0 ? (
-        <div className={styles.empty}>
-          <svg viewBox="0 0 24 24" width="64" height="64" stroke="#999" fill="none" strokeWidth="1.5">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <p>Chưa có hoạt động nào</p>
-        </div>
-      ) : (
-        <div className={styles.threadsList}>
-          {activityThreads.map((thread) => (
-            <div key={thread.id}>
-              <ThreadCard
-                id={thread.id}
-                username={thread.username || 'Unknown'}
-                timestamp={thread.created_at}
-                content={thread.content}
-                imageUrl={thread.image_url}
-                likes={thread.likes_count.toString()}
-                comments={thread.comments_count.toString()}
-                reposts={thread.reposts_count.toString()}
-                verified={thread.verified}
-                avatarText={thread.avatar_text || 'U'}
-                isLiked={thread.isLiked}
-                onCommentClick={() => setActiveCommentThreadId(thread.id)}
-              />
-              
-              {activeCommentThreadId === thread.id && (
-                <CommentInput
-                  threadId={thread.id}
-                  onCommentSubmit={() => setActiveCommentThreadId(null)}
-                  autoFocus={true}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+      
+      {showModal && (
+        <CreateThreadModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          onSubmit={handlePostThread}
+          username={user.username}
+          avatarText={user.avatar_text}
+        />
       )}
+      
+      {threads.map((thread: any) => (
+        <div key={thread.id}>
+          <ThreadCard
+            id={thread.id}
+            username={thread.username}
+            timestamp={thread.created_at}
+            content={thread.content}
+            imageUrl={thread.image_url}
+            likes={thread.likes_count.toString()}
+            comments={thread.comments_count.toString()}
+            reposts={thread.reposts_count.toString()}
+            verified={thread.verified}
+            avatarText={thread.avatar_text}
+            isLiked={thread.isLiked}
+            onCommentClick={() => setActiveCommentThreadId(thread.id)}
+          />
+          
+          {activeCommentThreadId === thread.id && (
+            <CommentInput
+              threadId={thread.id}
+              onCommentSubmit={() => setActiveCommentThreadId(null)}
+              autoFocus={true}
+            />
+          )}
+        </div>
+      ))}
     </CustomScrollbar>
-  );
+  )
 }

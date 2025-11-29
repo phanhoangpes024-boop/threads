@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MOCK_USER } from '@/lib/currentUser';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './EditProfileModal.module.css';
 
 interface EditProfileModalProps {
@@ -23,6 +23,7 @@ export default function EditProfileModal({
   currentProfile,
   onSave,
 }: EditProfileModalProps) {
+  const { user } = useCurrentUser();
   const [name, setName] = useState(currentProfile.name || '');
   const [avatarText, setAvatarText] = useState(currentProfile.avatar_text);
   const [bio, setBio] = useState(currentProfile.bio || '');
@@ -47,7 +48,7 @@ export default function EditProfileModal({
     
     setSaving(true);
     try {
-      const res = await fetch(`/api/users/${MOCK_USER.id}/profile`, {
+      const res = await fetch(`/api/users/${user.id}/profile`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -58,8 +59,17 @@ export default function EditProfileModal({
       });
 
       if (res.ok) {
+        // Cập nhật localStorage với thông tin mới
+        const updatedUser = {
+          ...user,
+          avatar_text: avatarText.trim().toUpperCase().slice(0, 2),
+          bio: bio.trim(),
+        };
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+        
         onSave();
         onClose();
+        window.location.reload(); // Reload để cập nhật UI
       } else {
         alert('Có lỗi xảy ra khi lưu thay đổi');
       }

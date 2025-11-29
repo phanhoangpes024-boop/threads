@@ -1,4 +1,4 @@
-// app/search/page.tsx
+/// app/search/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import CustomScrollbar from '@/components/CustomScrollbar';
 import SearchBar from '@/components/SearchBar';
 import UserCard from '@/components/UserCard';
-import { MOCK_USER } from '@/lib/currentUser';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './Search.module.css';
 
 interface User {
@@ -18,13 +18,16 @@ interface User {
 
 export default function SearchPage() {
   const router = useRouter();
+  const { user, loading: userLoading } = useCurrentUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [matchingUsers, setMatchingUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    fetchSuggestedUsers();
-  }, []);
+    if (user.id) {
+      fetchSuggestedUsers();
+    }
+  }, [user.id]);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -36,7 +39,7 @@ export default function SearchPage() {
 
   const fetchSuggestedUsers = async () => {
     try {
-      const res = await fetch('/api/users/suggestions?limit=5');
+      const res = await fetch(`/api/users/suggestions?limit=5&user_id=${user.id}`);
       const data = await res.json();
       setSuggestedUsers(data);
     } catch (error) {
@@ -59,7 +62,7 @@ export default function SearchPage() {
       await fetch(`/api/users/${userId}/follow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: MOCK_USER.id }),
+        body: JSON.stringify({ user_id: user.id }),
       });
     } catch (error) {
       console.error('Error toggling follow:', error);
@@ -78,6 +81,16 @@ export default function SearchPage() {
 
   const isEmpty = searchQuery === '';
   const hasInput = searchQuery.trim().length > 0;
+
+  if (userLoading) {
+    return (
+      <div className={styles.container}>
+        <div style={{ padding: '40px 20px', textAlign: 'center', color: '#999' }}>
+          Loading...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <CustomScrollbar className={styles.container}>

@@ -1,10 +1,11 @@
+// components/Navbar/Navbar.tsx
 'use client'
 
 import React, { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useCreateThread } from '@/hooks/useThreads'
-import { MOCK_USER } from '@/lib/currentUser'
+import { getCurrentUser, logout } from '@/lib/currentUser'
 import styles from './Navbar.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
@@ -13,6 +14,7 @@ export default function Navbar() {
   const pathname = usePathname()
   const createMutation = useCreateThread()
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const currentUser = getCurrentUser()
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/'
@@ -80,7 +82,7 @@ export default function Navbar() {
           </a>
           
           <a 
-            href={`/profile/${MOCK_USER.username}`}
+            href={`/profile/${currentUser.username}`}
             className={`${styles.navItem} ${isActive('/profile') ? styles.active : ''}`}
           >
             <svg viewBox="0 0 24 24">
@@ -92,11 +94,11 @@ export default function Navbar() {
         </div>
         
         <div className={styles.navMenu}>
-          <button className={styles.navItem}>
+          <button className={styles.navItem} onClick={logout} title="Đăng xuất">
             <svg viewBox="0 0 24 24">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
           </button>
         </div>
@@ -144,16 +146,17 @@ export default function Navbar() {
             </svg>
           </a>
           
-          <a 
-            href={`/profile/${MOCK_USER.username}`}
-            className={`${styles.mobileNavItem} ${isActive('/profile') ? styles.active : ''}`}
+          <button 
+            className={styles.mobileNavItem}
+            onClick={logout}
+            title="Đăng xuất"
           >
             <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="10" r="3" />
-              <path d="M6.168 18.849A4 4 0 0 1 10 16h4a4 4 0 0 1 3.834 2.855" />
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-          </a>
+          </button>
         </div>
       </nav>
 
@@ -162,8 +165,8 @@ export default function Navbar() {
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateThread}
-          username={MOCK_USER.username}
-          avatarText={MOCK_USER.avatar_text}
+          username={currentUser.username}
+          avatarText={currentUser.avatar_text}
         />
       )}
     </>

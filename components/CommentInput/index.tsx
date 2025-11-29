@@ -1,8 +1,9 @@
+// components/CommentInput/index.tsx
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
 import { useCreateComment } from '@/hooks/useThreads'
-import { MOCK_USER } from '@/lib/currentUser'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import styles from './CommentInput.module.css'
 
 interface CommentInputProps {
@@ -18,6 +19,7 @@ export default function CommentInput({
   autoFocus = false,
   placeholder = 'Trả lời...',
 }: CommentInputProps) {
+  const { user } = useCurrentUser()
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const createCommentMutation = useCreateComment(threadId)
@@ -47,7 +49,7 @@ export default function CommentInput({
     <div className={styles.commentInputContainer}>
       <div className={styles.commentInputWrapper}>
         <div className={styles.avatar}>
-          <div className={styles.avatarCircle}>{MOCK_USER.avatar_text}</div>
+          <div className={styles.avatarCircle}>{user.avatar_text}</div>
         </div>
 
         <div className={styles.inputSection}>

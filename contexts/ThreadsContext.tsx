@@ -2,7 +2,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { MOCK_USER } from '@/lib/currentUser';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface Thread {
   id: string;
@@ -31,16 +31,20 @@ interface ThreadsContextType {
 const ThreadsContext = createContext<ThreadsContextType | undefined>(undefined);
 
 export function ThreadsProvider({ children }: { children: ReactNode }) {
+  const { user } = useCurrentUser();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedThreads, setLikedThreads] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
 
   const fetchThreads = async () => {
+    if (!user.id) return;
+    
     try {
-      const res = await fetch('/api/threads');
+      const url = `/api/threads?user_id=${user.id}`;
+      const res = await fetch(url);
       const data = await res.json();
-      setThreads(data.threads || data || []); // Support both formats
+      setThreads(data.threads || data || []);
     } catch (error) {
       console.error('Error fetching threads:', error);
       setThreads([]);
@@ -50,21 +54,23 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    fetchThreads();
-  }, []);
+    if (user.id) {
+      fetchThreads();
+    }
+  }, [user.id]);
 
   const createThread = async (content: string, imageUrl?: string): Promise<boolean> => {
-    if (!content.trim() || isCreating) return false;
+    if (!content.trim() || isCreating || !user.id) return false;
     
     setIsCreating(true);
     
     const optimisticId = 'optimistic-' + crypto.randomUUID();
     const optimisticThread: Thread = {
       id: optimisticId,
-      user_id: MOCK_USER.id,
-      username: MOCK_USER.username,
-      avatar_text: MOCK_USER.avatar_text,
-      verified: false,
+      user_id: user.id,
+      username: user.username,
+      avatar_text: user.avatar_text,
+      verified: user.verified || false,
       content: content.trim(),
       image_url: imageUrl,
       likes_count: 0,
@@ -83,7 +89,7 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: MOCK_USER.id,
+          user_id: user.id,
           content: content.trim(),
           image_url: imageUrl,
         }),
@@ -100,9 +106,9 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
       setThreads(prev => 
         prev.map(t => t.id === optimisticId ? {
           ...newThread,
-          username: MOCK_USER.username,
-          avatar_text: MOCK_USER.avatar_text,
-          verified: false,
+          username: user.username,
+          avatar_text: user.avatar_text,
+          verified: user.verified || false,
         } : t)
       );
       
@@ -120,6 +126,8 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleLike = async (threadId: string) => {
+    if (!user.id) return;
+    
     const isCurrentlyLiked = likedThreads.has(threadId);
     
     // Optimistic update
@@ -150,7 +158,7 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`/api/threads/${threadId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: MOCK_USER.id }),
+        body: JSON.stringify({ user_id: user.id }),
       });
       
       if (!res.ok) {
@@ -184,8 +192,10 @@ export function ThreadsProvider({ children }: { children: ReactNode }) {
   };
 
   const checkIfLiked = async (threadId: string): Promise<boolean> => {
+    if (!user.id) return false;
+    
     try {
-      const res = await fetch(`/api/threads/${threadId}/like?user_id=${MOCK_USER.id}`);
+      const res = await fetch(`/api/threads/${threadId}/like?user_id=${user.id}`);
       const data = await res.json();
       
       if (data.isLiked) {

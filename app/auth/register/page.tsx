@@ -1,0 +1,146 @@
+// app/auth/register/page.tsx
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import styles from '../login/auth.module.css';
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    username: '',
+    avatarText: '',
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    // Validation
+    if (formData.password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.avatarText.length < 1 || formData.avatarText.length > 2) {
+      setError('Avatar phải có 1-2 ký tự');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Đăng ký thất bại');
+      }
+
+      // Lưu user info vào localStorage
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      
+      // Redirect về home
+      router.push('/');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    
+    // Format avatar text
+    if (field === 'avatarText') {
+      value = value.toUpperCase().slice(0, 2);
+    }
+    
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.logo}>@</div>
+        <h1 className={styles.title}>Đăng ký</h1>
+        
+        {error && <div className={styles.error}>{error}</div>}
+        
+        <form onSubmit={handleRegister} className={styles.form}>
+          <div className={styles.field}>
+            <label>Email</label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={handleChange('email')}
+              placeholder="your@email.com"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label>Username</label>
+            <input
+              type="text"
+              value={formData.username}
+              onChange={handleChange('username')}
+              placeholder="username"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label>Avatar (1-2 ký tự)</label>
+            <input
+              type="text"
+              value={formData.avatarText}
+              onChange={handleChange('avatarText')}
+              placeholder="AB"
+              required
+              maxLength={2}
+              disabled={loading}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label>Mật khẩu</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={handleChange('password')}
+              placeholder="••••••••"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <button type="submit" disabled={loading} className={styles.submitBtn}>
+            {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+          </button>
+        </form>
+
+        <div className={styles.footer}>
+          Đã có tài khoản?{' '}
+          <a href="/auth/login" className={styles.link}>
+            Đăng nhập
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}

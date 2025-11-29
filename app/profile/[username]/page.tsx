@@ -10,7 +10,7 @@ import CreateThreadInput from '@/components/CreateThreadInput'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
 import { useThreads, useCreateThread } from '@/hooks/useThreads'
-import { MOCK_USER } from '@/lib/currentUser'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import styles from './Profile.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
@@ -22,6 +22,7 @@ export default function ProfilePage({
   params: Promise<{ username: string }> 
 }) {
   const { username } = use(params)
+  const { user, loading: userLoading } = useCurrentUser()
   const { data: threads = [] } = useThreads()
   const createMutation = useCreateThread()
   
@@ -30,8 +31,8 @@ export default function ProfilePage({
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
   const userThreads = useMemo(
-    () => threads.filter(thread => thread.user_id === MOCK_USER.id),
-    [threads]
+    () => threads.filter(thread => thread.user_id === user.id),
+    [threads, user.id]
   )
 
   const handlePostThread = async (content: string) => {
@@ -39,14 +40,24 @@ export default function ProfilePage({
     setShowCreateModal(false)
   }
 
+  if (userLoading) {
+    return (
+      <div className={styles.container}>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
+          Loading...
+        </div>
+      </div>
+    )
+  }
+
   return (
     <CustomScrollbar className={styles.container}>
       <ProfileHeader
-        name="Daniel Developer"
-        username={MOCK_USER.username}
-        bio="Full-stack developer | Building cool stuff"
-        avatarText={MOCK_USER.avatar_text}
-        verified={false}
+        name={user.username}
+        username={user.username}
+        bio={user.bio || 'Full-stack developer | Building cool stuff'}
+        avatarText={user.avatar_text}
+        verified={user.verified || false}
         followersCount={5}
         followersAvatars={['K', 'H', 'M']}
         onEditClick={() => setShowEditModal(true)}
@@ -55,7 +66,7 @@ export default function ProfilePage({
       <ProfileTabs />
       
       <div onClick={() => setShowCreateModal(true)}>
-        <CreateThreadInput avatarText={MOCK_USER.avatar_text} />
+        <CreateThreadInput avatarText={user.avatar_text} />
       </div>
       
       {showCreateModal && (
@@ -63,8 +74,8 @@ export default function ProfilePage({
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handlePostThread}
-          username={MOCK_USER.username}
-          avatarText={MOCK_USER.avatar_text}
+          username={user.username}
+          avatarText={user.avatar_text}
         />
       )}
 
@@ -73,8 +84,9 @@ export default function ProfilePage({
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           currentProfile={{
-            username: MOCK_USER.username,
-            avatar_text: MOCK_USER.avatar_text,
+            username: user.username,
+            avatar_text: user.avatar_text,
+            bio: user.bio,
           }}
           onSave={() => {}}
         />
@@ -90,15 +102,15 @@ export default function ProfilePage({
             <div key={thread.id}>
               <ThreadCard
                 id={thread.id}
-                username={MOCK_USER.username}
+                username={user.username}
                 timestamp={thread.created_at}
                 content={thread.content}
                 imageUrl={thread.image_url}
                 likes={thread.likes_count.toString()}
                 comments={thread.comments_count.toString()}
                 reposts={thread.reposts_count.toString()}
-                verified={false}
-                avatarText={MOCK_USER.avatar_text}
+                verified={user.verified || false}
+                avatarText={user.avatar_text}
                 isLiked={thread.isLiked}
                 onCommentClick={() => setActiveCommentThreadId(thread.id)}
               />

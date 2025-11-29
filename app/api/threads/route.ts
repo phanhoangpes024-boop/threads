@@ -1,11 +1,12 @@
+// app/api/threads/route.ts
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { MOCK_USER } from '@/lib/currentUser'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
   const cursor = searchParams.get('cursor')
+  const userId = searchParams.get('user_id') // Lấy từ query params
   
   let query = supabase
     .from('threads')
@@ -38,15 +39,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   
-  // Get liked status for current user
-  const threadIds = data?.map(t => t.id) || []
-  const { data: likes } = await supabase
-    .from('likes')
-    .select('thread_id')
-    .in('thread_id', threadIds)
-    .eq('user_id', MOCK_USER.id)
+  // Get liked status - chỉ khi có userId
+  let likedThreadIds = new Set<string>()
   
-  const likedThreadIds = new Set(likes?.map(l => l.thread_id) || [])
+  if (userId) {
+    const threadIds = data?.map(t => t.id) || []
+    const { data: likes } = await supabase
+      .from('likes')
+      .select('thread_id')
+      .in('thread_id', threadIds)
+      .eq('user_id', userId)
+    
+    likedThreadIds = new Set(likes?.map(l => l.thread_id) || [])
+  }
   
   const threads = (data as any)?.map((t: any) => ({
     id: t.id,
