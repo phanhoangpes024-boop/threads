@@ -1,4 +1,4 @@
-// app/activity/page.tsx
+// app/activity/page.tsx - FIXED
 'use client'
 
 import { useState } from 'react'
@@ -44,7 +44,7 @@ export default function ActivityPage() {
                 username={thread.username}
                 timestamp={thread.created_at}
                 content={thread.content}
-                imageUrl={thread.image_url}
+                imageUrls={thread.image_urls || []}
                 likes={thread.likes_count.toString()}
                 comments={thread.comments_count.toString()}
                 reposts={thread.reposts_count.toString()}
