@@ -1,32 +1,41 @@
 /* components/MenuPopup/MenuPopup.module.css */
 
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
+
 .popup {
   position: fixed;
-  background: #ffffff;
+  background: var(--bg-primary, #ffffff);
   border-radius: 16px;
   padding: 8px 0;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
   z-index: 9999;
+  min-width: 200px;
   animation: fadeIn 0.15s ease;
+  border: 1px solid var(--border-color, #e5e5e5);
 }
 
+/* Desktop: góc dưới trái (gần navbar) */
 .desktop {
   left: 20px;
   bottom: 80px;
-  width: 280px;
+  width: 240px;
 }
 
+/* Mobile: góc trên phải, ngay dưới hamburger */
 .mobile {
-  left: 16px;
+  top: 56px;
   right: 16px;
-  bottom: 76px;
-  width: auto;
+  width: 200px;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
@@ -38,13 +47,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: background 0.2s;
 }
 
 .menuItem:hover {
-  background: #f5f5f5;
+  background: var(--bg-hover, #f5f5f5);
 }
 
 .menuItemLeft {
@@ -54,15 +63,15 @@
 }
 
 .menuIcon {
-  width: 22px;
-  height: 22px;
-  color: #000000;
+  width: 20px;
+  height: 20px;
+  color: var(--text-primary, #000000);
 }
 
 .menuItem span {
   font-size: 15px;
   font-weight: 500;
-  color: #000000;
+  color: var(--text-primary, #000000);
 }
 
 .logout span {
@@ -75,7 +84,7 @@
 
 .divider {
   height: 1px;
-  background: #f0f0f0;
+  background: var(--border-light, #f0f0f0);
   margin: 4px 0;
 }
 
@@ -114,6 +123,7 @@
   transform: translateX(20px);
 }
 
+/* Responsive visibility */
 @media (max-width: 768px) {
   .desktop {
     display: none;
