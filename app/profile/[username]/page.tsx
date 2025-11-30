@@ -1,4 +1,4 @@
-// app/profile/[username]/page.tsx
+// app/profile/[username]/page.tsx - UPDATED
 'use client'
 
 import { use, useState, useEffect } from 'react'
@@ -30,7 +30,7 @@ interface Thread {
   id: string
   user_id: string
   content: string
-  image_url?: string
+  image_urls: string[]
   created_at: string
   likes_count: number
   comments_count: number
@@ -60,7 +60,6 @@ export default function ProfilePage({
 
   const isOwnProfile = currentUser?.username === username
 
-  // Fetch profile user
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -69,14 +68,12 @@ export default function ProfilePage({
           const data = await res.json()
           setProfileUser(data)
 
-          // Check if following
           if (currentUser?.id && data.id !== currentUser.id) {
             const followRes = await fetch(`/api/users/${data.id}/follow?user_id=${currentUser.id}`)
             const followData = await followRes.json()
             setIsFollowing(followData.isFollowing)
           }
 
-          // Fetch user's threads
           const threadsRes = await fetch(`/api/users/${data.id}/threads?current_user_id=${currentUser?.id || ''}`)
           if (threadsRes.ok) {
             const threadsData = await threadsRes.json()
@@ -95,10 +92,13 @@ export default function ProfilePage({
     }
   }, [username, currentUser?.id, userLoading])
 
-  const handlePostThread = async (content: string) => {
-    await createMutation.mutateAsync({ content })
+  const handlePostThread = async (content: string, imageUrls?: string[]) => {
+    await createMutation.mutateAsync({ 
+      content,
+      imageUrls: imageUrls || []
+    })
     setShowCreateModal(false)
-    // Refresh threads
+    
     if (profileUser) {
       const res = await fetch(`/api/users/${profileUser.id}/threads?current_user_id=${currentUser?.id || ''}`)
       if (res.ok) {
@@ -198,7 +198,7 @@ export default function ProfilePage({
                 username={thread.username}
                 timestamp={thread.created_at}
                 content={thread.content}
-                imageUrl={thread.image_url}
+                imageUrls={thread.image_urls}
                 likes={thread.likes_count.toString()}
                 comments={thread.comments_count.toString()}
                 reposts={thread.reposts_count.toString()}

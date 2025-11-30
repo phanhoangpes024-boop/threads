@@ -1,4 +1,4 @@
-// app/api/search/route.ts - OPTIMIZED
+// app/api/search/route.ts - UPDATED
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -6,7 +6,7 @@ const THREAD_SELECT = `
   id,
   user_id,
   content,
-  image_url,
+  image_urls,
   created_at,
   likes_count,
   comments_count,
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   try {
     const results: any = {}
 
-    // Search threads - NO COUNT queries
+    // Search threads
     if (type === 'threads' || type === 'all') {
       const { data: threads, error: threadsError } = await supabase
         .from('threads')
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
         id: t.id,
         user_id: t.user_id,
         content: t.content,
-        image_url: t.image_url,
+        image_urls: t.image_urls || [],
         created_at: t.created_at,
         username: t.users?.username ?? null,
         avatar_text: t.users?.avatar_text ?? null,

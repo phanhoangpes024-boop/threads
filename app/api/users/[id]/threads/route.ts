@@ -1,4 +1,4 @@
-// app/api/users/[id]/threads/route.ts
+// app/api/users/[id]/threads/route.ts - UPDATED
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -17,7 +17,7 @@ export async function GET(
         id,
         user_id,
         content,
-        image_url,
+        image_urls,
         created_at,
         likes_count,
         comments_count,
@@ -29,7 +29,7 @@ export async function GET(
 
     if (error) throw error
 
-    // Check liked status nếu có current user
+    // Check liked status
     let likedThreadIds = new Set<string>()
     if (currentUserId && threads?.length) {
       const threadIds = threads.map(t => t.id)
@@ -46,7 +46,7 @@ export async function GET(
       id: t.id,
       user_id: t.user_id,
       content: t.content,
-      image_url: t.image_url,
+      image_urls: t.image_urls || [],
       created_at: t.created_at,
       likes_count: t.likes_count || 0,
       comments_count: t.comments_count || 0,

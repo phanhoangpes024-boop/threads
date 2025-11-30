@@ -1,4 +1,4 @@
-// app/thread/[id]/page.tsx
+// app/thread/[id]/page.tsx - UPDATED
 'use client'
 
 import { useState } from 'react'
@@ -39,7 +39,7 @@ export default function ThreadDetailPage() {
         username={thread.username || 'Unknown'}
         timestamp={thread.created_at}
         content={thread.content}
-        imageUrl={thread.image_url}
+        imageUrls={thread.image_urls || []}
         likes={thread.likes_count.toString()}
         comments={thread.comments_count.toString()}
         reposts={thread.reposts_count.toString()}

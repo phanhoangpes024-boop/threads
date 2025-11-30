@@ -1,3 +1,4 @@
+// app/api/threads/[id]/route.ts - NEW FILE
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -5,7 +6,7 @@ const THREAD_SELECT = `
   id,
   user_id,
   content,
-  image_url,
+  image_urls,
   created_at,
   likes_count,
   comments_count,
@@ -29,14 +30,13 @@ export async function GET(
     return NextResponse.json({ error: error?.message ?? "Not found" }, { status: 404 });
   }
 
-  // Fix: Type assertion
   const threadData = thread as any;
 
   return NextResponse.json({
     id: threadData.id,
     user_id: threadData.user_id,
     content: threadData.content,
-    image_url: threadData.image_url,
+    image_urls: threadData.image_urls || [],
     created_at: threadData.created_at,
     username: threadData.users?.username ?? null,
     avatar_text: threadData.users?.avatar_text ?? null,

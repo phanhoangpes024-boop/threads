@@ -1,4 +1,4 @@
-// app/page.tsx - Với Custom Scrollbar
+// app/page.tsx - UPDATED to handle imageUrls
 'use client'
 
 import { useState } from 'react'
@@ -23,8 +23,11 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  const handlePostThread = async (content: string) => {
-    await createMutation.mutateAsync({ content })
+  const handlePostThread = async (content: string, imageUrls?: string[]) => {
+    await createMutation.mutateAsync({ 
+      content,
+      imageUrls: imageUrls || []
+    })
     setShowModal(false)
   }
 
@@ -59,7 +62,7 @@ export default function Home() {
             username={thread.username}
             timestamp={thread.created_at}
             content={thread.content}
-            imageUrl={thread.image_url}
+            imageUrls={thread.image_urls}
             likes={thread.likes_count.toString()}
             comments={thread.comments_count.toString()}
             reposts={thread.reposts_count.toString()}

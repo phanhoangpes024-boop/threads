@@ -402,7 +402,7 @@ main {
 
 /* ========== MODALS ========== */
 
-[data-theme="dark"] div[class*="overlay"] {
+[data-theme="dark"] div[class*="overlay"]:not(div[class*="MenuPopup"]) {
   background: rgba(0, 0, 0, 0.7) !important;
 }
 

@@ -1,7 +1,8 @@
+// components/ThreadCard/index.tsx - UPDATED with ImageGallery
 'use client'
 
 import React, { useState } from 'react'
-// Bỏ next/image vì chặn click event
+import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
 import { useToggleLike } from '@/hooks/useThreads'
 import styles from './ThreadCard.module.css'
@@ -11,7 +12,7 @@ interface ThreadCardProps {
   username: string
   timestamp: string
   content: string
-  imageUrl?: string
+  imageUrls?: string[]  // ← Changed from imageUrl
   likes: string
   comments: string
   reposts: string
@@ -27,7 +28,7 @@ export default function ThreadCard({
   username,
   timestamp,
   content,
-  imageUrl,
+  imageUrls = [],  // ← Default empty array
   likes,
   comments,
   reposts,
@@ -39,6 +40,7 @@ export default function ThreadCard({
 }: ThreadCardProps) {
   const toggleLikeMutation = useToggleLike()
   const [showImageModal, setShowImageModal] = useState(false)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
   const handleLike = () => {
     toggleLikeMutation.mutate(id)
@@ -65,7 +67,7 @@ export default function ThreadCard({
       target.closest('button') ||
       target.closest(`.${styles.actionButton}`) ||
       target.closest(`.${styles.menuButton}`) ||
-      target.closest(`.${styles.threadMedia}`)
+      target.closest(`.${styles.threadMedia}`)  // ← Block click vào gallery
     ) {
       return
     }
@@ -73,8 +75,8 @@ export default function ThreadCard({
     window.location.href = `/thread/${id}`
   }
 
-  const handleImageClick = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleImageClick = (index: number) => {
+    setSelectedImageIndex(index)
     setShowImageModal(true)
   }
 
@@ -119,26 +121,13 @@ export default function ThreadCard({
 
           <div className={styles.threadText}>{content}</div>
 
-          {imageUrl && (
-            <div 
-              className={styles.threadMedia}
-              onClick={handleImageClick}
-              onKeyDown={(e) => e.key === 'Enter' && setShowImageModal(true)}
-              role="button"
-              tabIndex={0}
-              style={{ cursor: 'zoom-in' }}
-            >
-              <img 
-                src={imageUrl} 
-                alt="Thread media"
-                loading="lazy"
-                style={{
-                  width: '100%',
-                  height: 'auto',
-                  aspectRatio: '1 / 1',
-                  objectFit: 'cover',
-                  display: 'block'
-                }}
+          {/* Image Gallery - replaced single image */}
+          {imageUrls.length > 0 && (
+            <div className={styles.threadMedia}>
+              <ImageGallery
+                images={imageUrls}
+                mode="view"
+                onImageClick={handleImageClick}
               />
             </div>
           )}
@@ -198,9 +187,11 @@ export default function ThreadCard({
         </div>
       </div>
 
-      {showImageModal && imageUrl && (
+      {/* Enhanced ImageModal with multiple images */}
+      {showImageModal && imageUrls.length > 0 && (
         <ImageModal 
-          imageUrl={imageUrl} 
+          images={imageUrls}
+          initialIndex={selectedImageIndex}
           onClose={() => setShowImageModal(false)} 
         />
       )}

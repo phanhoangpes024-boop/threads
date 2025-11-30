@@ -1,3 +1,4 @@
+// app/api/threads/route.ts - UPDATED with image_urls support
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -5,7 +6,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
   const cursor = searchParams.get('cursor')
-  const userId = searchParams.get('user_id') // ← Lấy user_id
+  const userId = searchParams.get('user_id')
   
   let query = supabase
     .from('threads')
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
       id,
       user_id,
       content,
-      image_url,
+      image_urls,
       created_at,
       likes_count,
       comments_count,
@@ -38,10 +39,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
   
-  // ✅ FIX: Check liked status nếu có userId (và userId hợp lệ)
+  // Check liked status
   let likedThreadIds = new Set<string>()
   
-  if (userId && userId !== '' && userId !== 'undefined') { // ← Kiểm tra kỹ
+  if (userId && userId !== '' && userId !== 'undefined') {
     const threadIds = data?.map(t => t.id) || []
     
     if (threadIds.length > 0) {
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
     id: t.id,
     user_id: t.user_id,
     content: t.content,
-    image_url: t.image_url,
+    image_urls: t.image_urls || [], // ← Array
     created_at: t.created_at,
     likes_count: t.likes_count || 0,
     comments_count: t.comments_count || 0,
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
     username: t.users?.username ?? null,
     avatar_text: t.users?.avatar_text ?? null,
     verified: t.users?.verified ?? false,
-    isLiked: likedThreadIds.has(t.id), // ← Luôn có giá trị
+    isLiked: likedThreadIds.has(t.id),
   })) || []
   
   return NextResponse.json({
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { user_id, content, image_url } = await request.json()
+    const { user_id, content, image_urls } = await request.json()
     
     if (!user_id || !content?.trim()) {
       return NextResponse.json(
@@ -93,13 +94,21 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Validate image_urls
+    if (image_urls && (!Array.isArray(image_urls) || image_urls.length > 10)) {
+      return NextResponse.json(
+        { error: 'image_urls must be array with max 10 items' },
+        { status: 400 }
+      )
+    }
     
     const { data, error } = await supabase
       .from('threads')
       .insert({ 
         user_id, 
         content: content.trim(), 
-        image_url: image_url || null 
+        image_urls: image_urls || [] // ← Array, default empty
       })
       .select()
       .single()

@@ -1,3 +1,4 @@
+// hooks/useThreads.ts - FULL FILE (thay thế toàn bộ)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 
@@ -7,7 +8,7 @@ interface Thread {
   avatar_text: string | null
   verified: boolean
   content: string
-  image_url?: string
+  image_urls: string[]  // ← Array
   likes_count: number
   comments_count: number
   reposts_count: number
@@ -16,33 +17,26 @@ interface Thread {
   isLiked?: boolean
 }
 
-// ✅ FIX: Fetch threads với user_id bắt buộc
+// Fetch threads
 export function useThreads() {
   const { user } = useCurrentUser()
   
   return useQuery({
-    queryKey: ['threads', user.id], // ← Include user.id trong queryKey
+    queryKey: ['threads', user.id],
     queryFn: async () => {
-      // ✅ FIX: Chỉ fetch khi có user.id hợp lệ
       if (!user.id || user.id === '') {
-        console.error('No valid user ID')
         return []
       }
       
       const url = `/api/threads?user_id=${user.id}`
-      console.log('Fetching threads with user_id:', user.id) // Debug log
-      
       const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) throw new Error('Failed to fetch threads')
       
       const data = await res.json()
       const threads = (data.threads || data || []) as Thread[]
-      
-      console.log('Threads fetched:', threads.length, 'First thread isLiked:', threads[0]?.isLiked) // Debug log
-      
       return threads
     },
-    enabled: !!user.id && user.id !== '', // ← Chỉ run khi có user.id
+    enabled: !!user.id && user.id !== '',
   })
 }
 
@@ -52,7 +46,13 @@ export function useCreateThread() {
   const { user } = useCurrentUser()
   
   return useMutation({
-    mutationFn: async ({ content, imageUrl }: { content: string; imageUrl?: string }) => {
+    mutationFn: async ({ 
+      content, 
+      imageUrls = [] 
+    }: { 
+      content: string
+      imageUrls?: string[] 
+    }) => {
       if (!user.id) throw new Error('No user ID')
       
       const res = await fetch('/api/threads', {
@@ -61,7 +61,7 @@ export function useCreateThread() {
         body: JSON.stringify({
           user_id: user.id,
           content: content.trim(),
-          image_url: imageUrl,
+          image_urls: imageUrls,
         }),
         cache: 'no-store',
       })
@@ -72,16 +72,15 @@ export function useCreateThread() {
       }
       
       const data = await res.json()
-      
-      if (!data || !data.id) {
-        throw new Error('Invalid response from server')
-      }
+      if (!data || !data.id) throw new Error('Invalid response')
       
       return data
     },
-    onMutate: async ({ content, imageUrl }) => {
-      await queryClient.cancelQueries({ queryKey: ['threads', user.id] })
+    
+    onMutate: async (variables) => {
+      const { content, imageUrls = [] } = variables  // ← FIX: Destructure đúng
       
+      await queryClient.cancelQueries({ queryKey: ['threads', user.id] })
       const previousThreads = queryClient.getQueryData<Thread[]>(['threads', user.id])
       
       const optimisticThread: Thread = {
@@ -91,7 +90,7 @@ export function useCreateThread() {
         avatar_text: user.avatar_text,
         verified: user.verified || false,
         content: content.trim(),
-        image_url: imageUrl,
+        image_urls: imageUrls,  // ← Đã có trong scope
         likes_count: 0,
         comments_count: 0,
         reposts_count: 0,
@@ -105,6 +104,7 @@ export function useCreateThread() {
       
       return { previousThreads, optimisticId: optimisticThread.id }
     },
+    
     onSuccess: (newThread, variables, context) => {
       queryClient.setQueryData<Thread[]>(['threads', user.id], old =>
         (old || []).map(t => 
@@ -120,13 +120,14 @@ export function useCreateThread() {
         )
       )
     },
+    
     onError: (err, variables, context) => {
       queryClient.setQueryData(['threads', user.id], context?.previousThreads)
     },
   })
 }
 
-// ✅ FIX: Toggle like với validation
+// Toggle like
 export function useToggleLike() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
@@ -134,8 +135,6 @@ export function useToggleLike() {
   return useMutation({
     mutationFn: async (threadId: string) => {
       if (!user.id) throw new Error('No user ID')
-      
-      console.log('Toggling like for thread:', threadId, 'user:', user.id) // Debug log
       
       const res = await fetch(`/api/threads/${threadId}/like`, {
         method: 'POST',
@@ -150,9 +149,6 @@ export function useToggleLike() {
       }
       
       const data = await res.json()
-      
-      console.log('Toggle like response:', data) // Debug log
-      
       if (!data || typeof data.action !== 'string') {
         throw new Error('Invalid response from server')
       }
@@ -163,6 +159,7 @@ export function useToggleLike() {
         likes_count: data.likes_count
       }
     },
+    
     onMutate: async (threadId) => {
       await queryClient.cancelQueries({ queryKey: ['threads', user.id] })
       await queryClient.cancelQueries({ queryKey: ['thread', threadId] })
@@ -170,13 +167,10 @@ export function useToggleLike() {
       const previousThreads = queryClient.getQueryData<Thread[]>(['threads', user.id])
       const previousThread = queryClient.getQueryData<Thread>(['thread', threadId])
       
-      // ✅ FIX: Optimistic update dựa trên trạng thái HIỆN TẠI
       queryClient.setQueryData<Thread[]>(['threads', user.id], old =>
         (old || []).map(thread => {
           if (thread.id === threadId) {
             const currentLiked = thread.isLiked ?? false
-            console.log('Current liked status:', currentLiked, '-> will be:', !currentLiked) // Debug
-            
             return {
               ...thread,
               likes_count: currentLiked 
@@ -202,9 +196,8 @@ export function useToggleLike() {
       
       return { previousThreads, previousThread }
     },
+    
     onSuccess: ({ threadId, isLiked, likes_count }) => {
-      console.log('Like success, updating to:', { isLiked, likes_count }) // Debug
-      
       queryClient.setQueryData<Thread[]>(['threads', user.id], old =>
         (old || []).map(thread =>
           thread.id === threadId 
@@ -217,8 +210,8 @@ export function useToggleLike() {
         old ? { ...old, isLiked, likes_count } : old
       )
     },
+    
     onError: (err, threadId, context) => {
-      console.error('Like error, reverting...', err)
       queryClient.setQueryData(['threads', user.id], context?.previousThreads)
       if (context?.previousThread) {
         queryClient.setQueryData(['thread', threadId], context.previousThread)
@@ -295,14 +288,12 @@ export function useCreateComment(threadId: string) {
       }
       
       const data = await res.json()
-      
-      if (!data || !data.id) {
-        throw new Error('Invalid response from server')
-      }
+      if (!data || !data.id) throw new Error('Invalid response')
       
       return data
     },
-    onSuccess: (newComment) => {
+    
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', threadId] })
       
       queryClient.setQueryData<Thread[]>(['threads', user.id], old =>

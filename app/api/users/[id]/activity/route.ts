@@ -1,4 +1,4 @@
-// app/api/users/[id]/activity/route.ts - OPTIMIZED
+// app/api/users/[id]/activity/route.ts - UPDATED
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -6,7 +6,7 @@ const THREAD_SELECT = `
   id,
   user_id,
   content,
-  image_url,
+  image_urls,
   created_at,
   likes_count,
   comments_count,
@@ -51,13 +51,13 @@ export async function GET(
     const uniqueThreads = Array.from(uniqueMap.values())
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    // Format response - NO COUNT queries
+    // Format response
     return NextResponse.json(
       uniqueThreads.map((t: any) => ({
         id: t.id,
         user_id: t.user_id,
         content: t.content,
-        image_url: t.image_url,
+        image_urls: t.image_urls || [],
         created_at: t.created_at,
         username: t.users?.username ?? null,
         avatar_text: t.users?.avatar_text ?? null,

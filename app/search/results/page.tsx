@@ -1,4 +1,4 @@
-// app/search/results/page.tsx
+// app/search/results/page.tsx - UPDATED
 'use client';
 
 import { useMemo } from 'react';
