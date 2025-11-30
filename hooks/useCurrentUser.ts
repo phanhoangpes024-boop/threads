@@ -1,5 +1,6 @@
 // hooks/useCurrentUser.ts
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export interface User {
   id: string;
@@ -13,6 +14,7 @@ export interface User {
 export function useCurrentUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname();
 
   useEffect(() => {
     // Chỉ chạy trên client
@@ -20,13 +22,15 @@ export function useCurrentUser() {
     if (stored) {
       setUser(JSON.parse(stored));
     } else {
-      // Redirect về login nếu không có user
-      window.location.href = '/auth/login';
+      // KHÔNG redirect nếu đang ở trang auth
+      if (!pathname?.startsWith('/auth')) {
+        window.location.href = '/auth/login';
+        return;
+      }
     }
     setLoading(false);
-  }, []);
+  }, [pathname]);
 
-  // Trả về dummy user khi loading để tránh null check
   return { 
     user: user || { 
       id: '', 

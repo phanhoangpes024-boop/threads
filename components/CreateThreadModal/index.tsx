@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './CreateThreadModal.module.css';
 
 interface CreateThreadModalProps {
@@ -78,8 +79,9 @@ export default function CreateThreadModal({
   };
 
   if (!isOpen) return null;
+  if (typeof window === 'undefined') return null;
 
-  return (
+  const modalContent = (
     <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.container} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -180,4 +182,6 @@ export default function CreateThreadModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

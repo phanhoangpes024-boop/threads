@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './ImageModal.module.css';
 
 interface ImageModalProps {
   imageUrl: string;
-  onClose: (e?: React.MouseEvent) => void;
+  onClose: () => void;
 }
 
 export default function ImageModal({ imageUrl, onClose }: ImageModalProps) {
@@ -22,15 +23,9 @@ export default function ImageModal({ imageUrl, onClose }: ImageModalProps) {
     };
   }, [onClose]);
 
-  return (
-    <div className={styles.backdrop} onClick={(e) => {
-      e.stopPropagation();
-      onClose(e);
-    }}>
-      <button className={styles.closeBtn} onClick={(e) => {
-        e.stopPropagation();
-        onClose(e);
-      }}>
+  const modalContent = (
+    <div className={styles.backdrop} onClick={onClose}>
+      <button className={styles.closeBtn} onClick={onClose}>
         <svg viewBox="0 0 24 24">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
@@ -44,4 +39,9 @@ export default function ImageModal({ imageUrl, onClose }: ImageModalProps) {
       />
     </div>
   );
+
+  // Render vào body thay vì trong component tree
+  if (typeof window === 'undefined') return null;
+  
+  return createPortal(modalContent, document.body);
 }

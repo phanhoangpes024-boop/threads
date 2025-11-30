@@ -21,13 +21,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (avatarText.length < 1 || avatarText.length > 2) {
-      return NextResponse.json(
-        { error: 'Avatar phải có 1-2 ký tự' },
-        { status: 400 }
-      );
-    }
-
     // Kiểm tra email đã tồn tại
     const { data: existingEmail } = await supabase
       .from('users')
@@ -56,38 +49,30 @@ export async function POST(request: Request) {
       );
     }
 
-    // Hash password
-    const { data: hashedPassword } = await supabase
-      .rpc('hash_password', { password });
-
-    if (!hashedPassword) {
-      throw new Error('Không thể hash password');
-    }
-
-    // Tạo user mới (KHÔNG có auth_id)
+    // Tạo user - lưu password trực tiếp (demo only)
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert({
         email,
         username,
         avatar_text: avatarText.toUpperCase(),
-        password_hash: hashedPassword,
+        password_hash: password, // Lưu thẳng password
         verified: false,
-        auth_id: null, // Để null
       })
-      .select()
+      .select('id, email, username, avatar_text, verified, bio')
       .single();
 
     if (insertError) {
-      throw insertError;
+      console.error('Insert error:', insertError);
+      return NextResponse.json(
+        { error: insertError.message },
+        { status: 500 }
+      );
     }
-
-    // Loại bỏ password_hash khỏi response
-    const { password_hash, auth_id, ...userInfo } = newUser;
 
     return NextResponse.json({
       success: true,
-      user: userInfo,
+      user: newUser,
     });
   } catch (error: any) {
     console.error('Register error:', error);

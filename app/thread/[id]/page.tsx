@@ -1,3 +1,4 @@
+// app/thread/[id]/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -16,11 +17,19 @@ export default function ThreadDetailPage() {
   const [showCommentInput, setShowCommentInput] = useState(false)
 
   if (threadLoading || commentsLoading) {
-    return <div className={styles.loading}>Loading...</div>
+    return (
+      <div className={styles.container}>
+        <div className={styles.loading}>Loading...</div>
+      </div>
+    )
   }
 
   if (!thread) {
-    return <div className={styles.error}>Thread not found</div>
+    return (
+      <div className={styles.container}>
+        <div className={styles.error}>Thread not found</div>
+      </div>
+    )
   }
 
   return (

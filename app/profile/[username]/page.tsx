@@ -1,20 +1,45 @@
 // app/profile/[username]/page.tsx
 'use client'
 
-import { use, useState, useMemo } from 'react'
+import { use, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import CustomScrollbar from '@/components/CustomScrollbar'
 import ProfileHeader from '@/components/ProfileHeader'
 import ProfileTabs from '@/components/ProfileTabs'
 import CreateThreadInput from '@/components/CreateThreadInput'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
-import { useThreads, useCreateThread } from '@/hooks/useThreads'
+import { useCreateThread } from '@/hooks/useThreads'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import styles from './Profile.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
 const EditProfileModal = dynamic(() => import('@/components/EditProfileModal'), { ssr: false })
+
+interface ProfileUser {
+  id: string
+  username: string
+  email: string
+  avatar_text: string
+  verified: boolean
+  bio?: string
+  followers_count: number
+  following_count: number
+}
+
+interface Thread {
+  id: string
+  user_id: string
+  content: string
+  image_url?: string
+  created_at: string
+  likes_count: number
+  comments_count: number
+  reposts_count: number
+  username: string
+  avatar_text: string
+  verified: boolean
+  isLiked: boolean
+}
 
 export default function ProfilePage({ 
   params 
@@ -22,25 +47,77 @@ export default function ProfilePage({
   params: Promise<{ username: string }> 
 }) {
   const { username } = use(params)
-  const { user, loading: userLoading } = useCurrentUser()
-  const { data: threads = [] } = useThreads()
+  const { user: currentUser, loading: userLoading } = useCurrentUser()
   const createMutation = useCreateThread()
   
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(null)
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isFollowing, setIsFollowing] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  const userThreads = useMemo(
-    () => threads.filter(thread => thread.user_id === user.id),
-    [threads, user.id]
-  )
+  const isOwnProfile = currentUser?.username === username
+
+  // Fetch profile user
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/users/by-username/${username}`)
+        if (res.ok) {
+          const data = await res.json()
+          setProfileUser(data)
+
+          // Check if following
+          if (currentUser?.id && data.id !== currentUser.id) {
+            const followRes = await fetch(`/api/users/${data.id}/follow?user_id=${currentUser.id}`)
+            const followData = await followRes.json()
+            setIsFollowing(followData.isFollowing)
+          }
+
+          // Fetch user's threads
+          const threadsRes = await fetch(`/api/users/${data.id}/threads?current_user_id=${currentUser?.id || ''}`)
+          if (threadsRes.ok) {
+            const threadsData = await threadsRes.json()
+            setThreads(threadsData)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (!userLoading) {
+      fetchProfile()
+    }
+  }, [username, currentUser?.id, userLoading])
 
   const handlePostThread = async (content: string) => {
     await createMutation.mutateAsync({ content })
     setShowCreateModal(false)
+    // Refresh threads
+    if (profileUser) {
+      const res = await fetch(`/api/users/${profileUser.id}/threads?current_user_id=${currentUser?.id || ''}`)
+      if (res.ok) {
+        setThreads(await res.json())
+      }
+    }
   }
 
-  if (userLoading) {
+  const handleFollowToggle = (newState: boolean) => {
+    setIsFollowing(newState)
+    if (profileUser) {
+      setProfileUser({
+        ...profileUser,
+        followers_count: profileUser.followers_count + (newState ? 1 : -1)
+      })
+    }
+  }
+
+  if (loading || userLoading) {
     return (
       <div className={styles.container}>
         <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
@@ -50,67 +127,83 @@ export default function ProfilePage({
     )
   }
 
+  if (!profileUser) {
+    return (
+      <div className={styles.container}>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
+          Không tìm thấy người dùng
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <CustomScrollbar className={styles.container}>
+    <div className={styles.container}>
       <ProfileHeader
-        name={user.username}
-        username={user.username}
-        bio={user.bio || 'Full-stack developer | Building cool stuff'}
-        avatarText={user.avatar_text}
-        verified={user.verified || false}
-        followersCount={5}
-        followersAvatars={['K', 'H', 'M']}
+        userId={profileUser.id}
+        name={profileUser.username}
+        username={profileUser.username}
+        bio={profileUser.bio || (isOwnProfile ? 'Full-stack developer | Building cool stuff' : '')}
+        avatarText={profileUser.avatar_text}
+        verified={profileUser.verified}
+        followersCount={profileUser.followers_count}
+        isOwnProfile={isOwnProfile}
+        isFollowing={isFollowing}
+        currentUserId={currentUser?.id}
         onEditClick={() => setShowEditModal(true)}
+        onFollowToggle={handleFollowToggle}
       />
       
       <ProfileTabs />
       
-      <div onClick={() => setShowCreateModal(true)}>
-        <CreateThreadInput avatarText={user.avatar_text} />
-      </div>
+      {isOwnProfile && (
+        <div onClick={() => setShowCreateModal(true)}>
+          <CreateThreadInput avatarText={currentUser.avatar_text} />
+        </div>
+      )}
       
-      {showCreateModal && (
+      {showCreateModal && isOwnProfile && (
         <CreateThreadModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handlePostThread}
-          username={user.username}
-          avatarText={user.avatar_text}
+          username={currentUser.username}
+          avatarText={currentUser.avatar_text}
         />
       )}
 
-      {showEditModal && (
+      {showEditModal && isOwnProfile && (
         <EditProfileModal
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           currentProfile={{
-            username: user.username,
-            avatar_text: user.avatar_text,
-            bio: user.bio,
+            username: currentUser.username,
+            avatar_text: currentUser.avatar_text,
+            bio: currentUser.bio,
           }}
           onSave={() => {}}
         />
       )}
       
       <div className={styles.threadsSection}>
-        {userThreads.length === 0 ? (
+        {threads.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
             Chưa có thread nào
           </div>
         ) : (
-          userThreads.map((thread) => (
+          threads.map((thread) => (
             <div key={thread.id}>
               <ThreadCard
                 id={thread.id}
-                username={user.username}
+                username={thread.username}
                 timestamp={thread.created_at}
                 content={thread.content}
                 imageUrl={thread.image_url}
                 likes={thread.likes_count.toString()}
                 comments={thread.comments_count.toString()}
                 reposts={thread.reposts_count.toString()}
-                verified={user.verified || false}
-                avatarText={user.avatar_text}
+                verified={thread.verified}
+                avatarText={thread.avatar_text}
                 isLiked={thread.isLiked}
                 onCommentClick={() => setActiveCommentThreadId(thread.id)}
               />
@@ -126,6 +219,6 @@ export default function ProfilePage({
           ))
         )}
       </div>
-    </CustomScrollbar>
+    </div>
   )
 }

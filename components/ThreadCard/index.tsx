@@ -1,12 +1,10 @@
 'use client'
 
 import React, { useState } from 'react'
-import Image from 'next/image'
-import dynamic from 'next/dynamic'
+// Bỏ next/image vì chặn click event
+import ImageModal from '@/components/ImageModal/ImageModal'
 import { useToggleLike } from '@/hooks/useThreads'
 import styles from './ThreadCard.module.css'
-
-const ImageModal = dynamic(() => import('@/components/ImageModal/ImageModal'), { ssr: false })
 
 interface ThreadCardProps {
   id: string
@@ -67,12 +65,17 @@ export default function ThreadCard({
       target.closest('button') ||
       target.closest(`.${styles.actionButton}`) ||
       target.closest(`.${styles.menuButton}`) ||
-      target.closest('img')
+      target.closest(`.${styles.threadMedia}`)
     ) {
       return
     }
     
     window.location.href = `/thread/${id}`
+  }
+
+  const handleImageClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setShowImageModal(true)
   }
 
   return (
@@ -89,7 +92,13 @@ export default function ThreadCard({
         <div className={styles.threadContent}>
           <header className={styles.threadHeader}>
             <div className={styles.threadHeaderLeft}>
-              <span className={styles.username}>{username}</span>
+              <span 
+                className={styles.username}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  window.location.href = `/profile/${username}`
+                }}
+              >{username}</span>
               {verified && (
                 <div className={styles.verifiedBadge}>
                   <svg viewBox="0 0 24 24">
@@ -111,40 +120,27 @@ export default function ThreadCard({
           <div className={styles.threadText}>{content}</div>
 
           {imageUrl && (
-            <>
-              <div 
-                className={styles.threadMedia}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowImageModal(true)
+            <div 
+              className={styles.threadMedia}
+              onClick={handleImageClick}
+              onKeyDown={(e) => e.key === 'Enter' && setShowImageModal(true)}
+              role="button"
+              tabIndex={0}
+              style={{ cursor: 'zoom-in' }}
+            >
+              <img 
+                src={imageUrl} 
+                alt="Thread media"
+                loading="lazy"
+                style={{
+                  width: '100%',
+                  height: 'auto',
+                  aspectRatio: '1 / 1',
+                  objectFit: 'cover',
+                  display: 'block'
                 }}
-              >
-                <Image 
-                  src={imageUrl} 
-                  alt="Thread media"
-                  width={600}
-                  height={600}
-                  loading="lazy"
-                  sizes="(max-width: 768px) 100vw, 600px"
-                  style={{
-                    width: '100%',
-                    height: 'auto',
-                    aspectRatio: '1 / 1',
-                    objectFit: 'cover'
-                  }}
-                />
-              </div>
-              
-              {showImageModal && (
-                <ImageModal 
-                  imageUrl={imageUrl} 
-                  onClose={(e) => {
-                    e?.stopPropagation?.()
-                    setShowImageModal(false)
-                  }} 
-                />
-              )}
-            </>
+              />
+            </div>
           )}
 
           <div className={styles.threadActions}>
@@ -201,6 +197,13 @@ export default function ThreadCard({
           </div>
         </div>
       </div>
+
+      {showImageModal && imageUrl && (
+        <ImageModal 
+          imageUrl={imageUrl} 
+          onClose={() => setShowImageModal(false)} 
+        />
+      )}
     </article>
   )
 }

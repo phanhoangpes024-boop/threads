@@ -5,7 +5,8 @@ import React, { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useCreateThread } from '@/hooks/useThreads'
-import { getCurrentUser, logout } from '@/lib/currentUser'
+import { getCurrentUser } from '@/lib/currentUser'
+import { useTheme } from '@/components/ThemeProvider'
 import styles from './Navbar.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
@@ -15,6 +16,7 @@ export default function Navbar() {
   const createMutation = useCreateThread()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const currentUser = getCurrentUser()
+  const { theme, toggleTheme } = useTheme()
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/'
@@ -34,9 +36,6 @@ export default function Navbar() {
           <a href="/" className={styles.navItem}>
             <svg viewBox="0 0 24 24" className={styles.filled}>
               <circle cx="12" cy="12" r="10" />
-              <path d="M12 6a4 4 0 0 1 4 4c0 2-1 3.5-2.5 4.5S11 16 11 18" stroke="#ffffff" strokeWidth="2.5" />
-              <circle cx="12" cy="10" r="4" fill="#ffffff" />
-              <path d="M16 10h3a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-3" stroke="#ffffff" strokeWidth="2" fill="none" />
             </svg>
           </a>
         </div>
@@ -94,12 +93,25 @@ export default function Navbar() {
         </div>
         
         <div className={styles.navMenu}>
-          <button className={styles.navItem} onClick={logout} title="Đăng xuất">
-            <svg viewBox="0 0 24 24">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
+          {/* Theme Toggle */}
+          <button className={styles.navItem} onClick={toggleTheme} title="Chuyển theme">
+            {theme === 'light' ? (
+              <svg viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            )}
           </button>
         </div>
       </nav>
@@ -107,6 +119,7 @@ export default function Navbar() {
       {/* Mobile Bottom Navigation */}
       <nav className={styles.mobileNav}>
         <div className={styles.mobileNavItems}>
+          {/* Home */}
           <a 
             href="/" 
             className={`${styles.mobileNavItem} ${isActive('/') && !pathname?.startsWith('/search') && !pathname?.startsWith('/profile') && !pathname?.startsWith('/activity') ? styles.active : ''}`}
@@ -117,6 +130,7 @@ export default function Navbar() {
             </svg>
           </a>
           
+          {/* Search */}
           <a 
             href="/search" 
             className={`${styles.mobileNavItem} ${isActive('/search') ? styles.active : ''}`}
@@ -127,6 +141,7 @@ export default function Navbar() {
             </svg>
           </a>
           
+          {/* Create Post */}
           <button 
             className={`${styles.mobileNavItem} ${styles.plusBtn}`}
             onClick={() => setShowCreateModal(true)}
@@ -137,6 +152,7 @@ export default function Navbar() {
             </svg>
           </button>
           
+          {/* Activity/Heart */}
           <a 
             href="/activity" 
             className={`${styles.mobileNavItem} ${isActive('/activity') ? styles.active : ''}`}
@@ -146,17 +162,17 @@ export default function Navbar() {
             </svg>
           </a>
           
-          <button 
-            className={styles.mobileNavItem}
-            onClick={logout}
-            title="Đăng xuất"
+          {/* Profile */}
+          <a 
+            href={`/profile/${currentUser.username}`}
+            className={`${styles.mobileNavItem} ${isActive('/profile') ? styles.active : ''}`}
           >
             <svg viewBox="0 0 24 24">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="10" r="3" />
+              <path d="M6.168 18.849A4 4 0 0 1 10 16h4a4 4 0 0 1 3.834 2.855" />
             </svg>
-          </button>
+          </a>
         </div>
       </nav>
 

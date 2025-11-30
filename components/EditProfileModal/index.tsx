@@ -1,7 +1,7 @@
-// components/EditProfileModal/index.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './EditProfileModal.module.css';
 
@@ -59,7 +59,6 @@ export default function EditProfileModal({
       });
 
       if (res.ok) {
-        // Cập nhật localStorage với thông tin mới
         const updatedUser = {
           ...user,
           avatar_text: avatarText.trim().toUpperCase().slice(0, 2),
@@ -69,7 +68,7 @@ export default function EditProfileModal({
         
         onSave();
         onClose();
-        window.location.reload(); // Reload để cập nhật UI
+        window.location.reload();
       } else {
         alert('Có lỗi xảy ra khi lưu thay đổi');
       }
@@ -87,8 +86,9 @@ export default function EditProfileModal({
   };
 
   if (!isOpen) return null;
+  if (typeof window === 'undefined') return null;
 
-  return (
+  const modalContent = (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -180,4 +180,6 @@ export default function EditProfileModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

@@ -13,12 +13,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Gọi RPC function để verify password
+    // Tìm user theo email và password
     const { data: user, error } = await supabase
-      .rpc('verify_user_password', {
-        user_email: email,
-        user_password: password
-      });
+      .from('users')
+      .select('id, email, username, avatar_text, verified, bio, password_hash')
+      .eq('email', email)
+      .single();
 
     if (error || !user) {
       return NextResponse.json(
@@ -27,10 +27,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Trả về user info (password_hash đã bị loại bỏ trong SQL function)
+    // So sánh password trực tiếp
+    if (user.password_hash !== password) {
+      return NextResponse.json(
+        { error: 'Email hoặc mật khẩu không đúng' },
+        { status: 401 }
+      );
+    }
+
+    const { password_hash, ...userInfo } = user;
+
     return NextResponse.json({
       success: true,
-      user: user,
+      user: userInfo,
     });
   } catch (error) {
     console.error('Login error:', error);

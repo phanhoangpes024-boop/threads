@@ -11,12 +11,12 @@
   
   /* CONTAINER CỐ ĐỊNH TUYỆT ĐỐI */
   position: fixed;
-  top: 110px;
+  top: 60px;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   max-width: 600px;
-  height: calc(100vh - 110px);
+  min-height: calc(100vh - 60px);
   overflow-y: auto; /* Scroll TRONG container */
   overflow-x: hidden;
 }
