@@ -1,7 +1,7 @@
 // components/ImageUploader/index.tsx
 'use client'
 
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useImageUpload } from './hooks/useImageUpload'
 import styles from './ImageUploader.module.css'
 
@@ -12,14 +12,22 @@ interface ImageUploaderProps {
   existingImages?: File[]
 }
 
-export default function ImageUploader({
+export interface ImageUploaderRef {
+  triggerFileInput: () => void
+}
+
+const ImageUploader = forwardRef<ImageUploaderRef, ImageUploaderProps>(({
   onImagesChange,
   maxImages = 10,
-  existingImages = [],
-}: ImageUploaderProps) {
+}, ref) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  
+  // Touch states
+  const [touchStartIndex, setTouchStartIndex] = useState<number | null>(null)
+  const [touchCurrentIndex, setTouchCurrentIndex] = useState<number | null>(null)
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   
   const {
     files,
@@ -35,6 +43,13 @@ export default function ImageUploader({
     onImagesChange(files)
   }, [files, onImagesChange])
 
+  // Expose method qua ref
+  useImperativeHandle(ref, () => ({
+    triggerFileInput: () => {
+      fileInputRef.current?.click()
+    }
+  }))
+
   // File input click
   const handleButtonClick = () => {
     fileInputRef.current?.click()
@@ -46,35 +61,7 @@ export default function ImageUploader({
     if (selectedFiles.length > 0) {
       addFiles(selectedFiles)
     }
-    // Reset input
     e.target.value = ''
-  }
-
-  // Drag & Drop zone
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(true)
-  }
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    addFiles(droppedFiles)
   }
 
   // Paste from clipboard
@@ -100,7 +87,7 @@ export default function ImageUploader({
     return () => document.removeEventListener('paste', handlePaste)
   }, [addFiles])
 
-  // Drag to reorder thumbnails
+  // Desktop drag to reorder
   const handleDragStart = (index: number) => {
     setDraggedIndex(index)
   }
@@ -117,25 +104,50 @@ export default function ImageUploader({
     setDraggedIndex(null)
   }
 
+  // Touch events for mobile
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    const touch = e.touches[0]
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY }
+    setTouchStartIndex(index)
+    setTouchCurrentIndex(index)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartIndex === null || !touchStartPos.current) return
+
+    const touch = e.touches[0]
+    const deltaX = Math.abs(touch.clientX - touchStartPos.current.x)
+    const deltaY = Math.abs(touch.clientY - touchStartPos.current.y)
+
+
+    // TÃ¬m thumbnail Ä‘ang á»Ÿ vá»‹ trÃ­ ngÃ³n tay
+    const elements = document.elementsFromPoint(touch.clientX, touch.clientY)
+    const thumbnailElement = elements.find(el => 
+      el.classList.contains(styles.thumbnail)
+    ) as HTMLElement
+
+    if (thumbnailElement) {
+      const newIndex = parseInt(thumbnailElement.dataset.index || '-1')
+      if (newIndex !== -1 && newIndex !== touchCurrentIndex) {
+        setTouchCurrentIndex(newIndex)
+      }
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStartIndex !== null && touchCurrentIndex !== null && touchStartIndex !== touchCurrentIndex) {
+      reorderFiles(touchStartIndex, touchCurrentIndex)
+    }
+    
+    touchStartPos.current = null
+    setTouchStartIndex(null)
+    setTouchCurrentIndex(null)
+  }
+
   const canAddMore = files.length < maxImages
 
   return (
     <div className={styles.container}>
-      {/* Upload button */}
-      <button
-        type="button"
-        className={styles.uploadBtn}
-        onClick={handleButtonClick}
-        disabled={!canAddMore}
-      >
-        <svg viewBox="0 0 24 24" width="20" height="20">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="2"/>
-          <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-          <polyline points="21 15 16 10 5 21" fill="none" stroke="currentColor" strokeWidth="2"/>
-        </svg>
-        <span>Thêm ảnh</span>
-      </button>
-
       <input
         ref={fileInputRef}
         type="file"
@@ -145,36 +157,25 @@ export default function ImageUploader({
         className={styles.fileInput}
       />
 
-      {/* Drag & Drop zone */}
-      {canAddMore && files.length === 0 && (
-        <div
-          className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''}`}
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <svg viewBox="0 0 24 24" width="32" height="32">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <polyline points="17 8 12 3 7 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          <p>Kéo thả ảnh vào đây hoặc nhấn nút "Thêm ảnh"</p>
-          <span>Tối đa {maxImages} ảnh, mỗi ảnh ≤ 5MB</span>
-        </div>
-      )}
-
       {/* Preview grid */}
       {previews.length > 0 && (
         <div className={styles.previewGrid}>
           {previews.map((preview, index) => (
             <div
               key={index}
-              className={styles.thumbnail}
+              data-index={index}
+              className={`${styles.thumbnail} ${
+                touchStartIndex === index ? styles.thumbnailDragging : ''
+              } ${
+                touchCurrentIndex === index && touchStartIndex !== null ? styles.thumbnailOver : ''
+              }`}
               draggable
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOverThumbnail(e, index)}
               onDragEnd={handleDragEnd}
+              onTouchStart={(e) => handleTouchStart(e, index)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
             >
               <img src={preview} alt={`Preview ${index + 1}`} />
               
@@ -186,7 +187,11 @@ export default function ImageUploader({
                 type="button"
                 className={styles.deleteBtn}
                 onClick={() => removeFile(index)}
-                aria-label={`Remove image ${index + 1}`}
+                onTouchEnd={(e) => {
+                  e.stopPropagation()
+                  removeFile(index)
+                }}
+                aria-label={`XÃ³a áº£nh ${index + 1}`}
               >
                 <svg viewBox="0 0 24 24" width="14" height="14">
                   <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2"/>
@@ -224,4 +229,8 @@ export default function ImageUploader({
       )}
     </div>
   )
-}
+})
+
+ImageUploader.displayName = 'ImageUploader'
+
+export default ImageUploader

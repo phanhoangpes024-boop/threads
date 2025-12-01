@@ -1,221 +1,130 @@
-/* components/ImageUploader/ImageUploader.module.css */
-
 .container {
   width: 100%;
-  margin: 12px 0;
-}
-
-.uploadBtn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #e0e0e0);
-  background: transparent;
-  color: var(--text-primary, #000000);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-}
-
-.uploadBtn:hover:not(:disabled) {
-  background: var(--bg-hover, #f5f5f5);
-  border-color: var(--text-secondary, #999999);
-}
-
-.uploadBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.uploadBtn svg {
-  stroke: var(--text-primary, #000000);
-}
-
-[data-theme="dark"] .uploadBtn svg {
-  stroke: var(--text-primary, #ffffff);
 }
 
 .fileInput {
   display: none;
 }
 
-/* Drag & Drop zone */
-.dropZone {
-  margin-top: 12px;
-  padding: 40px 20px;
-  border: 2px dashed var(--border-color, #e0e0e0);
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  text-align: center;
-  transition: all 0.2s ease;
-  background: var(--bg-tertiary, #fafafa);
-}
-
-[data-theme="dark"] .dropZone {
-  background: var(--bg-tertiary, #1a1a1a);
-  border-color: var(--border-color, #262626);
-}
-
-.dropZone svg {
-  stroke: var(--text-secondary, #999999);
-}
-
-.dropZone p {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary, #000000);
-}
-
-.dropZone span {
-  font-size: 13px;
-  color: var(--text-secondary, #999999);
-}
-
-.dropZoneActive {
-  border-color: var(--accent-color, #0095f6);
-  background: var(--bg-hover, #f0f8ff);
-}
-
-[data-theme="dark"] .dropZoneActive {
-  background: rgba(0, 149, 246, 0.1);
-}
-
-/* Preview grid */
 .previewGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, 80px);
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
   margin-top: 12px;
 }
 
 .thumbnail {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 100%;
+  aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
-  background: var(--bg-tertiary, #f0f0f0);
-  cursor: move;
-  transition: all 0.2s ease;
+  border: 2px solid #e0e0e0;
+  cursor: grab;
+  transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-[data-theme="dark"] .thumbnail {
-  background: var(--bg-tertiary, #1a1a1a);
-}
-
-.thumbnail:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.thumbnail:active {
+  cursor: grabbing;
 }
 
 .thumbnail img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+  pointer-events: none;
 }
 
-/* Number badge */
+/* Desktop drag states */
+.thumbnail[draggable="true"]:hover {
+  transform: scale(1.02);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile touch states */
+.thumbnailDragging {
+  opacity: 0.6;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.thumbnailOver {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
 .badge {
   position: absolute;
   top: 4px;
   left: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
 }
 
-[data-theme="dark"] .badge {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-/* Delete button */
 .deleteBtn {
   position: absolute;
   top: 4px;
   right: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 50%;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  border: none;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: all 0.2s ease;
-}
-
-[data-theme="dark"] .deleteBtn {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.thumbnail:hover .deleteBtn {
-  opacity: 1;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+  z-index: 2;
 }
 
 .deleteBtn:hover {
-  background: #ff3b30;
+  background: rgba(0, 0, 0, 0.9);
   transform: scale(1.1);
 }
 
-.deleteBtn svg {
-  stroke: #ffffff;
+.deleteBtn:active {
+  transform: scale(0.95);
 }
 
-/* Add more button */
 .addMoreBtn {
-  width: 80px;
-  height: 80px;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px dashed #ccc;
   border-radius: 8px;
-  border: 2px dashed var(--border-color, #e0e0e0);
-  background: var(--bg-tertiary, #fafafa);
+  background: #f9f9f9;
+  color: #666;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-}
-
-[data-theme="dark"] .addMoreBtn {
-  background: var(--bg-tertiary, #1a1a1a);
-  border-color: var(--border-color, #262626);
+  transition: all 0.2s;
 }
 
 .addMoreBtn:hover {
-  background: var(--bg-hover, #f5f5f5);
-  border-color: var(--text-secondary, #999999);
-  transform: scale(1.05);
+  border-color: #667eea;
+  background: #f0f4ff;
+  color: #667eea;
 }
 
-[data-theme="dark"] .addMoreBtn:hover {
-  background: var(--bg-hover, #262626);
+.addMoreBtn:active {
+  transform: scale(0.98);
 }
 
-.addMoreBtn svg {
-  stroke: var(--text-secondary, #999999);
-}
-
-/* Errors */
 .errors {
   margin-top: 12px;
   display: flex;
@@ -224,43 +133,55 @@
 }
 
 .error {
-  padding: 10px 12px;
+  padding: 8px 12px;
   background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
   color: #c33;
-  border-radius: 8px;
   font-size: 13px;
-  border-left: 3px solid #ff3b30;
 }
 
-[data-theme="dark"] .error {
-  background: rgba(255, 59, 48, 0.15);
-  color: #ff453a;
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .dropZone {
-    padding: 30px 16px;
-  }
-
+/* Mobile optimizations */
+@media (max-width: 640px) {
   .previewGrid {
-    grid-template-columns: repeat(auto-fill, 70px);
-    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 6px;
   }
-
-  .thumbnail {
-    width: 70px;
-    height: 70px;
-  }
-
-  .addMoreBtn {
-    width: 70px;
-    height: 70px;
-  }
-
+  
   .badge {
     width: 18px;
     height: 18px;
     font-size: 10px;
+  }
+  
+  .deleteBtn {
+    width: 28px;
+    height: 28px;
+  }
+  
+  /* TÄƒng vÃ¹ng cháº¡m cho mobile */
+  .deleteBtn::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    bottom: -8px;
+    left: -8px;
+  }
+}
+
+/* Prevent text selection during drag */
+.thumbnail * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Visual feedback for long press */
+@media (hover: none) and (pointer: coarse) {
+  .thumbnail:active {
+    transform: scale(1.05);
+    transition: transform 0.1s;
   }
 }

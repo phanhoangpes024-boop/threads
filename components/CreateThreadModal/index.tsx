@@ -1,11 +1,9 @@
-// components/CreateThreadModal/index.tsx - UPDATED with ImageUploader
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import ImageUploader from '@/components/ImageUploader';
-import ImageGallery from '@/components/ImageGallery';
 import { uploadImagesToSupabase } from '@/lib/supabaseStorage';
+import ImageUploader, { ImageUploaderRef } from '@/components/ImageUploader';
 import styles from './CreateThreadModal.module.css';
 
 interface CreateThreadModalProps {
@@ -25,33 +23,10 @@ export default function CreateThreadModal({
 }: CreateThreadModalProps) {
   const [content, setContent] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Generate previews from files
-  useEffect(() => {
-    if (imageFiles.length === 0) {
-      setImagePreviews([]);
-      return;
-    }
-
-    const newPreviews: string[] = [];
-    let loaded = 0;
-
-    imageFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        newPreviews.push(reader.result as string);
-        loaded++;
-        if (loaded === imageFiles.length) {
-          setImagePreviews(newPreviews);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }, [imageFiles]);
+  const imageUploaderRef = useRef<ImageUploaderRef>(null);
 
   useEffect(() => {
     if (isOpen && textareaRef.current) {
@@ -86,12 +61,15 @@ export default function CreateThreadModal({
     if (posting || uploading) return;
     setContent('');
     setImageFiles([]);
-    setImagePreviews([]);
     onClose();
   };
 
-  const handleDeleteImage = (index: number) => {
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
+  const handleImagesChange = (files: File[]) => {
+    setImageFiles(files);
+  };
+
+  const handleImageButtonClick = () => {
+    imageUploaderRef.current?.triggerFileInput();
   };
 
   const handleSubmit = async () => {
@@ -101,21 +79,17 @@ export default function CreateThreadModal({
     setUploading(true);
     
     try {
-      // Upload images to Supabase if any
       let imageUrls: string[] = [];
       if (imageFiles.length > 0) {
         imageUrls = await uploadImagesToSupabase(imageFiles);
       }
 
-      // Submit thread with image URLs
       await onSubmit(content.trim(), imageUrls);
       
-      // Reset
       setContent('');
       setImageFiles([]);
-      setImagePreviews([]);
     } catch (error) {
-      console.error('Error posting thread:', error);
+      console.error('Lỗi khi đăng thread:', error);
       alert('Không thể đăng thread. Vui lòng thử lại.');
     } finally {
       setPosting(false);
@@ -125,8 +99,16 @@ export default function CreateThreadModal({
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
-    e.target.style.height = 'auto';
-    e.target.style.height = e.target.scrollHeight + 'px';
+    const textarea = e.target;
+    textarea.style.height = '60px';
+    const scrollHeight = textarea.scrollHeight;
+    if (scrollHeight > 144) {
+      textarea.style.height = '144px';
+      textarea.style.overflowY = 'auto';
+    } else {
+      textarea.style.height = scrollHeight + 'px';
+      textarea.style.overflowY = 'hidden';
+    }
   };
 
   if (!isOpen) return null;
@@ -137,7 +119,6 @@ export default function CreateThreadModal({
   const modalContent = (
     <div className={styles.overlay} onClick={handleClose}>
       <div className={styles.container} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerLeft}>
             <button 
@@ -150,64 +131,72 @@ export default function CreateThreadModal({
           </div>
           <div className={styles.headerCenter}>Thread mới</div>
           <div className={styles.headerRight}>
-            <button className={styles.menuBtn} disabled={posting || uploading}>
-              <span></span>
-              <span></span>
-              <span></span>
-            </button>
           </div>
         </div>
 
-        {/* Body */}
         <div className={styles.body}>
           <div className={styles.inputSection}>
             <div className={styles.avatar}>{avatarText}</div>
             <div className={styles.inputContainer}>
               <div className={styles.userInfo}>
                 <span className={styles.username}>{username}</span>
+                <span className={styles.addCaption}>Thêm chú đề</span>
               </div>
               
-              <textarea
-                ref={textareaRef}
-                className={styles.textarea}
-                placeholder="Có gì mới?"
-                rows={3}
-                value={content}
-                onChange={handleTextareaChange}
-                disabled={posting || uploading}
-              />
+              <div className={styles.textareaContainer}>
+                <textarea
+                  ref={textareaRef}
+                  className={styles.textarea}
+                  placeholder="Có gì mới?"
+                  value={content}
+                  onChange={handleTextareaChange}
+                  disabled={posting || uploading}
+                />
+              </div>
 
-              {/* Image Uploader */}
-              <ImageUploader 
-                onImagesChange={setImageFiles}
+              <div className={styles.toolbar}>
+                <button 
+                  className={styles.toolbarBtn}
+                  aria-label="Thêm ảnh"
+                  onClick={handleImageButtonClick}
+                  type="button"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
+                </button>
+                <button 
+                  className={styles.toolbarBtn}
+                  aria-label="Thêm emoji"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <ImageUploader
+                ref={imageUploaderRef}
+                onImagesChange={handleImagesChange}
                 maxImages={10}
               />
-
-              {/* Preview Gallery */}
-              {imagePreviews.length > 0 && (
-                <div style={{ marginTop: '12px' }}>
-                  <ImageGallery
-                    images={imagePreviews}
-                    mode="edit"
-                    onDelete={handleDeleteImage}
-                  />
-                </div>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div className={styles.footer}>
-          <div className={styles.footerActions}>
-            <button
-              className={`${styles.postBtn} ${canPost ? styles.active : ''}`}
-              disabled={!canPost}
-              onClick={handleSubmit}
-            >
-              {uploading ? 'Đang tải...' : posting ? 'Đang đăng...' : 'Đăng'}
-            </button>
-          </div>
+          <button
+            className={styles.postBtn}
+            disabled={!canPost}
+            onClick={handleSubmit}
+          >
+            {uploading ? 'Đang tải...' : posting ? 'Đang đăng...' : 'Đăng'}
+          </button>
         </div>
       </div>
     </div>
