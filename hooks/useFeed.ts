@@ -1,6 +1,10 @@
-// hooks/useFeed.ts - FIXED NULL SAFETY VERSION
+// hooks/useFeed.ts - COMPLETE REWRITE FOR RPC
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
+
+// ============================================
+// TYPES
+// ============================================
 
 export interface FeedMedia {
   id: string
@@ -37,6 +41,13 @@ interface FeedCursor {
   id: string
 }
 
+// ============================================
+// HOOKS
+// ============================================
+
+/**
+ * Fetch infinite feed with pagination
+ */
 export function useFeed() {
   const { user } = useCurrentUser()
   
@@ -75,43 +86,72 @@ export function useFeed() {
     },
     
     enabled: !!user.id,
-    staleTime: 1000 * 30,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 }
 
-// ✅ FIX: Toggle like với NULL SAFETY
+/**
+ * Toggle like with RPC - No race condition!
+ */
 export function useToggleLike() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
   
   return useMutation({
+    // ✅ Call RPC function
     mutationFn: async (threadId: string) => {
+      console.log('[LIKE] Calling RPC:', threadId)
+      
       const res = await fetch(`/api/threads/${threadId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.id }),
       })
       
-      if (!res.ok) throw new Error('Failed to toggle like')
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to toggle like')
+      }
       
       const data = await res.json()
       
-      // ✅ VALIDATE response
-      if (!data || typeof data.likes_count !== 'number') {
-        throw new Error('Invalid server response')
+      // Validate RPC response
+      if (!data.success) {
+        throw new Error(data.error || 'RPC failed')
       }
       
-      return data
+      console.log('[LIKE] RPC response:', data)
+      
+      return { ...data, threadId }
     },
     
-    // ✅ Optimistic update với NULL SAFETY
+    // ✅ Optimistic update for smooth UX
     onMutate: async (threadId) => {
+      console.log('[LIKE] Optimistic update:', threadId)
+      
+      // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
+      await queryClient.cancelQueries({ queryKey: ['thread', threadId] })
       
-      const previousData = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
+      // Snapshot previous state
+      const previousFeed = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
+      const previousThread = queryClient.getQueryData<FeedThread>(['thread', threadId])
       
+      // Helper: Calculate optimistic state
+      const calculateOptimistic = (thread: FeedThread): FeedThread => {
+        const isLiked = !thread.is_liked
+        return {
+          ...thread,
+          is_liked: isLiked,
+          likes_count: isLiked 
+            ? thread.likes_count + 1 
+            : Math.max(0, thread.likes_count - 1)
+        }
+      }
+      
+      // Update feed cache
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
         if (!old) return old
         
@@ -119,66 +159,76 @@ export function useToggleLike() {
           ...old,
           pages: old.pages.map(page => ({
             ...page,
-            threads: page.threads.map(thread => {
-              if (thread.id === threadId) {
-                // ✅ NULL SAFETY: Đảm bảo likes_count luôn là number
-                const currentLikes = typeof thread.likes_count === 'number' 
-                  ? thread.likes_count 
-                  : 0
-                
-                const isLiked = !thread.is_liked
-                
-                return {
-                  ...thread,
-                  is_liked: isLiked,
-                  likes_count: isLiked 
-                    ? currentLikes + 1 
-                    : Math.max(0, currentLikes - 1)
-                }
-              }
-              return thread
-            })
+            threads: page.threads.map(t => 
+              t.id === threadId ? calculateOptimistic(t) : t
+            )
           }))
         }
       })
       
-      return { previousData }
+      // Update thread detail cache
+      if (previousThread) {
+        queryClient.setQueryData(['thread', threadId], calculateOptimistic(previousThread))
+      }
+      
+      return { previousFeed, previousThread }
     },
     
-    // Rollback on error
+    // ✅ Sync with server truth
+    onSuccess: (data) => {
+      const { threadId, action, likes_count } = data
+      
+      console.log('[LIKE] Server confirmed:', { threadId, action, likes_count })
+      
+      // Update with server count (100% accurate from RPC)
+      const updateThread = (thread: FeedThread): FeedThread => ({
+        ...thread,
+        is_liked: action === 'liked',
+        likes_count: likes_count // Trust database
+      })
+      
+      // Update feed
+      queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
+        if (!old) return old
+        
+        return {
+          ...old,
+          pages: old.pages.map(page => ({
+            ...page,
+            threads: page.threads.map(t => 
+              t.id === threadId ? updateThread(t) : t
+            )
+          }))
+        }
+      })
+      
+      // Update thread detail
+      queryClient.setQueryData<FeedThread>(['thread', threadId], (old) => {
+        if (!old) return old
+        return updateThread(old)
+      })
+    },
+    
+    // ✅ Rollback on error
     onError: (err, threadId, context) => {
       console.error('[LIKE ERROR]', err)
-      if (context?.previousData) {
-        queryClient.setQueryData(['feed', user.id], context.previousData)
+      
+      if (context?.previousFeed) {
+        queryClient.setQueryData(['feed', user.id], context.previousFeed)
+      }
+      if (context?.previousThread) {
+        queryClient.setQueryData(['thread', threadId], context.previousThread)
       }
     },
     
-    // ✅ Sync with server response
-    onSuccess: (data, threadId) => {
-      queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
-        if (!old) return old
-        
-        return {
-          ...old,
-          pages: old.pages.map(page => ({
-            ...page,
-            threads: page.threads.map(thread => {
-              if (thread.id === threadId) {
-                return {
-                  ...thread,
-                  is_liked: data.action === 'liked',
-                  likes_count: data.likes_count ?? thread.likes_count ?? 0 // ✅ Fallback
-                }
-              }
-              return thread
-            })
-          }))
-        }
-      })
-    }
+    // Configuration
+    retry: false, // RPC either works or doesn't
   })
 }
 
+/**
+ * Refresh feed manually
+ */
 export function useRefreshFeed() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
