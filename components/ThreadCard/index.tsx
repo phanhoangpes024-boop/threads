@@ -1,10 +1,11 @@
-// components/ThreadCard/index.tsx - UPDATED with ImageGallery
+// components/ThreadCard/index.tsx - UPDATED cho medias normalized
 'use client'
 
 import React, { useState } from 'react'
 import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
-import { useToggleLike } from '@/hooks/useThreads'
+import { useToggleLike } from '@/hooks/useFeed'
+import type { FeedMedia } from '@/hooks/useFeed'
 import styles from './ThreadCard.module.css'
 
 interface ThreadCardProps {
@@ -12,10 +13,11 @@ interface ThreadCardProps {
   username: string
   timestamp: string
   content: string
-  imageUrls?: string[]  // ← Changed from imageUrl
-  likes: string
-  comments: string
-  reposts: string
+  medias?: FeedMedia[]  // ← UPDATED: array of media objects
+  imageUrls?: string[]  // ← BACKWARD COMPATIBLE: giữ lại để code cũ không lỗi
+  likes: string | number
+  comments: string | number
+  reposts: string | number
   verified?: boolean
   avatarText?: string
   isDetailView?: boolean
@@ -28,7 +30,8 @@ export default function ThreadCard({
   username,
   timestamp,
   content,
-  imageUrls = [],  // ← Default empty array
+  medias = [],
+  imageUrls: legacyImageUrls, // ← Đổi tên prop để tránh conflict
   likes,
   comments,
   reposts,
@@ -67,7 +70,7 @@ export default function ThreadCard({
       target.closest('button') ||
       target.closest(`.${styles.actionButton}`) ||
       target.closest(`.${styles.menuButton}`) ||
-      target.closest(`.${styles.threadMedia}`)  // ← Block click vào gallery
+      target.closest(`.${styles.threadMedia}`)
     ) {
       return
     }
@@ -79,6 +82,27 @@ export default function ThreadCard({
     setSelectedImageIndex(index)
     setShowImageModal(true)
   }
+
+  // ← UPDATED: Convert medias to URLs for ImageGallery
+  // Support backward compatibility
+  const imageUrls = React.useMemo(() => {
+    if (medias && medias.length > 0) {
+      return medias
+        .filter(m => m.type === 'image')
+        .sort((a, b) => a.order - b.order)
+        .map(m => m.url)
+    }
+    return legacyImageUrls || []
+  }, [medias, legacyImageUrls])
+
+  // Debug log
+  React.useEffect(() => {
+    console.log(`[ThreadCard ${id}] Re-render`, {
+      mediaCount: medias?.length || 0,
+      imageUrlsCount: imageUrls.length,
+      firstUrl: imageUrls[0]?.substring(0, 50)
+    })
+  }, [id, medias, imageUrls])
 
   return (
     <article 
@@ -121,7 +145,7 @@ export default function ThreadCard({
 
           <div className={styles.threadText}>{content}</div>
 
-          {/* Image Gallery - replaced single image */}
+          {/* ← UPDATED: Render medias */}
           {imageUrls.length > 0 && (
             <div className={styles.threadMedia}>
               <ImageGallery
@@ -187,7 +211,6 @@ export default function ThreadCard({
         </div>
       </div>
 
-      {/* Enhanced ImageModal with multiple images */}
       {showImageModal && imageUrls.length > 0 && (
         <ImageModal 
           images={imageUrls}

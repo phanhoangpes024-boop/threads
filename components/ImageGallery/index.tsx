@@ -1,7 +1,8 @@
-// components/ImageGallery/index.tsx
+// components/ImageGallery/index.tsx - UPDATED với CDN Transform
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { getOptimalImageUrl } from '@/lib/imageTransform'
 import type { ImageGalleryProps } from './types'
 import styles from './ImageGallery.module.css'
 
@@ -13,17 +14,23 @@ export default function ImageGallery({
   className = '',
 }: ImageGalleryProps) {
   const [imageDimensions, setImageDimensions] = useState<Array<{width: number, height: number}>>([])
+  const [optimizedUrls, setOptimizedUrls] = useState<string[]>([])
+  
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const startX = useRef(0)
   const scrollLeft = useRef(0)
   const hasMoved = useRef(false)
-  
-  // Thêm các biến cho momentum
   const velocity = useRef(0)
   const lastX = useRef(0)
   const lastTime = useRef(0)
+
+  // Optimize images với CDN transform
+  useEffect(() => {
+    const optimized = images.map(url => getOptimalImageUrl(url))
+    setOptimizedUrls(optimized)
+  }, [images])
 
   // Load image dimensions
   useEffect(() => {
@@ -38,10 +45,10 @@ export default function ImageGallery({
       }
       img.src = src
     }
+    
     images.forEach((src, i) => loadImage(src, i))
   }, [images])
 
-  // Calculate height với logic mới
   const calculateHeight = (origWidth: number, origHeight: number) => {
     const containerWidth = containerRef.current?.clientWidth || 393
     let height = containerWidth * (origHeight / origWidth)
@@ -66,19 +73,15 @@ export default function ImageGallery({
     return Math.round(height)
   }
 
-  // Mouse drag với momentum
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return
     isDragging.current = true
     hasMoved.current = false
     startX.current = e.pageX - scrollRef.current.offsetLeft
     scrollLeft.current = scrollRef.current.scrollLeft
-    
-    // Reset momentum
     lastX.current = e.pageX
     lastTime.current = Date.now()
     velocity.current = 0
-    
     scrollRef.current.style.cursor = 'grabbing'
     scrollRef.current.style.scrollBehavior = 'auto'
     scrollRef.current.style.scrollSnapType = 'none'
@@ -95,7 +98,6 @@ export default function ImageGallery({
       hasMoved.current = true
     }
     
-    // Tính vận tốc
     const now = Date.now()
     const dt = now - lastTime.current
     const dx = e.pageX - lastX.current
@@ -106,7 +108,6 @@ export default function ImageGallery({
     
     lastX.current = e.pageX
     lastTime.current = now
-    
     scrollRef.current.scrollLeft = scrollLeft.current - walk
   }
 
@@ -115,21 +116,16 @@ export default function ImageGallery({
     isDragging.current = false
     scrollRef.current.style.cursor = 'grab'
     
-    // Thêm momentum scroll
     const momentumScroll = velocity.current * 200
     
     if (Math.abs(momentumScroll) > 10) {
       scrollRef.current.style.scrollBehavior = 'smooth'
       scrollRef.current.scrollLeft -= momentumScroll
     }
-    
-    // Không bật lại snap - dừng đâu thì dừng đó
   }
 
   const handleImageClickInternal = (index: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    
-    // Chỉ mở modal nếu KHÔNG drag
     if (!hasMoved.current && mode === 'view' && onImageClick) {
       onImageClick(index)
     }
@@ -152,9 +148,10 @@ export default function ImageGallery({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {images.map((src, index) => {
+        {images.map((originalUrl, index) => {
           const dims = imageDimensions[index]
           const height = dims ? calculateHeight(dims.width, dims.height) : 400
+          const optimizedUrl = optimizedUrls[index] || originalUrl
           
           return (
             <div
@@ -164,10 +161,11 @@ export default function ImageGallery({
               onClick={(e) => handleImageClickInternal(index, e)}
             >
               <img
-                src={src}
+                src={optimizedUrl}
                 alt={`Image ${index + 1}`}
                 className={styles.image}
                 draggable={false}
+                loading="lazy"
               />
               
               {mode === 'edit' && onDelete && (
