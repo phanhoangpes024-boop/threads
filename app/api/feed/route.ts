@@ -1,8 +1,7 @@
-// app/api/feed/route.ts - PRODUCTION FEED API
+// app/api/feed/route.ts - FIXED COMPLETE VERSION
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-// Types
 interface FeedMedia {
   id: string
   url: string
@@ -36,7 +35,6 @@ interface FeedResponse {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   
-  // Parse params
   const userId = searchParams.get('user_id')
   const cursorTime = searchParams.get('cursor_time')
   const cursorId = searchParams.get('cursor_id')
@@ -50,7 +48,6 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Call RPC function - ONE QUERY cho tất cả data
     const { data, error } = await supabase.rpc('get_feed_optimized', {
       p_user_id: userId,
       p_cursor_time: cursorTime || null,
@@ -66,23 +63,36 @@ export async function GET(request: Request) {
       )
     }
 
-    // Format response
+    // ✅ FIX: Map media_type → type
     const threads: FeedThread[] = (data || []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
       content: t.content,
       created_at: t.created_at,
-      likes_count: t.likes_count,
-      comments_count: t.comments_count,
-      reposts_count: t.reposts_count,
+      
+      // ✅ NULL SAFETY cho counts
+      likes_count: t.likes_count ?? 0,
+      comments_count: t.comments_count ?? 0,
+      reposts_count: t.reposts_count ?? 0,
+      
       username: t.username,
       avatar_text: t.avatar_text,
-      verified: t.verified,
-      is_liked: t.is_liked,
-      medias: t.medias || []
+      verified: t.verified ?? false,
+      is_liked: t.is_liked ?? false,
+      
+      // ✅ FIX: Map medias với field mapping đúng
+      medias: Array.isArray(t.medias) 
+        ? t.medias.map((m: any) => ({
+            id: m.id,
+            url: m.url,
+            type: m.media_type || m.type || 'image', // ← Map media_type → type
+            width: m.width ?? null,
+            height: m.height ?? null,
+            order: m.order_index ?? m.order ?? 0 // ← Map order_index → order
+          }))
+        : []
     }))
 
-    // Tính nextCursor (composite cursor)
     const nextCursor = threads.length === limit && threads.length > 0
       ? {
           time: threads[threads.length - 1].created_at,

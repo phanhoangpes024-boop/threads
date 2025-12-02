@@ -1,31 +1,30 @@
-// lib/imageTransform.ts - CDN Transform cho Performance
+// lib/imageTransform.ts - FIXED TYPESCRIPT TYPES
 import { supabase } from './supabase'
 
 interface TransformOptions {
   width?: number
   height?: number
   quality?: number
-  format?: 'webp' | 'jpg' | 'png'
+  // ✅ FIX: Không dùng format nữa vì Supabase chỉ có "origin"
 }
 
 /**
  * Transform Supabase Storage URL với resize parameters
- * Giảm bandwidth 95% cho mobile
+ * ✅ SAFE: Fallback to original nếu transform fail
  */
 export function transformImageUrl(
   url: string, 
   options: TransformOptions = {}
 ): string {
-  // Nếu không phải Supabase URL, return nguyên bản
-  if (!url.includes('supabase.co')) {
+  // ✅ SAFETY: Return original nếu không phải Supabase URL
+  if (!url || !url.includes('supabase.co')) {
+    console.log('[imageTransform] Not Supabase URL, returning original:', url.substring(0, 60))
     return url
   }
 
-  // Default options
   const {
     width = 800,
-    quality = 80,
-    format = 'webp'
+    quality = 80
   } = options
 
   try {
@@ -33,27 +32,43 @@ export function transformImageUrl(
     const urlObj = new URL(url)
     const path = urlObj.pathname.split('/storage/v1/object/public/')[1]
     
-    if (!path) return url
+    if (!path) {
+      console.log('[imageTransform] Cannot parse path, returning original')
+      return url
+    }
 
     // Extract bucket và file path
     const [bucket, ...fileParts] = path.split('/')
     const filePath = fileParts.join('/')
 
-    // Sử dụng Supabase Transform API
+    if (!bucket || !filePath) {
+      console.log('[imageTransform] Invalid bucket/path, returning original')
+      return url
+    }
+
+    // ✅ Try transform with Supabase - KHÔNG DÙNG format
     const { data } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath, {
         transform: {
           width,
-          quality,
-          format
+          quality
+          // ✅ BỎ format đi vì gây lỗi TypeScript
         }
       })
 
-    return data.publicUrl
+    const transformed = data.publicUrl
+    
+    console.log('[imageTransform] Transformed OK:', {
+      original: url.substring(0, 60),
+      transformed: transformed.substring(0, 60)
+    })
+    
+    return transformed
+    
   } catch (error) {
-    console.error('Error transforming image:', error)
-    return url // Fallback to original
+    console.error('[imageTransform] Error, returning original:', error)
+    return url // ✅ Fallback to original
   }
 }
 
@@ -72,13 +87,30 @@ export function getResponsiveImageUrls(originalUrl: string) {
 
 /**
  * Auto-detect viewport và return URL phù hợp
+ * ✅ SAFE: Always return valid URL
  */
 export function getOptimalImageUrl(originalUrl: string): string {
+  // ✅ SAFETY: Guard
+  if (!originalUrl) {
+    console.error('[getOptimalImageUrl] Empty URL!')
+    return ''
+  }
+
+  // ✅ SAFETY: Nếu không phải Supabase, return nguyên bản
+  if (!originalUrl.includes('supabase.co')) {
+    console.log('[getOptimalImageUrl] Not Supabase, returning original')
+    return originalUrl
+  }
+
+  // ✅ Server-side rendering guard
   if (typeof window === 'undefined') {
+    console.log('[getOptimalImageUrl] SSR, using default 800px')
     return transformImageUrl(originalUrl, { width: 800 })
   }
 
   const viewportWidth = window.innerWidth
+  
+  console.log('[getOptimalImageUrl] Viewport:', viewportWidth)
   
   // Mobile
   if (viewportWidth <= 640) {
@@ -98,10 +130,18 @@ export function getOptimalImageUrl(originalUrl: string): string {
  * Preload critical images
  */
 export function preloadImage(url: string): Promise<void> {
+  if (!url) return Promise.reject('Empty URL')
+  
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload = () => resolve()
-    img.onerror = reject
+    img.onload = () => {
+      console.log('[preloadImage] Loaded:', url.substring(0, 60))
+      resolve()
+    }
+    img.onerror = (e) => {
+      console.error('[preloadImage] Failed:', url.substring(0, 60), e)
+      reject(e)
+    }
     img.src = url
   })
 }
@@ -113,23 +153,28 @@ export function lazyLoadImage(
   imgElement: HTMLImageElement,
   src: string
 ): () => void {
+  if (!src) {
+    console.error('[lazyLoadImage] Empty src!')
+    return () => {}
+  }
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
+          console.log('[lazyLoadImage] Loading:', src.substring(0, 60))
           imgElement.src = src
           observer.unobserve(imgElement)
         }
       })
     },
     {
-      rootMargin: '50px', // Load trước 50px
+      rootMargin: '50px',
       threshold: 0.01
     }
   )
 
   observer.observe(imgElement)
 
-  // Return cleanup function
   return () => observer.disconnect()
 }

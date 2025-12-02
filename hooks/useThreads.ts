@@ -1,9 +1,9 @@
-// hooks/useThreads.ts - UPDATED với thread_medias
+// hooks/useThreads.ts - FIXED VERSION
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import type { FeedThread, FeedMedia } from './useFeed'
 
-// Create thread với medias
+// ✅ Create thread với medias - TUẦN TỰ
 export function useCreateThread() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
@@ -30,12 +30,17 @@ export function useCreateThread() {
         }),
       })
       
-      if (!threadRes.ok) throw new Error('Failed to create thread')
-      const thread = await threadRes.json()
+      if (!threadRes.ok) {
+        const error = await threadRes.json()
+        throw new Error(error.error || 'Failed to create thread')
+      }
       
+      const thread = await threadRes.json()
       console.log('[CREATE] Thread created:', thread.id)
       
-      // 2. Nếu có ảnh, tạo medias TUẦN TỰ
+      // 2. Tạo medias TUẦN TỰ (sequential)
+      const createdMedias: FeedMedia[] = []
+      
       if (imageUrls.length > 0) {
         console.log('[CREATE] Creating', imageUrls.length, 'medias...')
         
@@ -56,10 +61,22 @@ export function useCreateThread() {
               })
             })
             
-            if (!mediaRes.ok) {
-              console.error('[CREATE] Failed to create media', index, await mediaRes.text())
-            } else {
+            if (mediaRes.ok) {
+              const media = await mediaRes.json()
+              
+              // ✅ Map DB response → TypeScript format
+              createdMedias.push({
+                id: media.id,
+                url: media.url,
+                type: 'image', // ← Map media_type → type
+                width: media.width,
+                height: media.height,
+                order: media.order_index // ← Map order_index → order
+              })
+              
               console.log('[CREATE] Media', index, 'created OK')
+            } else {
+              console.error('[CREATE] Failed to create media', index)
             }
           } catch (err) {
             console.error('[CREATE] Error creating media', index, err)
@@ -67,7 +84,11 @@ export function useCreateThread() {
         }
       }
       
-      return thread
+      // 3. Return thread với medias đã tạo
+      return {
+        ...thread,
+        medias: createdMedias
+      }
     },
     
     // Optimistic update
@@ -122,8 +143,10 @@ export function useCreateThread() {
       return { previousData, optimisticId: optimisticThread.id }
     },
     
-    // Success: Replace optimistic với real data
+    // ✅ Success: Replace optimistic với real data có medias
     onSuccess: (newThread, variables, context) => {
+      console.log('[CREATE] Success with medias:', newThread.medias?.length || 0)
+      
       queryClient.setQueryData<{
         pages: { threads: FeedThread[] }[]
         pageParams: unknown[]
@@ -141,7 +164,7 @@ export function useCreateThread() {
                     username: user.username,
                     avatar_text: user.avatar_text,
                     verified: user.verified || false,
-                    medias: [], // Sẽ được fetch lại
+                    medias: newThread.medias || [], // ✅ Giữ medias đã tạo
                     is_liked: false
                   }
                 : t
@@ -149,15 +172,11 @@ export function useCreateThread() {
           }))
         }
       })
-      
-      // Refetch để lấy medias đầy đủ
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['feed', user.id] })
-      }, 500)
     },
     
     // Error: Rollback
     onError: (err, variables, context) => {
+      console.error('[CREATE ERROR]', err)
       if (context?.previousData) {
         queryClient.setQueryData(['feed', user.id], context.previousData)
       }
@@ -165,7 +184,7 @@ export function useCreateThread() {
   })
 }
 
-// Export lại các hooks cũ từ useFeed
+// Export lại các hooks cũ
 export { useFeed, useToggleLike, useRefreshFeed } from './useFeed'
 
 // Fetch single thread
@@ -247,7 +266,6 @@ export function useCreateComment(threadId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', threadId] })
       
-      // Update feed threads count
       queryClient.setQueryData<any>(['feed', user.id], (old: any) => {
         if (!old?.pages) return old
         
@@ -262,7 +280,6 @@ export function useCreateComment(threadId: string) {
         }
       })
       
-      // Update single thread
       queryClient.setQueryData<FeedThread>(['thread', threadId], (old: any) =>
         old ? { ...old, comments_count: old.comments_count + 1 } : old
       )

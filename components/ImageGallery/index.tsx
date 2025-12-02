@@ -1,4 +1,4 @@
-// components/ImageGallery/index.tsx - UPDATED với CDN Transform
+// components/ImageGallery/index.tsx - FIXED WITH DEBUG
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
@@ -15,6 +15,7 @@ export default function ImageGallery({
 }: ImageGalleryProps) {
   const [imageDimensions, setImageDimensions] = useState<Array<{width: number, height: number}>>([])
   const [optimizedUrls, setOptimizedUrls] = useState<string[]>([])
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
   
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -26,27 +27,66 @@ export default function ImageGallery({
   const lastX = useRef(0)
   const lastTime = useRef(0)
 
+  // ✅ DEBUG: Log inputs
+  useEffect(() => {
+    console.log('[ImageGallery] RENDER', {
+      imagesCount: images.length,
+      firstUrl: images[0]?.substring(0, 80),
+      mode
+    })
+  }, [images, mode])
+
   // Optimize images với CDN transform
   useEffect(() => {
-    const optimized = images.map(url => getOptimalImageUrl(url))
+    console.log('[ImageGallery] Optimizing URLs...')
+    const optimized = images.map(url => {
+      const result = getOptimalImageUrl(url)
+      console.log('[ImageGallery] Optimized:', {
+        original: url.substring(0, 60),
+        optimized: result.substring(0, 60)
+      })
+      return result
+    })
     setOptimizedUrls(optimized)
   }, [images])
 
-  // Load image dimensions
+  // Load image dimensions với error handling
   useEffect(() => {
+    console.log('[ImageGallery] Loading dimensions for', images.length, 'images')
+    
     const loadImage = (src: string, index: number) => {
       const img = new Image()
+      
       img.onload = () => {
+        console.log('[ImageGallery] Image loaded:', index, img.width, 'x', img.height)
         setImageDimensions(prev => {
           const newDims = [...prev]
           newDims[index] = { width: img.width, height: img.height }
           return newDims
         })
+        setLoadedImages(prev => new Set(prev).add(index))
       }
+      
+      img.onerror = (e) => {
+        console.error('[ImageGallery] Failed to load image:', index, src, e)
+        // Set default dimensions để vẫn render
+        setImageDimensions(prev => {
+          const newDims = [...prev]
+          newDims[index] = { width: 400, height: 400 }
+          return newDims
+        })
+      }
+      
       img.src = src
     }
     
-    images.forEach((src, i) => loadImage(src, i))
+    images.forEach((src, i) => {
+      if (src) {
+        loadImage(src, i)
+      } else {
+        console.error('[ImageGallery] Empty URL at index:', i)
+      }
+    })
   }, [images])
 
   const calculateHeight = (origWidth: number, origHeight: number) => {
@@ -127,16 +167,28 @@ export default function ImageGallery({
   const handleImageClickInternal = (index: number, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!hasMoved.current && mode === 'view' && onImageClick) {
+      console.log('[ImageGallery] Image clicked:', index)
       onImageClick(index)
     }
   }
 
   const handleDelete = (e: React.MouseEvent, index: number) => {
     e.stopPropagation()
+    console.log('[ImageGallery] Delete image:', index)
     onDelete?.(index)
   }
 
-  if (images.length === 0) return null
+  // ✅ GUARD: Return null nếu không có ảnh
+  if (!images || images.length === 0) {
+    console.log('[ImageGallery] No images to display')
+    return null
+  }
+
+  console.log('[ImageGallery] Rendering', images.length, 'images', {
+    optimizedCount: optimizedUrls.length,
+    dimensionsCount: imageDimensions.length,
+    loadedCount: loadedImages.size
+  })
 
   return (
     <div ref={containerRef} className={`${styles.gallery} ${className}`}>
@@ -153,11 +205,21 @@ export default function ImageGallery({
           const height = dims ? calculateHeight(dims.width, dims.height) : 400
           const optimizedUrl = optimizedUrls[index] || originalUrl
           
+          console.log('[ImageGallery] Rendering image', index, {
+            hasOptimized: !!optimizedUrls[index],
+            hasDims: !!dims,
+            height,
+            url: optimizedUrl.substring(0, 60)
+          })
+          
           return (
             <div
-              key={index}
+              key={`${index}-${originalUrl}`}
               className={styles.imageItem}
-              style={{ height: `${height}px` }}
+              style={{ 
+                height: `${height}px`,
+                minHeight: '360px' // ✅ Ensure minimum height
+              }}
               onClick={(e) => handleImageClickInternal(index, e)}
             >
               <img
@@ -166,6 +228,12 @@ export default function ImageGallery({
                 className={styles.image}
                 draggable={false}
                 loading="lazy"
+                onLoad={() => {
+                  console.log('[ImageGallery] IMG onLoad event:', index)
+                }}
+                onError={(e) => {
+                  console.error('[ImageGallery] IMG onError event:', index, optimizedUrl)
+                }}
               />
               
               {mode === 'edit' && onDelete && (

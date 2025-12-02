@@ -1,8 +1,12 @@
-/* components/ImageGallery/ImageGallery.module.css */
+/* components/ImageGallery/ImageGallery.module.css - FIXED */
 
 .gallery {
   width: 100%;
   margin-bottom: 12px;
+  /* ✅ DEBUG: Đảm bảo visible */
+  min-height: 360px;
+  background: transparent;
+  position: relative;
 }
 
 .scrollContainer {
@@ -16,8 +20,11 @@
   cursor: grab;
   user-select: none;
   padding: 4px 0;
-  overscroll-behavior-x: contain;  /* THÊM dòng này */
-  will-change: scroll-position;    /* THÊM dòng này */
+  overscroll-behavior-x: contain;
+  will-change: scroll-position;
+  
+  /* ✅ Đảm bảo container không collapse */
+  min-height: 360px;
 }
 
 .scrollContainer::-webkit-scrollbar {
@@ -33,11 +40,18 @@
   flex: 0 0 auto;
   width: 85%;
   max-width: 350px;
+  min-width: 280px; /* ✅ Thêm min-width */
   border-radius: 12px;
   overflow: hidden;
   position: relative;
   background: var(--bg-tertiary, #fafafa);
-  scroll-snap-stop: always;   /* THÊM dòng này */
+  scroll-snap-stop: always;
+  
+  /* ✅ CRITICAL: Đảm bảo chiều cao tối thiểu */
+  min-height: 360px;
+  
+  /* ✅ DEBUG: Border để thấy container */
+  /* border: 2px solid red; */
 }
 
 [data-theme="dark"] .imageItem {
@@ -50,6 +64,33 @@
   object-fit: cover;
   display: block;
   pointer-events: none;
+  
+  /* ✅ Đảm bảo ảnh hiển thị */
+  position: relative;
+  z-index: 1;
+  
+  /* ✅ DEBUG: Background để thấy có load hay không */
+  background: #f0f0f0;
+}
+
+/* ✅ Placeholder khi ảnh đang load */
+.imageItem::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #999;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 0;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 /* Delete button */
@@ -94,9 +135,16 @@
   .imageItem {
     width: 75%;
     max-width: 280px;
+    min-width: 240px;
+    min-height: 320px; /* ✅ Giảm min-height cho mobile */
   }
   
   .scrollContainer {
     gap: 6px;
+    min-height: 320px;
+  }
+  
+  .gallery {
+    min-height: 320px;
   }
 }

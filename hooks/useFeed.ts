@@ -1,8 +1,7 @@
-// hooks/useFeed.ts - FIXED COMPLETE VERSION
+// hooks/useFeed.ts - FIXED NULL SAFETY VERSION
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 
-// Types
 export interface FeedMedia {
   id: string
   url: string
@@ -38,7 +37,6 @@ interface FeedCursor {
   id: string
 }
 
-// Fetch feed với infinite scroll
 export function useFeed() {
   const { user } = useCurrentUser()
   
@@ -51,7 +49,6 @@ export function useFeed() {
         limit: '20'
       })
       
-      // Composite cursor
       if (pageParam) {
         params.append('cursor_time', pageParam.time)
         params.append('cursor_id', pageParam.id)
@@ -71,7 +68,6 @@ export function useFeed() {
     
     initialPageParam: undefined,
     
-    // Composite cursor cho next page
     getNextPageParam: (lastPage): FeedCursor | undefined => {
       return lastPage.hasMore && lastPage.nextCursor 
         ? lastPage.nextCursor 
@@ -79,13 +75,13 @@ export function useFeed() {
     },
     
     enabled: !!user.id,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 30,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   })
 }
 
-// Toggle like với optimistic update
+// ✅ FIX: Toggle like với NULL SAFETY
 export function useToggleLike() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
@@ -99,16 +95,23 @@ export function useToggleLike() {
       })
       
       if (!res.ok) throw new Error('Failed to toggle like')
-      return res.json()
+      
+      const data = await res.json()
+      
+      // ✅ VALIDATE response
+      if (!data || typeof data.likes_count !== 'number') {
+        throw new Error('Invalid server response')
+      }
+      
+      return data
     },
     
-    // Optimistic update
+    // ✅ Optimistic update với NULL SAFETY
     onMutate: async (threadId) => {
       await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
       
       const previousData = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
       
-      // Update UI ngay lập tức
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
         if (!old) return old
         
@@ -118,13 +121,19 @@ export function useToggleLike() {
             ...page,
             threads: page.threads.map(thread => {
               if (thread.id === threadId) {
+                // ✅ NULL SAFETY: Đảm bảo likes_count luôn là number
+                const currentLikes = typeof thread.likes_count === 'number' 
+                  ? thread.likes_count 
+                  : 0
+                
                 const isLiked = !thread.is_liked
+                
                 return {
                   ...thread,
                   is_liked: isLiked,
                   likes_count: isLiked 
-                    ? thread.likes_count + 1 
-                    : Math.max(0, thread.likes_count - 1)
+                    ? currentLikes + 1 
+                    : Math.max(0, currentLikes - 1)
                 }
               }
               return thread
@@ -138,12 +147,13 @@ export function useToggleLike() {
     
     // Rollback on error
     onError: (err, threadId, context) => {
+      console.error('[LIKE ERROR]', err)
       if (context?.previousData) {
         queryClient.setQueryData(['feed', user.id], context.previousData)
       }
     },
     
-    // Sync với server response
+    // ✅ Sync with server response
     onSuccess: (data, threadId) => {
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
         if (!old) return old
@@ -157,7 +167,7 @@ export function useToggleLike() {
                 return {
                   ...thread,
                   is_liked: data.action === 'liked',
-                  likes_count: data.likes_count
+                  likes_count: data.likes_count ?? thread.likes_count ?? 0 // ✅ Fallback
                 }
               }
               return thread
@@ -169,7 +179,6 @@ export function useToggleLike() {
   })
 }
 
-// Refresh feed (pull-to-refresh)
 export function useRefreshFeed() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
