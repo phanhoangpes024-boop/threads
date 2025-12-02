@@ -1,10 +1,7 @@
-// app/api/threads/[id]/like/route.ts - USING RPC
+// app/api/threads/[id]/like/route.ts
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-/**
- * GET - Check if user liked a thread
- */
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -27,9 +24,6 @@ export async function GET(
   return NextResponse.json({ isLiked: !!data })
 }
 
-/**
- * POST - Toggle like using RPC function
- */
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -43,10 +37,8 @@ export async function POST(
   }
 
   try {
-    console.log('[LIKE API] Calling RPC toggle_like:', { threadId, user_id })
+    console.log('[LIKE API] Calling RPC:', { threadId, user_id })
     
-    // ✅ Call database RPC function
-    // All logic handled by PostgreSQL - no race conditions!
     const { data, error } = await supabase.rpc('toggle_like', {
       p_thread_id: threadId,
       p_user_id: user_id
@@ -59,12 +51,16 @@ export async function POST(
     
     console.log('[LIKE API] RPC success:', data)
     
-    // RPC returns: { success: true, action: 'liked'|'unliked', likes_count: number }
-    return NextResponse.json(data)
+    // ✅ FIX: Thêm threadId vào response
+    return NextResponse.json({
+      success: data.success,
+      action: data.action,
+      likes_count: data.likes_count,
+      threadId  // ← THIẾU CÁI NÀY LÀM BUG +2
+    })
     
   } catch (error: any) {
     console.error('[LIKE API] Error:', error)
-    
     return NextResponse.json(
       { 
         success: false,
@@ -74,13 +70,3 @@ export async function POST(
     )
   }
 }
-
-// ============================================
-// BENEFITS OF THIS APPROACH:
-// ============================================
-// ✅ No race conditions (DB atomic operations)
-// ✅ No lost updates (SQL handles increment)
-// ✅ Works on serverless (no in-memory state)
-// ✅ Simple code (50 lines vs 200+)
-// ✅ 100% reliable
-// ✅ Transaction safety (RPC wraps in transaction)

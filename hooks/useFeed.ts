@@ -141,15 +141,15 @@ export function useToggleLike() {
       
       // Helper: Calculate optimistic state
       const calculateOptimistic = (thread: FeedThread): FeedThread => {
-        const isLiked = !thread.is_liked
-        return {
-          ...thread,
-          is_liked: isLiked,
-          likes_count: isLiked 
-            ? thread.likes_count + 1 
-            : Math.max(0, thread.likes_count - 1)
-        }
-      }
+  const newIsLiked = !thread.is_liked
+  return {
+    ...thread,
+    is_liked: newIsLiked,
+    likes_count: newIsLiked 
+      ? thread.likes_count + 1 
+      : Math.max(0, thread.likes_count - 1)
+  }
+}
       
       // Update feed cache
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
