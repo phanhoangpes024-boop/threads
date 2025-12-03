@@ -1,11 +1,10 @@
-// lib/imageTransform.ts - FIXED TYPESCRIPT TYPES
+// lib/imageTransform.ts - UPDATED WITH MANUAL OPTIONS
 import { supabase } from './supabase'
 
 interface TransformOptions {
   width?: number
   height?: number
   quality?: number
-  // ✅ FIX: Không dùng format nữa vì Supabase chỉ có "origin"
 }
 
 /**
@@ -46,14 +45,13 @@ export function transformImageUrl(
       return url
     }
 
-    // ✅ Try transform with Supabase - KHÔNG DÙNG format
+    // ✅ Try transform with Supabase
     const { data } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath, {
         transform: {
           width,
           quality
-          // ✅ BỎ format đi vì gây lỗi TypeScript
         }
       })
 
@@ -86,10 +84,13 @@ export function getResponsiveImageUrls(originalUrl: string) {
 }
 
 /**
- * Auto-detect viewport và return URL phù hợp
- * ✅ SAFE: Always return valid URL
+ * 🚀 NEW: Get optimal image URL với manual options
+ * Dùng cho ImageGallery để control chất lượng ảnh
  */
-export function getOptimalImageUrl(originalUrl: string): string {
+export function getOptimalImageUrl(
+  originalUrl: string,
+  options?: TransformOptions
+): string {
   // ✅ SAFETY: Guard
   if (!originalUrl) {
     console.error('[getOptimalImageUrl] Empty URL!')
@@ -102,6 +103,13 @@ export function getOptimalImageUrl(originalUrl: string): string {
     return originalUrl
   }
 
+  // 🚀 Nếu có options được truyền vào (manual mode), dùng luôn
+  if (options) {
+    console.log('[getOptimalImageUrl] Manual mode:', options)
+    return transformImageUrl(originalUrl, options)
+  }
+
+  // 🤖 Auto-detect mode (fallback cho các component cũ)
   // ✅ Server-side rendering guard
   if (typeof window === 'undefined') {
     console.log('[getOptimalImageUrl] SSR, using default 800px')

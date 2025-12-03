@@ -1,4 +1,4 @@
-// components/ImageGallery/index.tsx - FILM STRIP FINAL
+// components/ImageGallery/index.tsx - REFACTORED WITH PERFORMANCE
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { getOptimalImageUrl } from '@/lib/imageTransform'
 import type { FeedMedia } from '@/hooks/useFeed'
@@ -28,7 +28,7 @@ export default function ImageGallery({
   const scrollRef = useRef<HTMLDivElement>(null)
   
   // Drag state
-  const isDragging = useRef(false)
+  const isDown = useRef(false)
   const startX = useRef(0)
   const scrollLeft = useRef(0)
   const hasMoved = useRef(false)
@@ -54,60 +54,74 @@ export default function ImageGallery({
     return () => observer.disconnect()
   }, [])
 
-  // ✅ Mouse drag
+  // 🚀 PERFORMANCE: Helper function để request đúng kích thước ảnh
+  const getImageUrlWithSize = useCallback((url: string, isSingle: boolean) => {
+    if (isSingle) {
+      // Single Image: Chất lượng cao cho viewing
+      return getOptimalImageUrl(url, { width: 1200, quality: 90 })
+    } else {
+      // Film Strip: Thumbnail vừa đủ
+      return getOptimalImageUrl(url, { width: 800, quality: 80 })
+    }
+  }, [])
+
+  // Mouse drag handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollRef.current) return
-    isDragging.current = true
+    isDown.current = true
     hasMoved.current = false
-    scrollRef.current.style.scrollBehavior = 'auto'
+    scrollRef.current.classList.add(styles.isDragging)
     startX.current = e.pageX - scrollRef.current.offsetLeft
     scrollLeft.current = scrollRef.current.scrollLeft
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging.current || !scrollRef.current) return
+    if (!isDown.current || !scrollRef.current) return
     e.preventDefault()
-    
     const x = e.pageX - scrollRef.current.offsetLeft
     const walk = (x - startX.current) * 2
-    
     if (Math.abs(walk) > 5) hasMoved.current = true
     scrollRef.current.scrollLeft = scrollLeft.current - walk
   }, [])
 
   const handleMouseUp = useCallback(() => {
-    isDragging.current = false
+    isDown.current = false
     if (scrollRef.current) {
-      scrollRef.current.style.scrollBehavior = 'smooth'
+      scrollRef.current.classList.remove(styles.isDragging)
     }
   }, [])
 
-  // ✅ Touch support
+  const handleMouseLeave = useCallback(() => {
+    isDown.current = false
+    if (scrollRef.current) {
+      scrollRef.current.classList.remove(styles.isDragging)
+    }
+  }, [])
+
+  // Touch handlers
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!scrollRef.current) return
     const touch = e.touches[0]
-    isDragging.current = true
+    isDown.current = true
     hasMoved.current = false
-    scrollRef.current.style.scrollBehavior = 'auto'
+    scrollRef.current.classList.add(styles.isDragging)
     startX.current = touch.pageX - scrollRef.current.offsetLeft
     scrollLeft.current = scrollRef.current.scrollLeft
   }, [])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current || !scrollRef.current) return
+    if (!isDown.current || !scrollRef.current) return
     const touch = e.touches[0]
-    
     const x = touch.pageX - scrollRef.current.offsetLeft
     const walk = (x - startX.current) * 1.5
-    
     if (Math.abs(walk) > 5) hasMoved.current = true
     scrollRef.current.scrollLeft = scrollLeft.current - walk
   }, [])
 
   const handleTouchEnd = useCallback(() => {
-    isDragging.current = false
+    isDown.current = false
     if (scrollRef.current) {
-      scrollRef.current.style.scrollBehavior = 'smooth'
+      scrollRef.current.classList.remove(styles.isDragging)
     }
   }, [])
 
@@ -129,7 +143,7 @@ export default function ImageGallery({
 
   if (!images || images.length === 0) return null
 
-  // ✅ CASE 1: Single Image
+  // ✅ CASE 1: Single Image - High Quality + Contain
   if (images.length === 1) {
     const media = medias[0]
     const aspectRatio = media?.width && media?.height 
@@ -147,7 +161,7 @@ export default function ImageGallery({
           
           {isInViewport && (
             <img
-              src={getOptimalImageUrl(images[0])}
+              src={getImageUrlWithSize(images[0], true)}
               alt="Thread image"
               className={`${styles.singleImage} ${loadedImages.has(0) ? styles.loaded : ''}`}
               loading="lazy"
@@ -165,7 +179,7 @@ export default function ImageGallery({
     )
   }
 
-  // ✅ CASE 2+: Film Strip
+  // ✅ CASE 2+: Film Strip - Optimized Thumbnails
   return (
     <div 
       ref={containerRef}
@@ -177,7 +191,7 @@ export default function ImageGallery({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -196,7 +210,7 @@ export default function ImageGallery({
               
               {isInViewport && (
                 <img
-                  src={getOptimalImageUrl(url)}
+                  src={getImageUrlWithSize(url, false)}
                   alt={`Image ${index + 1}`}
                   className={`${styles.chainImage} ${isLoaded ? styles.loaded : ''}`}
                   loading="lazy"

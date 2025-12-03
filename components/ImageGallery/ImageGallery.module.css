@@ -1,4 +1,4 @@
-/* components/ImageGallery/ImageGallery.module.css - FILM STRIP FINAL */
+/* components/ImageGallery/ImageGallery.module.css - REFACTORED */
 
 .gallery {
   width: 100%;
@@ -8,14 +8,14 @@
 }
 
 /* ============================================
-   CASE 1: SINGLE IMAGE
+   CASE 1: SINGLE IMAGE - CONTAIN MODE
    ============================================ */
 
 .layoutSingle {
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
-  background: #f5f5f5;
+  background: #f5f5f5; /* Nền sáng cho light mode */
   position: relative;
 }
 
@@ -23,13 +23,18 @@
   width: 100%;
   position: relative;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  max-height: min(550px, 60vh);
 }
 
 .singleImage {
   width: 100%;
-  height: auto;
-  max-height: 70vh;
-  object-fit: contain;
+  height: 100%;
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain; /* ✅ Hiển thị trọn vẹn, không crop */
   display: block;
   cursor: pointer;
   opacity: 0;
@@ -41,11 +46,10 @@
 }
 
 /* ============================================
-   CASE 2+: FILM STRIP (CHUỖI ẢNH)
+   CASE 2+: FILM STRIP - SMART WIDTH [300-600px]
    ============================================ */
 
 .chainWrapper {
-  /* Flush effect - Kéo khung ra sát mép */
   width: calc(100% + 32px);
   margin-left: -16px;
   margin-right: -16px;
@@ -55,54 +59,62 @@
 .chainScroll {
   display: flex;
   gap: 4px;
-  
-  /* Scroll behavior */
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  
-  /* Padding để ảnh đầu thẳng hàng với text */
+  scroll-behavior: smooth;
   padding-left: 16px;
   padding-right: 16px;
   padding-bottom: 4px;
-  
-  /* Hide scrollbar */
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
-  
-  /* Cursor */
   cursor: grab;
   user-select: none;
+  touch-action: pan-x;
+}
+
+.chainScroll.isDragging {
+  scroll-snap-type: none !important;
+  scroll-behavior: auto !important;
+  cursor: grabbing !important;
 }
 
 .chainScroll::-webkit-scrollbar {
   display: none;
 }
 
-.chainScroll:active {
-  cursor: grabbing;
-}
-
 .chainItem {
   flex: 0 0 auto;
   
-  /* ✅ FILM STRIP: Chiều cao cố định, width tự động */
+  /* ✅ SMART WIDTH: Giới hạn [300px - 600px] */
   height: 400px;
+  min-width: 300px;
+  max-width: 600px;
   width: auto;
   
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  background: #f0f0f0;
+  background: #e5e5e5; /* Nền xám nhạt cho pillar box */
   scroll-snap-align: start;
+  
+  /* ✅ Flexbox để căn giữa ảnh */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chainImage {
-  /* Width tự động theo tỷ lệ ảnh */
-  width: auto;
+  /* ✅ Logic Scale thông minh */
   height: 100%;
-  object-fit: cover;
+  width: auto;
+  max-width: none; /* Cho phép ảnh rộng vượt khung để crop */
+  min-width: 300px; /* Đảm bảo ảnh hẹp vẫn đủ rộng */
+  
+  object-fit: cover; /* Cắt gọn phần thừa */
+  object-position: center;
+  
   display: block;
   cursor: pointer;
   pointer-events: none;
@@ -135,10 +147,6 @@
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-.loaded {
-  opacity: 1;
 }
 
 .deleteBtn {
@@ -184,6 +192,19 @@
    ============================================ */
 
 @media (max-width: 768px) {
+  .layoutSingle {
+    max-height: 450px;
+  }
+  
+  .singleWrapper {
+    max-height: 50vh;
+    min-height: 250px;
+  }
+  
+  .singleImage {
+    max-height: 50vh;
+  }
+  
   .chainWrapper {
     width: calc(100% + 32px);
     margin-left: -16px;
@@ -198,11 +219,12 @@
   
   .chainItem {
     height: 350px;
+    min-width: 240px;
     max-width: 85vw;
   }
   
-  .singleImage {
-    max-height: 60vh;
+  .chainImage {
+    min-width: 240px;
   }
 }
 
@@ -210,9 +232,12 @@
    DARK MODE
    ============================================ */
 
-[data-theme="dark"] .layoutSingle,
+[data-theme="dark"] .layoutSingle {
+  background: #1a1a1a; /* Nền tối cho dark mode */
+}
+
 [data-theme="dark"] .chainItem {
-  background: #1a1a1a;
+  background: #2a2a2a;
 }
 
 [data-theme="dark"] .skeleton {
