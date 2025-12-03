@@ -1,4 +1,4 @@
-// components/ThreadCard/index.tsx - OPTIMIZED WITH MEMO
+// components/ThreadCard/index.tsx - FIXED
 'use client'
 
 import React, { useState, useCallback, memo } from 'react'
@@ -23,7 +23,6 @@ interface ThreadCardProps {
   onCommentClick: (threadId: string) => void
 }
 
-// ✅ MEMO với areEqual - Chỉ re-render khi thực sự thay đổi
 const ThreadCard = memo(function ThreadCard({
   id,
   username,
@@ -42,7 +41,6 @@ const ThreadCard = memo(function ThreadCard({
   const [showImageModal, setShowImageModal] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
-  // ✅ useCallback để props ổn định
   const handleLike = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     onLikeClick(id)
@@ -94,7 +92,7 @@ const ThreadCard = memo(function ThreadCard({
     return date.toLocaleDateString('vi-VN')
   }, [])
 
-  // ✅ Chuyển medias → imageUrls với memo
+  // ✅ FIX 2-3: Chuyển medias → imageUrls
   const imageUrls = React.useMemo(() => {
     if (!Array.isArray(medias) || medias.length === 0) return []
     
@@ -106,6 +104,10 @@ const ThreadCard = memo(function ThreadCard({
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       .map(m => m.url)
   }, [medias])
+
+  // ✅ FIX 2: Phát hiện 1 ảnh vs nhiều ảnh
+  const isSingleImage = imageUrls.length === 1
+  const hasImages = imageUrls.length > 0
 
   return (
     <article 
@@ -145,14 +147,39 @@ const ThreadCard = memo(function ThreadCard({
 
           <div className={styles.threadText}>{content}</div>
 
-          {imageUrls.length > 0 && (
-            <div className={styles.threadMedia}>
-              <ImageGallery
-                images={imageUrls}
-                mode="view"
-                onImageClick={handleImageClick}
-              />
-            </div>
+          {/* ✅ FIX 2: 1 ảnh → <img> thẳng, 2+ ảnh → ImageGallery */}
+          {hasImages && (
+            <>
+              {isSingleImage ? (
+                <div 
+                  className={`${styles.threadMedia} ${styles.singleImage}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleImageClick(0)
+                  }}
+                >
+                  <img 
+                    src={imageUrls[0]} 
+                    alt="Thread image"
+                    loading="lazy"
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      display: 'block',
+                      cursor: 'pointer'
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className={styles.threadMedia}>
+                  <ImageGallery
+                    images={imageUrls}
+                    mode="view"
+                    onImageClick={handleImageClick}
+                  />
+                </div>
+              )}
+            </>
           )}
 
           <div className={styles.threadActions}>
@@ -215,7 +242,6 @@ const ThreadCard = memo(function ThreadCard({
   )
 })
 
-// ✅ CRITICAL: areEqual để tránh re-render khi props không đổi
 const areEqual = (prevProps: ThreadCardProps, nextProps: ThreadCardProps) => {
   return (
     prevProps.id === nextProps.id &&

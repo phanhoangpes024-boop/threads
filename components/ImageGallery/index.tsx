@@ -75,7 +75,7 @@ export default function ImageGallery({
     const x = e.pageX - scrollRef.current.offsetLeft
     const walk = (x - startX.current) * 2
     
-    if (Math.abs(walk) > 5) {
+    if (Math.abs(walk) > 15) {
       hasMoved.current = true
     }
     

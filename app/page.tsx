@@ -47,8 +47,8 @@ export default function Home() {
   const virtualizer = useVirtualizer({
     count: allThreads.length + (hasNextPage ? 1 : 0),
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 400,
-    overscan: 3,
+    estimateSize: () => 600,
+    overscan: 5,
     measureElement: (el) => el?.getBoundingClientRect().height ?? 400,
   })
   
@@ -102,13 +102,16 @@ export default function Home() {
     if (!lastItem) return
     
     // ✅ Prefetch khi còn cách 10 items (thay vì 5)
-    if (
-      lastItem.index >= allThreads.length - 10 &&
-      hasNextPage &&
-      !isFetchingNextPage
-    ) {
-      fetchNextPage()
-    }
+    // ✅ Responsive prefetch: mobile 3, desktop 10
+const prefetchThreshold = typeof window !== 'undefined' && window.innerWidth <= 768 ? 4 : 10
+
+if (
+  lastItem.index >= allThreads.length - prefetchThreshold &&
+  hasNextPage &&
+  !isFetchingNextPage
+) {
+  fetchNextPage()
+}
   }, [
     virtualizer.getVirtualItems(),
     allThreads.length,
