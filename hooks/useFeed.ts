@@ -1,6 +1,7 @@
-// hooks/useFeed.ts - COMPLETE REWRITE FOR RPC
+// hooks/useFeed.ts - OPTIMIZED VERSION
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
+import { useCallback } from 'react'
 
 // ============================================
 // TYPES
@@ -42,11 +43,28 @@ interface FeedCursor {
 }
 
 // ============================================
+// SCROLL POSITION CACHE
+// ============================================
+let scrollPositionCache: { pageIndex: number; offset: number } | null = null
+
+export function saveScrollPosition(pageIndex: number, offset: number) {
+  scrollPositionCache = { pageIndex, offset }
+}
+
+export function getScrollPosition() {
+  return scrollPositionCache
+}
+
+export function clearScrollPosition() {
+  scrollPositionCache = null
+}
+
+// ============================================
 // HOOKS
 // ============================================
 
 /**
- * Fetch infinite feed with pagination
+ * ✅ Fetch infinite feed - KHÔNG flatten pages
  */
 export function useFeed() {
   const { user } = useCurrentUser()
@@ -86,24 +104,22 @@ export function useFeed() {
     },
     
     enabled: !!user.id,
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 60, // ✅ Tăng lên 60s để giảm re-fetch
+    gcTime: 1000 * 60 * 10, // ✅ Cache 10 phút
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   })
 }
 
 /**
- * Toggle like with RPC - No race condition!
+ * ✅ Toggle like - CHỈ update đúng thread
  */
 export function useToggleLike() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
   
   return useMutation({
-    // ✅ Call RPC function
     mutationFn: async (threadId: string) => {
-      console.log('[LIKE] Calling RPC:', threadId)
-      
       const res = await fetch(`/api/threads/${threadId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,41 +133,34 @@ export function useToggleLike() {
       
       const data = await res.json()
       
-      // Validate RPC response
       if (!data.success) {
         throw new Error(data.error || 'RPC failed')
       }
       
-      console.log('[LIKE] RPC response:', data)
-      
       return { ...data, threadId }
     },
     
-    // ✅ Optimistic update for smooth UX
+    // ✅ OPTIMIZED: Không loop toàn bộ, dùng callback
     onMutate: async (threadId) => {
-      console.log('[LIKE] Optimistic update:', threadId)
-      
-      // Cancel outgoing queries
       await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
-      await queryClient.cancelQueries({ queryKey: ['thread', threadId] })
       
-      // Snapshot previous state
       const previousFeed = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
-      const previousThread = queryClient.getQueryData<FeedThread>(['thread', threadId])
       
-      // Helper: Calculate optimistic state
-      const calculateOptimistic = (thread: FeedThread): FeedThread => {
-  const newIsLiked = !thread.is_liked
-  return {
-    ...thread,
-    is_liked: newIsLiked,
-    likes_count: newIsLiked 
-      ? thread.likes_count + 1 
-      : Math.max(0, thread.likes_count - 1)
-  }
-}
+      // ✅ Helper để update chỉ 1 thread
+      const updateSingleThread = (thread: FeedThread): FeedThread => {
+        if (thread.id !== threadId) return thread
+        
+        const newIsLiked = !thread.is_liked
+        return {
+          ...thread,
+          is_liked: newIsLiked,
+          likes_count: newIsLiked 
+            ? thread.likes_count + 1 
+            : Math.max(0, thread.likes_count - 1)
+        }
+      }
       
-      // Update feed cache
+      // ✅ Update cache một lần duy nhất
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
         if (!old) return old
         
@@ -159,35 +168,28 @@ export function useToggleLike() {
           ...old,
           pages: old.pages.map(page => ({
             ...page,
-            threads: page.threads.map(t => 
-              t.id === threadId ? calculateOptimistic(t) : t
-            )
+            threads: page.threads.map(updateSingleThread)
           }))
         }
       })
       
-      // Update thread detail cache
-      if (previousThread) {
-        queryClient.setQueryData(['thread', threadId], calculateOptimistic(previousThread))
-      }
-      
-      return { previousFeed, previousThread }
+      return { previousFeed }
     },
     
-    // ✅ Sync with server truth
     onSuccess: (data) => {
       const { threadId, action, likes_count } = data
       
-      console.log('[LIKE] Server confirmed:', { threadId, action, likes_count })
+      // ✅ Sync với server truth
+      const syncThread = (thread: FeedThread): FeedThread => {
+        if (thread.id !== threadId) return thread
+        
+        return {
+          ...thread,
+          is_liked: action === 'liked',
+          likes_count: likes_count
+        }
+      }
       
-      // Update with server count (100% accurate from RPC)
-      const updateThread = (thread: FeedThread): FeedThread => ({
-        ...thread,
-        is_liked: action === 'liked',
-        likes_count: likes_count // Trust database
-      })
-      
-      // Update feed
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
         if (!old) return old
         
@@ -195,47 +197,34 @@ export function useToggleLike() {
           ...old,
           pages: old.pages.map(page => ({
             ...page,
-            threads: page.threads.map(t => 
-              t.id === threadId ? updateThread(t) : t
-            )
+            threads: page.threads.map(syncThread)
           }))
         }
       })
-      
-      // Update thread detail
-      queryClient.setQueryData<FeedThread>(['thread', threadId], (old) => {
-        if (!old) return old
-        return updateThread(old)
-      })
     },
     
-    // ✅ Rollback on error
     onError: (err, threadId, context) => {
       console.error('[LIKE ERROR]', err)
       
       if (context?.previousFeed) {
         queryClient.setQueryData(['feed', user.id], context.previousFeed)
       }
-      if (context?.previousThread) {
-        queryClient.setQueryData(['thread', threadId], context.previousThread)
-      }
     },
     
-    // Configuration
-    retry: false, // RPC either works or doesn't
+    retry: false,
   })
 }
 
 /**
- * Refresh feed manually
+ * ✅ Refresh feed
  */
 export function useRefreshFeed() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
   
-  return () => {
+  return useCallback(() => {
     return queryClient.invalidateQueries({ 
       queryKey: ['feed', user.id] 
     })
-  }
+  }, [queryClient, user.id])
 }

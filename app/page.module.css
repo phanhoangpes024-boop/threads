@@ -1,4 +1,4 @@
-/* app/page.module.css - FIXED CONTAINER */
+/* app/page.module.css - OPTIMIZED FOR CUSTOM SCROLLBAR */
 
 .mainContainer {
   max-width: 600px;
@@ -9,16 +9,20 @@
   border-radius: 16px 16px 0 0;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
   
-  /* CONTAINER CỐ ĐỊNH TUYỆT ĐỐI */
+  /* ✅ CONTAINER CỐ ĐỊNH - CustomScrollbar tự xử lý scroll */
   position: fixed;
   top: 61px;
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
   max-width: 600px;
-  min-height: calc(100vh - 60px);
-  overflow-y: auto; /* Scroll TRONG container */
-  overflow-x: hidden;
+  height: calc(100vh - 60px);
+  
+  /* ✅ BỎ overflow vì CustomScrollbar đã xử lý */
+  overflow: hidden;
+  
+  /* ✅ Performance optimizations */
+  contain: layout style paint;
 }
 
 @media (max-width: 768px) {
@@ -32,5 +36,15 @@
     left: 0;
     transform: none;
     max-width: 100%;
+  }
+}
+
+/* ✅ Loading skeleton animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
   }
 }

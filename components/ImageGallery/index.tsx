@@ -1,7 +1,7 @@
-// components/ImageGallery/index.tsx - FIXED WITH DEBUG
+// components/ImageGallery/index.tsx - OPTIMIZED WITH LAZY LOAD
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { getOptimalImageUrl } from '@/lib/imageTransform'
 import type { ImageGalleryProps } from './types'
 import styles from './ImageGallery.module.css'
@@ -13,121 +13,62 @@ export default function ImageGallery({
   onImageClick,
   className = '',
 }: ImageGalleryProps) {
-  const [imageDimensions, setImageDimensions] = useState<Array<{width: number, height: number}>>([])
-  const [optimizedUrls, setOptimizedUrls] = useState<string[]>([])
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
+  const [isInViewport, setIsInViewport] = useState(false)
   
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const observerRef = useRef<IntersectionObserver | null>(null)
+  
+  // Drag state
   const isDragging = useRef(false)
   const startX = useRef(0)
   const scrollLeft = useRef(0)
   const hasMoved = useRef(false)
-  const velocity = useRef(0)
-  const lastX = useRef(0)
-  const lastTime = useRef(0)
 
-  // ✅ DEBUG: Log inputs
+  // ✅ INTERSECTION OBSERVER với DEBOUNCE
   useEffect(() => {
-    console.log('[ImageGallery] RENDER', {
-      imagesCount: images.length,
-      firstUrl: images[0]?.substring(0, 80),
-      mode
-    })
-  }, [images, mode])
-
-  // Optimize images với CDN transform
-  useEffect(() => {
-    console.log('[ImageGallery] Optimizing URLs...')
-    const optimized = images.map(url => {
-      const result = getOptimalImageUrl(url)
-      console.log('[ImageGallery] Optimized:', {
-        original: url.substring(0, 60),
-        optimized: result.substring(0, 60)
-      })
-      return result
-    })
-    setOptimizedUrls(optimized)
-  }, [images])
-
-  // Load image dimensions với error handling
-  useEffect(() => {
-    console.log('[ImageGallery] Loading dimensions for', images.length, 'images')
+    if (!containerRef.current) return
     
-    const loadImage = (src: string, index: number) => {
-      const img = new Image()
-      
-      img.onload = () => {
-        console.log('[ImageGallery] Image loaded:', index, img.width, 'x', img.height)
-        setImageDimensions(prev => {
-          const newDims = [...prev]
-          newDims[index] = { width: img.width, height: img.height }
-          return newDims
+    let timeoutId: NodeJS.Timeout
+    
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // ✅ Debounce 150ms để tránh load quá nhiều ảnh cùng lúc
+          clearTimeout(timeoutId)
+          timeoutId = setTimeout(() => {
+            setIsInViewport(entry.isIntersecting)
+          }, 150)
         })
-        setLoadedImages(prev => new Set(prev).add(index))
+      },
+      {
+        rootMargin: '200px',
+        threshold: 0.01
       }
-      
-      img.onerror = (e) => {
-        console.error('[ImageGallery] Failed to load image:', index, src, e)
-        // Set default dimensions để vẫn render
-        setImageDimensions(prev => {
-          const newDims = [...prev]
-          newDims[index] = { width: 400, height: 400 }
-          return newDims
-        })
-      }
-      
-      img.src = src
-    }
+    )
     
-    images.forEach((src, i) => {
-      if (src) {
-        loadImage(src, i)
-      } else {
-        console.error('[ImageGallery] Empty URL at index:', i)
+    observerRef.current.observe(containerRef.current)
+    
+    return () => {
+      clearTimeout(timeoutId)
+      if (observerRef.current) {
+        observerRef.current.disconnect()
       }
-    })
-  }, [images])
+    }
+  }, [])
 
-  const calculateHeight = (origWidth: number, origHeight: number) => {
-    const containerWidth = containerRef.current?.clientWidth || 393
-    let height = containerWidth * (origHeight / origWidth)
-    const ratio = origWidth / origHeight
-    
-    const isSmallMobile = containerWidth < 400
-    const MIN_HEIGHT = isSmallMobile ? 320 : 360
-    const PANORAMA_MIN = isSmallMobile ? 260 : 280
-    
-    if (ratio > 3) {
-      height = Math.max(PANORAMA_MIN, Math.min(480, height))
-    } else {
-      height = Math.max(MIN_HEIGHT, Math.min(560, height))
-    }
-    
-    const finalWidthFromHeight = height * ratio
-    if (finalWidthFromHeight < containerWidth * 0.7) {
-      height = (containerWidth * 0.7) / ratio
-      height = Math.max(MIN_HEIGHT, Math.min(560, height))
-    }
-    
-    return Math.round(height)
-  }
-
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // ✅ Drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollRef.current) return
     isDragging.current = true
     hasMoved.current = false
     startX.current = e.pageX - scrollRef.current.offsetLeft
     scrollLeft.current = scrollRef.current.scrollLeft
-    lastX.current = e.pageX
-    lastTime.current = Date.now()
-    velocity.current = 0
     scrollRef.current.style.cursor = 'grabbing'
-    scrollRef.current.style.scrollBehavior = 'auto'
-    scrollRef.current.style.scrollSnapType = 'none'
-  }
+  }, [])
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current || !scrollRef.current) return
     e.preventDefault()
     
@@ -138,57 +79,34 @@ export default function ImageGallery({
       hasMoved.current = true
     }
     
-    const now = Date.now()
-    const dt = now - lastTime.current
-    const dx = e.pageX - lastX.current
-    
-    if (dt > 0) {
-      velocity.current = dx / dt
-    }
-    
-    lastX.current = e.pageX
-    lastTime.current = now
     scrollRef.current.scrollLeft = scrollLeft.current - walk
-  }
+  }, [])
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     if (!scrollRef.current) return
     isDragging.current = false
     scrollRef.current.style.cursor = 'grab'
-    
-    const momentumScroll = velocity.current * 200
-    
-    if (Math.abs(momentumScroll) > 10) {
-      scrollRef.current.style.scrollBehavior = 'smooth'
-      scrollRef.current.scrollLeft -= momentumScroll
-    }
-  }
+  }, [])
 
-  const handleImageClickInternal = (index: number, e: React.MouseEvent) => {
+  const handleImageClickInternal = useCallback((index: number, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!hasMoved.current && mode === 'view' && onImageClick) {
-      console.log('[ImageGallery] Image clicked:', index)
       onImageClick(index)
     }
-  }
+  }, [mode, onImageClick])
 
-  const handleDelete = (e: React.MouseEvent, index: number) => {
+  const handleDelete = useCallback((e: React.MouseEvent, index: number) => {
     e.stopPropagation()
-    console.log('[ImageGallery] Delete image:', index)
     onDelete?.(index)
-  }
+  }, [onDelete])
 
-  // ✅ GUARD: Return null nếu không có ảnh
+  const handleImageLoad = useCallback((index: number) => {
+    setLoadedImages(prev => new Set(prev).add(index))
+  }, [])
+
   if (!images || images.length === 0) {
-    console.log('[ImageGallery] No images to display')
     return null
   }
-
-  console.log('[ImageGallery] Rendering', images.length, 'images', {
-    optimizedCount: optimizedUrls.length,
-    dimensionsCount: imageDimensions.length,
-    loadedCount: loadedImages.size
-  })
 
   return (
     <div ref={containerRef} className={`${styles.gallery} ${className}`}>
@@ -201,40 +119,40 @@ export default function ImageGallery({
         onMouseLeave={handleMouseUp}
       >
         {images.map((originalUrl, index) => {
-          const dims = imageDimensions[index]
-          const height = dims ? calculateHeight(dims.width, dims.height) : 400
-          const optimizedUrl = optimizedUrls[index] || originalUrl
-          
-          console.log('[ImageGallery] Rendering image', index, {
-            hasOptimized: !!optimizedUrls[index],
-            hasDims: !!dims,
-            height,
-            url: optimizedUrl.substring(0, 60)
-          })
+          const optimizedUrl = getOptimalImageUrl(originalUrl)
+          const isLoaded = loadedImages.has(index)
           
           return (
             <div
               key={`${index}-${originalUrl}`}
               className={styles.imageItem}
-              style={{ 
-                height: `${height}px`,
-                minHeight: '360px' // ✅ Ensure minimum height
-              }}
               onClick={(e) => handleImageClickInternal(index, e)}
+              style={{
+                // ✅ ASPECT RATIO cố định để tránh layout shift
+                aspectRatio: '4 / 3',
+                minHeight: '360px'
+              }}
             >
-              <img
-                src={optimizedUrl}
-                alt={`Image ${index + 1}`}
-                className={styles.image}
-                draggable={false}
-                loading="lazy"
-                onLoad={() => {
-                  console.log('[ImageGallery] IMG onLoad event:', index)
-                }}
-                onError={(e) => {
-                  console.error('[ImageGallery] IMG onError event:', index, optimizedUrl)
-                }}
-              />
+              {/* ✅ Skeleton placeholder */}
+              {!isLoaded && (
+                <div className={styles.skeleton} />
+              )}
+              
+              {/* ✅ Chỉ load ảnh khi vào viewport */}
+              {isInViewport && (
+                <img
+                  src={optimizedUrl}
+                  alt={`Image ${index + 1}`}
+                  className={`${styles.image} ${isLoaded ? styles.loaded : ''}`}
+                  draggable={false}
+                  loading="lazy"
+                  onLoad={() => handleImageLoad(index)}
+                  onError={(e) => {
+                    console.error('[ImageGallery] Failed to load:', index)
+                    handleImageLoad(index) // Mark as loaded để ẩn skeleton
+                  }}
+                />
+              )}
               
               {mode === 'edit' && onDelete && (
                 <button

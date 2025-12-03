@@ -1,10 +1,9 @@
-// components/ThreadCard/index.tsx - FIXED COMPLETE VERSION
+// components/ThreadCard/index.tsx - OPTIMIZED WITH MEMO
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback, memo } from 'react'
 import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
-import { useToggleLike } from '@/hooks/useFeed'
 import type { FeedMedia } from '@/hooks/useFeed'
 import styles from './ThreadCard.module.css'
 
@@ -14,57 +13,47 @@ interface ThreadCardProps {
   timestamp: string
   content: string
   medias?: FeedMedia[]
-  imageUrls?: string[] // Backward compatible
-  likes: string | number
-  comments: string | number
-  reposts: string | number
+  likes: number
+  comments: number
+  reposts: number
   verified?: boolean
   avatarText?: string
-  isDetailView?: boolean
   isLiked?: boolean
-  onCommentClick?: () => void
+  onLikeClick: (threadId: string) => void
+  onCommentClick: (threadId: string) => void
 }
 
-export default function ThreadCard({
+// ✅ MEMO với areEqual - Chỉ re-render khi thực sự thay đổi
+const ThreadCard = memo(function ThreadCard({
   id,
   username,
   timestamp,
   content,
   medias = [],
-  imageUrls: legacyImageUrls,
   likes,
   comments,
   reposts,
   verified = false,
   avatarText = 'K',
-  isDetailView = false,
   isLiked = false,
+  onLikeClick,
   onCommentClick,
 }: ThreadCardProps) {
-  const toggleLikeMutation = useToggleLike()
   const [showImageModal, setShowImageModal] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
-  const handleLike = () => {
-    toggleLikeMutation.mutate(id)
-  }
+  // ✅ useCallback để props ổn định
+  const handleLike = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onLikeClick(id)
+  }, [id, onLikeClick])
 
-  const formatTimestamp = (ts: string) => {
-    const date = new Date(ts)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    
-    if (diffHours < 1) return 'Vừa xong'
-    if (diffHours < 24) return `${diffHours} giờ`
-    if (diffHours < 48) return 'Hôm qua'
-    
-    return date.toLocaleDateString('vi-VN')
-  }
+  const handleComment = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    onCommentClick(id)
+  }, [id, onCommentClick])
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (isDetailView) return
-    
+  const handleCardClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     if (
       target.closest('button') ||
@@ -76,64 +65,53 @@ export default function ThreadCard({
     }
     
     window.location.href = `/thread/${id}`
-  }
+  }, [id])
 
-  const handleImageClick = (index: number) => {
+  const handleImageClick = useCallback((index: number) => {
     setSelectedImageIndex(index)
     setShowImageModal(true)
-  }
+  }, [])
 
-  // ✅ FIX: Chuyển medias → imageUrls với validation đúng
+  const handleCloseModal = useCallback(() => {
+    setShowImageModal(false)
+  }, [])
+
+  const handleUsernameClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    window.location.href = `/profile/${username}`
+  }, [username])
+
+  const formatTimestamp = useCallback((ts: string) => {
+    const date = new Date(ts)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    
+    if (diffHours < 1) return 'Vừa xong'
+    if (diffHours < 24) return `${diffHours} giờ`
+    if (diffHours < 48) return 'Hôm qua'
+    
+    return date.toLocaleDateString('vi-VN')
+  }, [])
+
+  // ✅ Chuyển medias → imageUrls với memo
   const imageUrls = React.useMemo(() => {
-    console.log(`[ThreadCard ${id}] Converting medias:`, {
-      mediasLength: medias?.length || 0,
-      firstMedia: medias?.[0],
-      legacyUrls: legacyImageUrls?.length || 0
-    })
+    if (!Array.isArray(medias) || medias.length === 0) return []
     
-    // Priority 1: Dùng medias (normalized data)
-    if (Array.isArray(medias) && medias.length > 0) {
-      const urls = medias
-        .filter(m => {
-          // ✅ FIX: Check cả media_type VÀ type
-          const isImage = m.type === 'image' || (m as any).media_type === 'image'
-          return isImage && m.url
-        })
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-        .map(m => m.url)
-      
-      console.log(`[ThreadCard ${id}] Extracted ${urls.length} image URLs from medias`)
-      return urls
-    }
-    
-    // Priority 2: Fallback to legacy imageUrls
-    if (Array.isArray(legacyImageUrls) && legacyImageUrls.length > 0) {
-      console.log(`[ThreadCard ${id}] Using ${legacyImageUrls.length} legacy URLs`)
-      return legacyImageUrls
-    }
-    
-    console.log(`[ThreadCard ${id}] No images found`)
-    return []
-  }, [id, medias, legacyImageUrls])
-
-  // ✅ FIX: Format counts với null safety
-  const likesDisplay = typeof likes === 'number' 
-    ? likes.toString() 
-    : (likes || '0')
-  
-  const commentsDisplay = typeof comments === 'number' 
-    ? comments.toString() 
-    : (comments || '0')
-  
-  const repostsDisplay = typeof reposts === 'number' 
-    ? reposts.toString() 
-    : (reposts || '0')
+    return medias
+      .filter(m => {
+        const isImage = m.type === 'image' || (m as any).media_type === 'image'
+        return isImage && m.url
+      })
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map(m => m.url)
+  }, [medias])
 
   return (
     <article 
       className={styles.threadCard} 
       onClick={handleCardClick}
-      style={{ cursor: isDetailView ? 'default' : 'pointer' }}
+      style={{ cursor: 'pointer' }}
     >
       <div className={styles.threadContainer}>
         <div className={styles.threadAvatar}>
@@ -145,10 +123,7 @@ export default function ThreadCard({
             <div className={styles.threadHeaderLeft}>
               <span 
                 className={styles.username}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  window.location.href = `/profile/${username}`
-                }}
+                onClick={handleUsernameClick}
               >{username}</span>
               {verified && (
                 <div className={styles.verifiedBadge}>
@@ -170,7 +145,6 @@ export default function ThreadCard({
 
           <div className={styles.threadText}>{content}</div>
 
-          {/* ✅ Render ảnh với validation */}
           {imageUrls.length > 0 && (
             <div className={styles.threadMedia}>
               <ImageGallery
@@ -184,32 +158,26 @@ export default function ThreadCard({
           <div className={styles.threadActions}>
             <div 
               className={`${styles.actionButton} ${isLiked ? styles.active : ''}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleLike()
-              }}
+              onClick={handleLike}
             >
               <div className={styles.actionIcon}>
                 <svg viewBox="0 0 24 24">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
               </div>
-              <span className={styles.actionCount}>{likesDisplay}</span>
+              <span className={styles.actionCount}>{likes}</span>
             </div>
 
             <div 
               className={styles.actionButton}
-              onClick={(e) => {
-                e.stopPropagation()
-                onCommentClick?.()
-              }}
+              onClick={handleComment}
             >
               <div className={styles.actionIcon}>
                 <svg viewBox="0 0 24 24">
                   <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
                 </svg>
               </div>
-              <span className={styles.actionCount}>{commentsDisplay}</span>
+              <span className={styles.actionCount}>{comments}</span>
             </div>
 
             <div className={styles.actionButton}>
@@ -221,7 +189,7 @@ export default function ThreadCard({
                   <path d="M21 13v2a4 4 0 0 1-4 4H3" />
                 </svg>
               </div>
-              <span className={styles.actionCount}>{repostsDisplay}</span>
+              <span className={styles.actionCount}>{reposts}</span>
             </div>
 
             <div className={styles.actionButton}>
@@ -240,9 +208,24 @@ export default function ThreadCard({
         <ImageModal 
           images={imageUrls}
           initialIndex={selectedImageIndex}
-          onClose={() => setShowImageModal(false)} 
+          onClose={handleCloseModal} 
         />
       )}
     </article>
   )
+})
+
+// ✅ CRITICAL: areEqual để tránh re-render khi props không đổi
+const areEqual = (prevProps: ThreadCardProps, nextProps: ThreadCardProps) => {
+  return (
+    prevProps.id === nextProps.id &&
+    prevProps.likes === nextProps.likes &&
+    prevProps.comments === nextProps.comments &&
+    prevProps.reposts === nextProps.reposts &&
+    prevProps.isLiked === nextProps.isLiked &&
+    prevProps.content === nextProps.content &&
+    prevProps.medias?.length === nextProps.medias?.length
+  )
 }
+
+export default memo(ThreadCard, areEqual)
