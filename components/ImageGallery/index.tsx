@@ -1,13 +1,21 @@
-// components/ImageGallery/index.tsx - OPTIMIZED WITH LAZY LOAD
-'use client'
-
-import { useState, useRef, useEffect, useCallback } from 'react'
+// components/ImageGallery/index.tsx - FILM STRIP FINAL
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { getOptimalImageUrl } from '@/lib/imageTransform'
-import type { ImageGalleryProps } from './types'
+import type { FeedMedia } from '@/hooks/useFeed'
 import styles from './ImageGallery.module.css'
+
+interface ImageGalleryProps {
+  images: string[]
+  medias?: FeedMedia[]
+  mode?: 'view' | 'edit'
+  onDelete?: (index: number) => void
+  onImageClick?: (index: number) => void
+  className?: string
+}
 
 export default function ImageGallery({
   images,
+  medias = [],
   mode = 'view',
   onDelete,
   onImageClick,
@@ -18,7 +26,6 @@ export default function ImageGallery({
   
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const observerRef = useRef<IntersectionObserver | null>(null)
   
   // Drag state
   const isDragging = useRef(false)
@@ -26,46 +33,35 @@ export default function ImageGallery({
   const scrollLeft = useRef(0)
   const hasMoved = useRef(false)
 
-  // ✅ INTERSECTION OBSERVER với DEBOUNCE
+  // ✅ Intersection Observer cho lazy load
   useEffect(() => {
     if (!containerRef.current) return
     
-    let timeoutId: NodeJS.Timeout
-    
-    observerRef.current = new IntersectionObserver(
+    const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          // ✅ Debounce 150ms để tránh load quá nhiều ảnh cùng lúc
-          clearTimeout(timeoutId)
-          timeoutId = setTimeout(() => {
-            setIsInViewport(entry.isIntersecting)
-          }, 150)
+          if (entry.isIntersecting) {
+            setIsInViewport(true)
+            observer.unobserve(entry.target)
+          }
         })
       },
-      {
-        rootMargin: '200px',
-        threshold: 0.01
-      }
+      { rootMargin: '200px', threshold: 0.01 }
     )
     
-    observerRef.current.observe(containerRef.current)
+    observer.observe(containerRef.current)
     
-    return () => {
-      clearTimeout(timeoutId)
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-      }
-    }
+    return () => observer.disconnect()
   }, [])
 
-  // ✅ Drag handlers
+  // ✅ Mouse drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollRef.current) return
     isDragging.current = true
     hasMoved.current = false
+    scrollRef.current.style.scrollBehavior = 'auto'
     startX.current = e.pageX - scrollRef.current.offsetLeft
     scrollLeft.current = scrollRef.current.scrollLeft
-    scrollRef.current.style.cursor = 'grabbing'
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
@@ -75,20 +71,47 @@ export default function ImageGallery({
     const x = e.pageX - scrollRef.current.offsetLeft
     const walk = (x - startX.current) * 2
     
-    if (Math.abs(walk) > 15) {
-      hasMoved.current = true
-    }
-    
+    if (Math.abs(walk) > 5) hasMoved.current = true
     scrollRef.current.scrollLeft = scrollLeft.current - walk
   }, [])
 
   const handleMouseUp = useCallback(() => {
-    if (!scrollRef.current) return
     isDragging.current = false
-    scrollRef.current.style.cursor = 'grab'
+    if (scrollRef.current) {
+      scrollRef.current.style.scrollBehavior = 'smooth'
+    }
   }, [])
 
-  const handleImageClickInternal = useCallback((index: number, e: React.MouseEvent) => {
+  // ✅ Touch support
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!scrollRef.current) return
+    const touch = e.touches[0]
+    isDragging.current = true
+    hasMoved.current = false
+    scrollRef.current.style.scrollBehavior = 'auto'
+    startX.current = touch.pageX - scrollRef.current.offsetLeft
+    scrollLeft.current = scrollRef.current.scrollLeft
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current || !scrollRef.current) return
+    const touch = e.touches[0]
+    
+    const x = touch.pageX - scrollRef.current.offsetLeft
+    const walk = (x - startX.current) * 1.5
+    
+    if (Math.abs(walk) > 5) hasMoved.current = true
+    scrollRef.current.scrollLeft = scrollLeft.current - walk
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false
+    if (scrollRef.current) {
+      scrollRef.current.style.scrollBehavior = 'smooth'
+    }
+  }, [])
+
+  const handleImageClick = useCallback((index: number, e: React.MouseEvent) => {
     e.stopPropagation()
     if (!hasMoved.current && mode === 'view' && onImageClick) {
       onImageClick(index)
@@ -104,65 +127,93 @@ export default function ImageGallery({
     setLoadedImages(prev => new Set(prev).add(index))
   }, [])
 
-  if (!images || images.length === 0) {
-    return null
+  if (!images || images.length === 0) return null
+
+  // ✅ CASE 1: Single Image
+  if (images.length === 1) {
+    const media = medias[0]
+    const aspectRatio = media?.width && media?.height 
+      ? `${media.width}/${media.height}` 
+      : undefined
+    
+    return (
+      <div 
+        ref={containerRef}
+        className={`${styles.gallery} ${styles.layoutSingle} ${className}`}
+        onClick={(e) => handleImageClick(0, e)}
+      >
+        <div className={styles.singleWrapper} style={{ aspectRatio }}>
+          {!loadedImages.has(0) && <div className={styles.skeleton} />}
+          
+          {isInViewport && (
+            <img
+              src={getOptimalImageUrl(images[0])}
+              alt="Thread image"
+              className={`${styles.singleImage} ${loadedImages.has(0) ? styles.loaded : ''}`}
+              loading="lazy"
+              onLoad={() => handleImageLoad(0)}
+            />
+          )}
+          
+          {mode === 'edit' && onDelete && (
+            <button className={styles.deleteBtn} onClick={(e) => handleDelete(e, 0)}>
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
+  // ✅ CASE 2+: Film Strip
   return (
-    <div ref={containerRef} className={`${styles.gallery} ${className}`}>
+    <div 
+      ref={containerRef}
+      className={`${styles.gallery} ${styles.chainWrapper} ${className}`}
+    >
       <div
         ref={scrollRef}
-        className={styles.scrollContainer}
+        className={styles.chainScroll}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        {images.map((originalUrl, index) => {
-          const optimizedUrl = getOptimalImageUrl(originalUrl)
+        {images.map((url, index) => {
           const isLoaded = loadedImages.has(index)
+          const showOverlay = index === 4 && images.length > 5
           
           return (
             <div
-              key={`${index}-${originalUrl}`}
-              className={styles.imageItem}
-              onClick={(e) => handleImageClickInternal(index, e)}
-              style={{
-                // ✅ ASPECT RATIO cố định để tránh layout shift
-                aspectRatio: '4 / 3',
-                minHeight: '360px'
-              }}
+              key={index}
+              className={styles.chainItem}
+              onClick={(e) => handleImageClick(index, e)}
             >
-              {/* ✅ Skeleton placeholder */}
-              {!isLoaded && (
-                <div className={styles.skeleton} />
-              )}
+              {!isLoaded && <div className={styles.skeleton} />}
               
-              {/* ✅ Chỉ load ảnh khi vào viewport */}
               {isInViewport && (
                 <img
-                  src={optimizedUrl}
+                  src={getOptimalImageUrl(url)}
                   alt={`Image ${index + 1}`}
-                  className={`${styles.image} ${isLoaded ? styles.loaded : ''}`}
-                  draggable={false}
+                  className={`${styles.chainImage} ${isLoaded ? styles.loaded : ''}`}
                   loading="lazy"
+                  draggable={false}
                   onLoad={() => handleImageLoad(index)}
-                  onError={(e) => {
-                    console.error('[ImageGallery] Failed to load:', index)
-                    handleImageLoad(index) // Mark as loaded để ẩn skeleton
-                  }}
                 />
               )}
               
+              {showOverlay && (
+                <div className={styles.overlay}>
+                  +{images.length - 5}
+                </div>
+              )}
+              
               {mode === 'edit' && onDelete && (
-                <button
-                  className={styles.deleteBtn}
-                  onClick={(e) => handleDelete(e, index)}
-                >
-                  <svg viewBox="0 0 24 24" width="16" height="16">
-                    <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" />
-                    <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" />
-                  </svg>
+                <button className={styles.deleteBtn} onClick={(e) => handleDelete(e, index)}>
+                  ×
                 </button>
               )}
             </div>

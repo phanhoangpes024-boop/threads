@@ -1,4 +1,4 @@
-/* components/ThreadCard/ThreadCard.module.css - FIXED */
+/* components/ThreadCard/ThreadCard.module.css - PRODUCTION READY */
 
 .threadCard {
   max-width: 600px;
@@ -109,17 +109,18 @@
   word-wrap: break-word;
 }
 
-/* ✅ FIX 1: Bỏ aspect-ratio cố định, để ảnh tự nhiên */
+/* ============================================
+   ✅ IMAGE GALLERY - 3 CASES
+   ============================================ */
+
+/* CASE 1: Single Image - Full width, maintain aspect ratio */
 .threadMedia {
   margin-bottom: 12px;
   border-radius: 12px;
   overflow: hidden;
   background: #f5f5f5;
-  /* ✅ BỎ: aspect-ratio: 1 / 1; */
-  /* ✅ BỎ: object-fit: cover; */
 }
 
-/* ✅ FIX 2: Ảnh đơn - Full width, giữ tỷ lệ gốc */
 .threadMedia.singleImage {
   width: 100%;
 }
@@ -128,9 +129,14 @@
   width: 100%;
   height: auto;
   display: block;
-  object-fit: contain; /* ✅ Không crop */
-  max-height: 600px; /* ✅ Giới hạn chiều cao */
+  object-fit: contain;
+  max-height: 70vh;
 }
+
+/* CASE 2: Grid 2 ảnh - Handled by ImageGallery component */
+
+/* CASE 3+: Carousel - FLUSH LEFT với text */
+/* ImageGallery tự handle, không cần CSS đặc biệt ở đây */
 
 .threadActions {
   display: flex;
@@ -183,7 +189,10 @@
   font-weight: 400;
 }
 
-/* Mobile Responsive */
+/* ============================================
+   📱 MOBILE RESPONSIVE
+   ============================================ */
+
 @media (max-width: 768px) {
   .threadCard {
     max-width: 100%;
@@ -231,11 +240,61 @@
     gap: 20px;
   }
   
-  /* ✅ FIX 3: Mobile - Ảnh full màn hình */
+  /* ✅ MOBILE: Single image full screen */
   .threadMedia.singleImage {
     margin-left: -16px;
     margin-right: -16px;
     width: calc(100% + 32px);
     border-radius: 0;
   }
+
+  .threadMedia.singleImage img {
+    max-height: 60vh;
+  }
+}
+
+/* ============================================
+   🌙 DARK MODE SUPPORT
+   ============================================ */
+
+[data-theme="dark"] .threadCard {
+  background: var(--bg-primary, #0a0a0a);
+  border-bottom-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .threadText {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .username {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .timestamp {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .menuButton:hover {
+  background-color: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .actionButton:hover .actionIcon {
+  background-color: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .actionIcon svg {
+  stroke: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .actionButton.active .actionIcon svg {
+  stroke: var(--text-primary, #ffffff);
+  fill: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .actionCount {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .threadMedia {
+  background: var(--bg-tertiary, #1a1a1a);
 }
