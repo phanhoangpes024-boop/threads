@@ -179,7 +179,49 @@ export default function ImageGallery({
     )
   }
 
-  // ✅ CASE 2+: Film Strip - Optimized Thumbnails
+  // ✅ CASE 2: Grid 2 Images - 50% Width Each
+  if (images.length === 2) {
+    return (
+      <div 
+        ref={containerRef}
+        className={`${styles.gallery} ${className}`}
+      >
+        <div className={styles.gridTwo}>
+          {images.map((url, index) => {
+            const isLoaded = loadedImages.has(index)
+            
+            return (
+              <div
+                key={index}
+                className={styles.gridTwoItem}
+                onClick={(e) => handleImageClick(index, e)}
+              >
+                {!isLoaded && <div className={styles.skeleton} />}
+                
+                {isInViewport && (
+                  <img
+                    src={getImageUrlWithSize(url, false)}
+                    alt={`Image ${index + 1}`}
+                    className={`${styles.gridTwoImage} ${isLoaded ? styles.loaded : ''}`}
+                    loading="lazy"
+                    onLoad={() => handleImageLoad(index)}
+                  />
+                )}
+                
+                {mode === 'edit' && onDelete && (
+                  <button className={styles.deleteBtn} onClick={(e) => handleDelete(e, index)}>
+                    ×
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // ✅ CASE 3+: Film Strip - Optimized Thumbnails
   return (
     <div 
       ref={containerRef}

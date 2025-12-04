@@ -118,7 +118,7 @@
   margin-bottom: 12px;
   border-radius: 12px;
   overflow: hidden;
-  background: #f5f5f5;
+  background: transparent;
 }
 
 .threadMedia.singleImage {
@@ -187,6 +187,11 @@
   color: #999999;
   font-size: 14px;
   font-weight: 400;
+}
+
+.threadMedia:not(.singleImage) {
+  margin-left: -84px;  /* -48px avatar - 16px gap - 20px padding */
+  width: calc(100% + 104px); /* +84px trái + 20px phải */
 }
 
 /* ============================================
