@@ -1,38 +1,146 @@
-// app/thread/[id]/page.tsx
+// FILE 2: app/thread/[id]/page.tsx - UPDATED
+// ============================================
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
+import type { InfiniteData } from '@tanstack/react-query'
 import CustomScrollbar from '@/components/CustomScrollbar'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
 import { useThreadDetail } from '@/hooks/useThreadDetail'
 import { useToggleLike } from '@/hooks/useFeed'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import type { FeedPage } from '@/hooks/useFeed'
 import styles from './ThreadDetail.module.css'
 
 export default function ThreadDetailPage() {
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { user } = useCurrentUser()
+  const { user, loading: userLoading } = useCurrentUser()
   const threadId = params.id as string
   
+  // ✅ Truyền user?.id (có thể undefined ban đầu)
   const { data, isLoading, isError } = useThreadDetail(threadId, user?.id)
   const toggleLikeMutation = useToggleLike()
   const [showCommentInput, setShowCommentInput] = useState(false)
 
-  const handleLike = (id: string) => {
-    toggleLikeMutation.mutate(id)
-  }
+  const handleLike = useCallback((id: string) => {
+    const currentData = queryClient.getQueryData<any>(['thread-detail', threadId, user?.id])
+    if (!currentData?.thread) return
 
-  const handleCommentClick = () => {
+    const currentIsLiked = currentData.thread.is_liked
+    const currentCount = currentData.thread.likes_count
+
+    // Optimistic update
+    queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
+      if (!old) return old
+      
+      const newIsLiked = !currentIsLiked
+      return {
+        ...old,
+        thread: {
+          ...old.thread,
+          is_liked: newIsLiked,
+          likes_count: newIsLiked ? currentCount + 1 : Math.max(0, currentCount - 1)
+        }
+      }
+    })
+
+    toggleLikeMutation.mutate(id, {
+      onSuccess: (result) => {
+        console.log('[Thread Detail] Like success:', result)
+        
+        // Update thread-detail
+        queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
+          if (!old) return old
+          return {
+            ...old,
+            thread: {
+              ...old.thread,
+              is_liked: result.action === 'liked',
+              likes_count: result.likes_count
+            }
+          }
+        })
+
+        // Update Feed cache
+        if (user?.id) {
+          queryClient.setQueryData<InfiniteData<FeedPage>>(
+            ['feed', user.id],
+            (old) => {
+              if (!old) return old
+              
+              return {
+                ...old,
+                pages: old.pages.map(page => ({
+                  ...page,
+                  threads: page.threads.map(t =>
+                    t.id === threadId
+                      ? {
+                          ...t,
+                          is_liked: result.action === 'liked',
+                          likes_count: result.likes_count
+                        }
+                      : t
+                  )
+                }))
+              }
+            }
+          )
+        }
+      },
+      onError: (error) => {
+        console.error('[Thread Detail] Like error:', error)
+        queryClient.setQueryData(['thread-detail', threadId, user?.id], currentData)
+      }
+    })
+  }, [threadId, toggleLikeMutation, queryClient, user?.id])
+
+  const handleCommentClick = useCallback(() => {
     setShowCommentInput(true)
-  }
+  }, [])
 
-  // ✅ Placeholder data → Không còn loading flash
-  if (isLoading && !data) {
+  const handleCommentSubmit = useCallback(async () => {
+    setShowCommentInput(false)
+    
+    await queryClient.invalidateQueries({ 
+      queryKey: ['thread-detail', threadId, user?.id],
+      refetchType: 'active'
+    })
+    
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
+    const updatedData = queryClient.getQueryData<any>(['thread-detail', threadId, user?.id])
+    
+    if (updatedData?.thread && user?.id) {
+      const newCommentsCount = updatedData.thread.comments_count
+      
+      queryClient.setQueryData<InfiniteData<FeedPage>>(
+        ['feed', user.id],
+        (old) => {
+          if (!old) return old
+          
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              threads: page.threads.map(t =>
+                t.id === threadId
+                  ? { ...t, comments_count: newCommentsCount }
+                  : t
+              )
+            }))
+          }
+        }
+      )
+    }
+  }, [threadId, queryClient, user?.id])
+
+  // ✅ Loading state - Đợi cả user VÀ thread
+  if (userLoading || (isLoading && !data)) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>Loading...</div>
@@ -58,7 +166,7 @@ export default function ThreadDetailPage() {
         username={thread.username || 'Unknown'}
         timestamp={thread.created_at}
         content={thread.content}
-        medias={thread.medias} // ✅ Đã có từ feed cache
+        medias={thread.medias || []}
         likes={thread.likes_count}
         comments={thread.comments_count}
         reposts={thread.reposts_count}
@@ -72,10 +180,7 @@ export default function ThreadDetailPage() {
       {showCommentInput && (
         <CommentInput
           threadId={threadId}
-          onCommentSubmit={() => {
-            setShowCommentInput(false)
-            queryClient.invalidateQueries({ queryKey: ['thread-detail', threadId] })
-          }}
+          onCommentSubmit={handleCommentSubmit}
           autoFocus
         />
       )}
@@ -98,8 +203,8 @@ export default function ThreadDetailPage() {
                 </div>
                 <div className={styles.commentContent}>
                   <div className={styles.commentHeader}>
-                    <span className={styles.username}>{comment.username}</span>
-                    <span className={styles.timestamp}>
+                    <span className={styles.commentUsername}>{comment.username}</span>
+                    <span className={styles.commentTime}>
                       {new Date(comment.created_at).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
