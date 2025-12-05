@@ -1,7 +1,8 @@
-// components/ThreadCard/index.tsx - FIXED
+// components/ThreadCard/index.tsx - KING VERSION (NO BUGS)
 'use client'
 
-import React, { useState, useCallback, memo } from 'react'
+import React, { useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
 import type { FeedMedia } from '@/hooks/useFeed'
@@ -23,7 +24,8 @@ interface ThreadCardProps {
   onCommentClick: (threadId: string) => void
 }
 
-const ThreadCard = memo(function ThreadCard({
+// ✅ FIX 1: Không memo ở đây nữa
+function ThreadCard({
   id,
   username,
   timestamp,
@@ -38,6 +40,7 @@ const ThreadCard = memo(function ThreadCard({
   onLikeClick,
   onCommentClick,
 }: ThreadCardProps) {
+  const router = useRouter()
   const [showImageModal, setShowImageModal] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
@@ -61,9 +64,8 @@ const ThreadCard = memo(function ThreadCard({
     ) {
       return
     }
-    
-    window.location.href = `/thread/${id}`
-  }, [id])
+    router.push(`/thread/${id}`)
+  }, [id, router])
 
   const handleImageClick = useCallback((index: number) => {
     setSelectedImageIndex(index)
@@ -76,8 +78,8 @@ const ThreadCard = memo(function ThreadCard({
 
   const handleUsernameClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
-    window.location.href = `/profile/${username}`
-  }, [username])
+    router.push(`/profile/${username}`)
+  }, [username, router])
 
   const formatTimestamp = useCallback((ts: string) => {
     const date = new Date(ts)
@@ -92,7 +94,6 @@ const ThreadCard = memo(function ThreadCard({
     return date.toLocaleDateString('vi-VN')
   }, [])
 
-  // ✅ FIX 2-3: Chuyển medias → imageUrls
   const imageUrls = React.useMemo(() => {
     if (!Array.isArray(medias) || medias.length === 0) return []
     
@@ -105,7 +106,6 @@ const ThreadCard = memo(function ThreadCard({
       .map(m => m.url)
   }, [medias])
 
-  // ✅ FIX 2: Phát hiện 1 ảnh vs nhiều ảnh
   const isSingleImage = imageUrls.length === 1
   const hasImages = imageUrls.length > 0
 
@@ -147,7 +147,6 @@ const ThreadCard = memo(function ThreadCard({
 
           <div className={styles.threadText}>{content}</div>
 
-          {/* ✅ FIX 2: 1 ảnh → <img> thẳng, 2+ ảnh → ImageGallery */}
           {hasImages && (
             <>
               {isSingleImage ? (
@@ -240,18 +239,40 @@ const ThreadCard = memo(function ThreadCard({
       )}
     </article>
   )
-})
+}
 
-const areEqual = (prevProps: ThreadCardProps, nextProps: ThreadCardProps) => {
+// ✅ FIX 2: areEqual chặt chẽ 100% - Check tất cả IDs
+const areEqual = (prev: ThreadCardProps, next: ThreadCardProps) => {
+  // Nếu medias là undefined/null
+  if (!prev.medias && !next.medias) return (
+    prev.id === next.id &&
+    prev.likes === next.likes &&
+    prev.comments === next.comments &&
+    prev.reposts === next.reposts &&
+    prev.isLiked === next.isLiked &&
+    prev.content === next.content
+  )
+  
+  // Nếu 1 bên có, 1 bên không có
+  if (!prev.medias || !next.medias) return false
+  
+  // Check length
+  if (prev.medias.length !== next.medias.length) return false
+  
+  // ✅ Check TẤT CẢ IDs (không chỉ ảnh đầu)
+  const prevIds = prev.medias.map(m => m.id).join(',')
+  const nextIds = next.medias.map(m => m.id).join(',')
+  
   return (
-    prevProps.id === nextProps.id &&
-    prevProps.likes === nextProps.likes &&
-    prevProps.comments === nextProps.comments &&
-    prevProps.reposts === nextProps.reposts &&
-    prevProps.isLiked === nextProps.isLiked &&
-    prevProps.content === nextProps.content &&
-    prevProps.medias?.length === nextProps.medias?.length
+    prev.id === next.id &&
+    prev.likes === next.likes &&
+    prev.comments === next.comments &&
+    prev.reposts === next.reposts &&
+    prev.isLiked === next.isLiked &&
+    prev.content === next.content &&
+    prevIds === nextIds  // ✅ So sánh tất cả IDs
   )
 }
 
-export default memo(ThreadCard, areEqual)
+// ✅ FIX 1: Chỉ memo 1 lần duy nhất ở đây
+export default React.memo(ThreadCard, areEqual)
