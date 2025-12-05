@@ -192,6 +192,8 @@
 .threadMedia:not(.singleImage) {
   margin-left: -84px;  /* -48px avatar - 16px gap - 20px padding */
   width: calc(100% + 104px); /* +84px trái + 20px phải */
+  border-radius: 0; /* ← BỎ bo tròn */
+  overflow: visible; /* ← Cho phép ảnh tràn ra */
 }
 
 /* ============================================

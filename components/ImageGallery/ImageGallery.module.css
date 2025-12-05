@@ -51,8 +51,9 @@
 
 .gridTwo {
   display: flex;
-  gap: 8px;
+  gap: 4px; /* ← Giảm từ 8px xuống 4px */
   margin-left: 84px;
+  padding-right: 8px; /* ← Thêm padding bên phải */
 }
 
 .gridTwoItem {
@@ -99,9 +100,9 @@
   margin-right: -16px;
   position: relative;
 }
-
 .chainScroll {
-  display: flex;
+
+display: flex;
   gap: 8px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -117,6 +118,10 @@
   user-select: none;
   touch-action: pan-x;
   scroll-padding-left: 84px;
+  }
+
+.chainScroll::-webkit-scrollbar {
+  display: none;
 }
 
 .chainScroll.isDragging {
@@ -165,6 +170,10 @@
 
 .chainItem:first-child {
   margin-left: 84px;
+}
+
+.chainItem:last-child {
+  margin-right: 16px; /* ← 8px gap × 2 = 16px */
 }
 
 /* ============================================
