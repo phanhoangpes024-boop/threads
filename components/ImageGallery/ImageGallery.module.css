@@ -118,6 +118,8 @@ display: flex;
   user-select: none;
   touch-action: pan-x;
   scroll-padding-left: 84px;
+  transition: none;
+  will-change: transform;
   }
 
 .chainScroll::-webkit-scrollbar {
@@ -128,6 +130,8 @@ display: flex;
   scroll-snap-type: none !important;
   scroll-behavior: auto !important;
   cursor: grabbing !important;
+  transition: none !important;
+
 }
 
 .chainScroll::-webkit-scrollbar {
@@ -143,7 +147,7 @@ display: flex;
   border-radius: 8px;
   overflow: hidden;
   background: transparent;
-  scroll-snap-align: start;
+  scroll-snap-align: center;
   border: 1px solid #e0e0e0;
   
   display: flex;
@@ -174,6 +178,10 @@ display: flex;
 
 .chainItem:last-child {
   margin-right: 16px; /* ← 8px gap × 2 = 16px */
+}
+.chainScroll.bouncing {
+  scroll-snap-type: none !important; /* ← Tắt snap khi đang bounce */
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
 /* ============================================

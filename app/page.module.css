@@ -16,7 +16,7 @@
   transform: translateX(-50%);
   width: 100%;
   max-width: 600px;
-  height: calc(100vh - 60px);
+  height: calc(100dvh - 60px);
   
   /* ✅ BỎ overflow vì CustomScrollbar đã xử lý */
   overflow: hidden;
@@ -32,7 +32,7 @@
     border-radius: 0;
     box-shadow: none;
     top: 110px;
-    height: calc(100vh - 170px);
+    height: calc(100dvh - 170px);
     left: 0;
     transform: none;
     max-width: 100%;
