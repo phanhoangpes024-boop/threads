@@ -1,8 +1,10 @@
+// components/ProfileClient/index.tsx - THÊM CUSTOM SCROLLBAR
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import CustomScrollbar from '@/components/CustomScrollbar'  // ✅ IMPORT
 import ProfileHeader from '@/components/ProfileHeader'
 import ProfileTabs from '@/components/ProfileTabs'
 import ThreadCard from '@/components/ThreadCard'
@@ -31,7 +33,6 @@ export default function ProfileClient({
   const { user: currentUser } = useCurrentUser()
   const toggleLikeMutation = useToggleLike()
   
-  // Local state
   const [profile, setProfile] = useState(initialProfile)
   const [threads, setThreads] = useState(initialThreads)
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
@@ -41,7 +42,6 @@ export default function ProfileClient({
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  // ✅ FIX: Đồng bộ state khi router.refresh() trả về props mới
   useEffect(() => {
     setProfile(initialProfile)
   }, [initialProfile])
@@ -54,19 +54,13 @@ export default function ProfileClient({
     setIsFollowing(initialIsFollowing)
   }, [initialIsFollowing])
 
-  // Check xem có phải profile của mình không
   const isOwnProfile = currentUser?.id === profile.id
 
-  // ============================================
-  // FOLLOW/UNFOLLOW - Optimistic UI
-  // ============================================
-  
   const handleFollowToggle = async () => {
     if (!currentUser?.id || isFollowLoading) return
     
     setIsFollowLoading(true)
     
-    // Optimistic update ngay lập tức
     const newIsFollowing = !isFollowing
     setIsFollowing(newIsFollowing)
     setProfile(prev => ({
@@ -86,12 +80,9 @@ export default function ProfileClient({
       if (!res.ok) {
         throw new Error('Failed to toggle follow')
       }
-
-      // Nếu thành công thì giữ nguyên optimistic update
     } catch (error) {
       console.error('Follow error:', error)
       
-      // Rollback nếu lỗi
       setIsFollowing(!newIsFollowing)
       setProfile(prev => ({
         ...prev,
@@ -104,12 +95,7 @@ export default function ProfileClient({
     }
   }
 
-  // ============================================
-  // LIKE THREAD
-  // ============================================
-  
   const handleLike = (threadId: string) => {
-    // Optimistic update local state
     setThreads(prev => prev.map(t => {
       if (t.id !== threadId) return t
       
@@ -123,34 +109,23 @@ export default function ProfileClient({
       }
     }))
 
-    // Gọi API (cache sẽ tự sync)
     toggleLikeMutation.mutate(threadId)
   }
 
-  // ============================================
-  // COMMENT
-  // ============================================
-  
   const handleCommentClick = (threadId: string) => {
     setActiveCommentThreadId(threadId)
   }
 
   const handleCommentSubmit = () => {
     setActiveCommentThreadId(null)
-    // Refresh threads để cập nhật comments_count
     router.refresh()
   }
 
-  // ============================================
-  // MODALS
-  // ============================================
-  
   const handleOpenCreateModal = () => {
     setShowCreateModal(true)
   }
 
   const handlePostThread = async (content: string, imageUrls?: string[]) => {
-    // Logic create thread (giữ nguyên như cũ)
     setShowCreateModal(false)
     router.refresh()
   }
@@ -164,70 +139,69 @@ export default function ProfileClient({
     router.refresh()
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
-
   return (
-    <div className={styles.container}>
-      <ProfileHeader
-        userId={profile.id}
-        name={profile.username}
-        username={profile.username}
-        bio={profile.bio || ''}
-        avatarText={profile.avatar_text}
-        verified={profile.verified}
-        followersCount={profile.followers_count}
-        isOwnProfile={isOwnProfile}
-        isFollowing={isFollowing}
-        currentUserId={currentUser?.id}
-        onEditClick={handleEditProfile}
-        onFollowToggle={handleFollowToggle}
-      />
+    <>
+      {/* ✅ WRAP TOÀN BỘ BẰNG CUSTOMSCROLLBAR - GIỐNG HOME PAGE */}
+      <CustomScrollbar className={styles.container}>
+        <ProfileHeader
+          userId={profile.id}
+          name={profile.username}
+          username={profile.username}
+          bio={profile.bio || ''}
+          avatarText={profile.avatar_text}
+          verified={profile.verified}
+          followersCount={profile.followers_count}
+          isOwnProfile={isOwnProfile}
+          isFollowing={isFollowing}
+          currentUserId={currentUser?.id}
+          onEditClick={handleEditProfile}
+          onFollowToggle={handleFollowToggle}
+        />
 
-      <ProfileTabs />
+        <ProfileTabs />
 
-      {isOwnProfile && (
-        <div onClick={handleOpenCreateModal}>
-          <CreateThreadInput avatarText={currentUser?.avatar_text || 'U'} />
-        </div>
-      )}
-
-      <div className={styles.threadsSection}>
-        {threads.length === 0 ? (
-          <div className={styles.empty}>Chưa có thread nào</div>
-        ) : (
-          threads.map((thread) => (
-            <div key={thread.id}>
-              <ThreadCard
-                id={thread.id}
-                username={thread.username}
-                timestamp={thread.created_at}
-                content={thread.content}
-                medias={thread.medias}
-                likes={thread.likes_count}
-                comments={thread.comments_count}
-                reposts={thread.reposts_count}
-                verified={thread.verified}
-                avatarText={thread.avatar_text}
-                isLiked={thread.is_liked}
-                onLikeClick={handleLike}
-                onCommentClick={handleCommentClick}
-              />
-              
-              {activeCommentThreadId === thread.id && (
-                <CommentInput
-                  threadId={thread.id}
-                  onCommentSubmit={handleCommentSubmit}
-                  autoFocus={true}
-                />
-              )}
-            </div>
-          ))
+        {isOwnProfile && (
+          <div onClick={handleOpenCreateModal}>
+            <CreateThreadInput avatarText={currentUser?.avatar_text || 'U'} />
+          </div>
         )}
-      </div>
 
-      {/* Modals */}
+        <div className={styles.threadsSection}>
+          {threads.length === 0 ? (
+            <div className={styles.empty}>Chưa có thread nào</div>
+          ) : (
+            threads.map((thread) => (
+              <div key={thread.id}>
+                <ThreadCard
+                  id={thread.id}
+                  username={thread.username}
+                  timestamp={thread.created_at}
+                  content={thread.content}
+                  medias={thread.medias}
+                  likes={thread.likes_count}
+                  comments={thread.comments_count}
+                  reposts={thread.reposts_count}
+                  verified={thread.verified}
+                  avatarText={thread.avatar_text}
+                  isLiked={thread.is_liked}
+                  onLikeClick={handleLike}
+                  onCommentClick={handleCommentClick}
+                />
+                
+                {activeCommentThreadId === thread.id && (
+                  <CommentInput
+                    threadId={thread.id}
+                    onCommentSubmit={handleCommentSubmit}
+                    autoFocus={true}
+                  />
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </CustomScrollbar>
+
+      {/* Modals bên ngoài CustomScrollbar */}
       {showCreateModal && isOwnProfile && (
         <CreateThreadModal
           isOpen={showCreateModal}
@@ -250,6 +224,6 @@ export default function ProfileClient({
           onSave={handleSaveProfile}
         />
       )}
-    </div>
+    </>
   )
 }

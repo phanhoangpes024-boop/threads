@@ -1,11 +1,25 @@
+/* components/ProfileClient/ProfileClient.module.css - ĐỒNG NHẤT */
+
 .container {
   max-width: 600px;
-  width: 100%;
   margin: 0 auto;
   background: #ffffff;
   border-left: 1px solid #e0e0e0;
   border-right: 1px solid #e0e0e0;
-  min-height: 100vh;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
+  
+  /* ✅ ĐỒNG NHẤT với home và thread detail */
+  position: fixed;
+  top: 61px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 600px;
+  height: calc(100dvh - 60px);
+  
+  /* ✅ BỎ overflow - CustomScrollbar tự handle */
+  overflow: hidden;
 }
 
 .threadsSection {
@@ -21,7 +35,15 @@
 
 @media (max-width: 768px) {
   .container {
+    /* ✅ Mobile đồng nhất */
     border-left: none;
     border-right: none;
+    border-radius: 0;
+    box-shadow: none;
+    top: 60px;
+    height: calc(100dvh - 120px);
+    left: 0;
+    transform: none;
+    max-width: 100%;
   }
 }
