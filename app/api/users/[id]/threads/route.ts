@@ -17,7 +17,6 @@ export async function GET(
         id,
         user_id,
         content,
-        image_urls,
         created_at,
         likes_count,
         comments_count,
@@ -42,11 +41,28 @@ export async function GET(
       likedThreadIds = new Set(likes?.map(l => l.thread_id) || [])
     }
 
+    // ✅ Fetch medias cho tất cả threads
+    let mediasMap = new Map<string, any[]>()
+    if (threads?.length) {
+      const threadIds = threads.map(t => t.id)
+      const { data: medias } = await supabase
+        .from('thread_medias')
+        .select('*')
+        .in('thread_id', threadIds)
+        .order('order_index', { ascending: true })
+      
+      medias?.forEach(m => {
+        if (!mediasMap.has(m.thread_id)) {
+          mediasMap.set(m.thread_id, [])
+        }
+        mediasMap.get(m.thread_id)!.push(m)
+      })
+    }
+
     const formatted = (threads || []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
       content: t.content,
-      image_urls: t.image_urls || [],
       created_at: t.created_at,
       likes_count: t.likes_count || 0,
       comments_count: t.comments_count || 0,
@@ -54,7 +70,19 @@ export async function GET(
       username: t.users?.username ?? null,
       avatar_text: t.users?.avatar_text ?? null,
       verified: t.users?.verified ?? false,
-      isLiked: likedThreadIds.has(t.id),
+      
+      // ✅ FIX 1: snake_case
+      is_liked: likedThreadIds.has(t.id),
+      
+      // ✅ FIX 2: Map medias đúng format
+      medias: (mediasMap.get(t.id) || []).map(m => ({
+        id: m.id,
+        url: m.url,
+        type: m.media_type || 'image',
+        width: m.width,
+        height: m.height,
+        order: m.order_index
+      }))
     }))
 
     return NextResponse.json(formatted)

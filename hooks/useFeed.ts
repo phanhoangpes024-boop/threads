@@ -126,7 +126,7 @@ export function useToggleLike() {
     onMutate: async (threadId) => {
       // 1. Cancel các query liên quan để tránh xung đột dữ liệu
       await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
-      await queryClient.cancelQueries({ queryKey: ['profile-threads'] }) // ✅ Cancel thêm Profile
+      await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
       
       // Snapshot dữ liệu cũ để rollback nếu lỗi
       const previousFeed = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
@@ -157,12 +157,14 @@ export function useToggleLike() {
         }
       })
 
-      // 3. ✅ Update Optimistic cho PROFILE (Trang cá nhân) - THÊM ĐOẠN NÀY
-      // Tìm tất cả các query key bắt đầu bằng 'profile-threads'
-      queryClient.getQueryCache().findAll({ queryKey: ['profile-threads'] }).forEach(query => {
+      // 3. ✅ Update Optimistic cho PROFILE (Trang cá nhân)
+      // ✅ FIX: Dùng exact: false để match cả query có params
+      queryClient.getQueryCache().findAll({ 
+        queryKey: ['profile-threads'],
+        exact: false 
+      }).forEach(query => {
         queryClient.setQueryData(query.queryKey, (old: any) => {
             if (!old || !Array.isArray(old)) return old
-            // Vì cấu trúc profile-threads là mảng phẳng (Array), không phân trang như Feed
             return old.map(updateThreadLikeStatus)
         })
       })
@@ -209,8 +211,12 @@ export function useToggleLike() {
       })
       
       // 3️⃣ ✅ Update PROFILE Cache (Sync data thật từ server)
+      // ✅ FIX: Dùng exact: false để match cả query có params
       const profileKeys = queryClient.getQueryCache()
-        .findAll({ queryKey: ['profile-threads'] })
+        .findAll({ 
+          queryKey: ['profile-threads'],
+          exact: false 
+        })
       
       profileKeys.forEach(query => {
         queryClient.setQueryData(query.queryKey, (old: any) => {
@@ -233,7 +239,10 @@ export function useToggleLike() {
         queryClient.setQueryData(['feed', user.id], context.previousFeed)
       }
       // Invalidate để fetch lại dữ liệu đúng nhất
-      queryClient.invalidateQueries({ queryKey: ['profile-threads'] })
+      queryClient.invalidateQueries({ 
+        queryKey: ['profile-threads'],
+        exact: false 
+      })
     },
     
     retry: false,

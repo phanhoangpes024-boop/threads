@@ -48,11 +48,24 @@ export default function ProfileClient({
   // ✅ FIX: Dùng useQuery thay vì useMemo/useState
   // React Query tự động re-render khi cache thay đổi
   const { data: threads = [] } = useQuery<ProfileThread[]>({
-    queryKey: ['profile-threads', initialProfile.id],
-    queryFn: () => initialThreads, // Ít khi chạy vì có initialData
-    initialData: initialThreads,   // Dùng SSR data ngay, không fetch lại
-    staleTime: 1000 * 60 * 5,      // Data tươi trong 5 phút
-  })
+  queryKey: ['profile-threads', initialProfile.id, currentUser?.id],
+  
+  queryFn: async () => {
+    if (!currentUser?.id) return initialThreads
+    
+    // ✅ GIỐNG HOME - Fetch động với user_id
+    const res = await fetch(
+      `/api/users/${initialProfile.id}/threads?current_user_id=${currentUser.id}`
+    )
+    
+    if (!res.ok) return initialThreads
+    return res.json()
+  },
+  
+  initialData: initialThreads, // SSR data ban đầu
+  enabled: !!currentUser?.id,  // Chỉ fetch khi có user
+  staleTime: 0,
+})
 
   useEffect(() => {
     setProfile(initialProfile)
