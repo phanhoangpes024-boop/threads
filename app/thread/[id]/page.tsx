@@ -1,8 +1,9 @@
+// app/thread/[id]/page.tsx
 'use client'
 
 import { useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useIsFetching } from '@tanstack/react-query' // [1] Thêm useIsFetching
 import CustomScrollbar from '@/components/CustomScrollbar'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
@@ -17,13 +18,15 @@ export default function ThreadDetailPage() {
   const { user, loading: userLoading } = useCurrentUser()
   const threadId = params.id as string
   
+  // [2] Lấy trạng thái fetching của query này để hiện loading khi refresh danh sách
+  const isFetchingComments = useIsFetching({ queryKey: ['thread-detail', threadId] })
+  
   const { data, isLoading, isError } = useThreadDetail(threadId, user?.id)
   const toggleLikeMutation = useToggleLike()
   const [showCommentInput, setShowCommentInput] = useState(false)
 
-  // ✅ OPTIMISTIC UI - Đổi màu tim ngay lập tức
+  // OPTIMISTIC UI - Đổi màu tim
   const handleLike = useCallback((id: string) => {
-    // 1️⃣ OPTIMISTIC UPDATE: Đổi màu ngay lập tức cho trang Detail
     queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
       if (!old?.thread) return old
       
@@ -40,10 +43,8 @@ export default function ThreadDetailPage() {
       }
     })
 
-    // 2️⃣ Gọi API (Logic đồng bộ cache thật sự vẫn nằm trong useFeed.ts)
     toggleLikeMutation.mutate(id, {
       onError: () => {
-        // Nếu lỗi thì revert lại
         queryClient.invalidateQueries({ queryKey: ['thread-detail', threadId] })
       }
     })
@@ -53,9 +54,50 @@ export default function ThreadDetailPage() {
     setShowCommentInput(true)
   }, [])
 
-  const handleCommentSubmit = useCallback(() => {
+  // -------------------------------------------------------------------
+  // 👇👇👇 PHẦN ĐÃ SỬA: OPTIMISTIC UPDATE COMMENT 👇👇👇
+  // -------------------------------------------------------------------
+  // Lưu ý: CommentInput cần truyền content vào callback này: onCommentSubmit(content)
+  const handleCommentSubmit = useCallback((content?: string) => {
     setShowCommentInput(false)
-  }, [])
+    
+    // 1. Nếu có content và user info -> Thực hiện Optimistic Update (Hiển thị ngay)
+    if (content && user) {
+      const fakeId = `temp-${Date.now()}`
+      
+      // Tạo object comment giả lập
+      const newOptimisticComment = {
+        id: fakeId,
+        content: content,
+        username: user.username || 'You', // Dùng thông tin từ user hook
+        avatar_text: user.avatar_text || 'Me', 
+        created_at: new Date().toISOString(),
+        is_optimistic: true // (Optional) Cờ để có thể style riêng nếu muốn
+      }
+
+      // Cập nhật cache ngay lập tức
+      queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
+        if (!old) return old
+        
+        return {
+          ...old,
+          thread: {
+            ...old.thread,
+            comments_count: (old.thread.comments_count || 0) + 1
+          },
+          // Chèn comment mới lên đầu danh sách
+          comments: [newOptimisticComment, ...(old.comments || [])]
+        }
+      })
+    }
+
+    // 2. Refresh lại data thật từ server (Background refetch)
+    // Việc này sẽ kích hoạt isFetchingComments > 0
+    queryClient.invalidateQueries({ 
+      queryKey: ['thread-detail', threadId] 
+    })
+  }, [queryClient, threadId, user])
+  // -------------------------------------------------------------------
 
   if (userLoading || (isLoading && !data)) {
     return (
@@ -96,7 +138,7 @@ export default function ThreadDetailPage() {
       {showCommentInput && (
         <CommentInput
           threadId={threadId}
-          onCommentSubmit={handleCommentSubmit}
+          onCommentSubmit={handleCommentSubmit} // Đảm bảo Component này truyền text ra ngoài
           autoFocus
         />
       )}
@@ -104,6 +146,12 @@ export default function ThreadDetailPage() {
       <div className={styles.commentsSection}>
         <div className={styles.commentsHeader}>
           <button className={styles.sortButton}>Top Comments</button>
+          {/* [3] Hiển thị Indicator khi đang fetch lại comment thật */}
+          {isFetchingComments > 0 && (
+             <span style={{ fontSize: '12px', color: '#999', marginLeft: 'auto' }}>
+               Updating...
+             </span>
+          )}
         </div>
         
         {!comments ? (
@@ -111,7 +159,11 @@ export default function ThreadDetailPage() {
         ) : comments.length === 0 ? (
           <div className={styles.noComments}>No comments yet</div>
         ) : (
-          <div className={styles.commentsList}>
+          /* [4] Thêm style opacity nhẹ khi đang fetch để user biết danh sách đang được làm mới */
+          <div 
+            className={styles.commentsList} 
+            style={{ opacity: isFetchingComments > 0 ? 0.7 : 1, transition: 'opacity 0.2s' }}
+          >
             {comments.map((comment: any) => (
               <div key={comment.id} className={styles.commentItem}>
                 <div className={styles.commentAvatar}>
@@ -121,7 +173,10 @@ export default function ThreadDetailPage() {
                   <div className={styles.commentHeader}>
                     <span className={styles.commentUsername}>{comment.username}</span>
                     <span className={styles.commentTime}>
-                      {new Date(comment.created_at).toLocaleDateString('vi-VN')}
+                      {/* Xử lý hiển thị thời gian cho comment vừa tạo */}
+                      {comment.id.toString().startsWith('temp-') 
+                        ? 'Just now' 
+                        : new Date(comment.created_at).toLocaleDateString('vi-VN')}
                     </span>
                   </div>
                   <div className={styles.commentText}>{comment.content}</div>

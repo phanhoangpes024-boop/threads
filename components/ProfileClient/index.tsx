@@ -1,10 +1,11 @@
-// components/ProfileClient/index.tsx - THÊM CUSTOM SCROLLBAR
+// components/ProfileClient/index.tsx - GIẢI PHÁP ĐÚNG
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
-import CustomScrollbar from '@/components/CustomScrollbar'  // ✅ IMPORT
+import CustomScrollbar from '@/components/CustomScrollbar'
 import ProfileHeader from '@/components/ProfileHeader'
 import ProfileTabs from '@/components/ProfileTabs'
 import ThreadCard from '@/components/ThreadCard'
@@ -12,6 +13,7 @@ import CommentInput from '@/components/CommentInput'
 import CreateThreadInput from '@/components/CreateThreadInput'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useToggleLike } from '@/hooks/useFeed'
+import { useCreateThread } from '@/hooks/useThreads'
 import type { ProfileData, ProfileThread } from '@/lib/data'
 import styles from './ProfileClient.module.css'
 
@@ -30,11 +32,12 @@ export default function ProfileClient({
   initialIsFollowing
 }: ProfileClientProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user: currentUser } = useCurrentUser()
   const toggleLikeMutation = useToggleLike()
+  const createThreadMutation = useCreateThread()
   
   const [profile, setProfile] = useState(initialProfile)
-  const [threads, setThreads] = useState(initialThreads)
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
   const [isFollowLoading, setIsFollowLoading] = useState(false)
   
@@ -42,13 +45,18 @@ export default function ProfileClient({
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
+  // ✅ FIX: Dùng useQuery thay vì useMemo/useState
+  // React Query tự động re-render khi cache thay đổi
+  const { data: threads = [] } = useQuery<ProfileThread[]>({
+    queryKey: ['profile-threads', initialProfile.id],
+    queryFn: () => initialThreads, // Ít khi chạy vì có initialData
+    initialData: initialThreads,   // Dùng SSR data ngay, không fetch lại
+    staleTime: 1000 * 60 * 5,      // Data tươi trong 5 phút
+  })
+
   useEffect(() => {
     setProfile(initialProfile)
   }, [initialProfile])
-
-  useEffect(() => {
-    setThreads(initialThreads)
-  }, [initialThreads])
 
   useEffect(() => {
     setIsFollowing(initialIsFollowing)
@@ -58,16 +66,12 @@ export default function ProfileClient({
 
   const handleFollowToggle = async () => {
     if (!currentUser?.id || isFollowLoading) return
-    
     setIsFollowLoading(true)
-    
     const newIsFollowing = !isFollowing
     setIsFollowing(newIsFollowing)
     setProfile(prev => ({
       ...prev,
-      followers_count: newIsFollowing 
-        ? prev.followers_count + 1 
-        : Math.max(0, prev.followers_count - 1)
+      followers_count: newIsFollowing ? prev.followers_count + 1 : Math.max(0, prev.followers_count - 1)
     }))
 
     try {
@@ -76,72 +80,76 @@ export default function ProfileClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: currentUser.id })
       })
-
-      if (!res.ok) {
-        throw new Error('Failed to toggle follow')
-      }
+      if (!res.ok) throw new Error('Failed to toggle follow')
     } catch (error) {
       console.error('Follow error:', error)
-      
       setIsFollowing(!newIsFollowing)
       setProfile(prev => ({
         ...prev,
-        followers_count: newIsFollowing 
-          ? Math.max(0, prev.followers_count - 1)
-          : prev.followers_count + 1
+        followers_count: newIsFollowing ? Math.max(0, prev.followers_count - 1) : prev.followers_count + 1
       }))
     } finally {
       setIsFollowLoading(false)
     }
   }
 
-  const handleLike = (threadId: string) => {
-    setThreads(prev => prev.map(t => {
-      if (t.id !== threadId) return t
-      
-      const newIsLiked = !t.is_liked
-      return {
-        ...t,
-        is_liked: newIsLiked,
-        likes_count: newIsLiked 
-          ? t.likes_count + 1 
-          : Math.max(0, t.likes_count - 1)
-      }
-    }))
-
+  // ✅ FIX: Chỉ cần gọi mutation, React Query tự sync
+  const handleLike = useCallback((threadId: string) => {
     toggleLikeMutation.mutate(threadId)
-  }
+    // Không cần optimistic update ở đây
+    // useQuery tự động re-render khi cache thay đổi
+  }, [toggleLikeMutation])
 
-  const handleCommentClick = (threadId: string) => {
+  const handleCommentClick = useCallback((threadId: string) => {
     setActiveCommentThreadId(threadId)
-  }
+  }, [])
 
-  const handleCommentSubmit = () => {
+  const handleCommentSubmit = useCallback(() => {
     setActiveCommentThreadId(null)
     router.refresh()
-  }
+  }, [router])
 
-  const handleOpenCreateModal = () => {
+  const handleOpenCreateModal = useCallback(() => {
     setShowCreateModal(true)
-  }
+  }, [])
 
-  const handlePostThread = async (content: string, imageUrls?: string[]) => {
-    setShowCreateModal(false)
-    router.refresh()
-  }
+  const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
+    try {
+      await createThreadMutation.mutateAsync({ 
+        content, 
+        imageUrls: imageUrls || [] 
+      })
+      
+      setShowCreateModal(false)
+      router.refresh()
+      
+    } catch (error) {
+      console.error('Failed to create thread:', error)
+      alert('Không thể tạo thread. Vui lòng thử lại.')
+    }
+  }, [createThreadMutation, router])
 
-  const handleEditProfile = () => {
+  const handleEditProfile = useCallback(() => {
     setShowEditModal(true)
-  }
+  }, [])
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = useCallback(() => {
     setShowEditModal(false)
+    
+    const updatedUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
+    if (updatedUser.id === profile.id) {
+      setProfile(prev => ({
+        ...prev,
+        avatar_text: updatedUser.avatar_text,
+        bio: updatedUser.bio
+      }))
+    }
+    
     router.refresh()
-  }
+  }, [profile.id, router])
 
   return (
     <>
-      {/* ✅ WRAP TOÀN BỘ BẰNG CUSTOMSCROLLBAR - GIỐNG HOME PAGE */}
       <CustomScrollbar className={styles.container}>
         <ProfileHeader
           userId={profile.id}
@@ -201,7 +209,6 @@ export default function ProfileClient({
         </div>
       </CustomScrollbar>
 
-      {/* Modals bên ngoài CustomScrollbar */}
       {showCreateModal && isOwnProfile && (
         <CreateThreadModal
           isOpen={showCreateModal}

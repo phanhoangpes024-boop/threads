@@ -1,11 +1,7 @@
-// hooks/useFeed.ts - FINAL VERSION (Merge tất cả fix)
+// hooks/useFeed.ts - FINAL CORRECT VERSION
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import { useCallback } from 'react'
-
-// ============================================
-// TYPES
-// ============================================
 
 export interface FeedMedia {
   id: string
@@ -42,9 +38,6 @@ interface FeedCursor {
   id: string
 }
 
-// ============================================
-// SCROLL POSITION CACHE
-// ============================================
 let scrollPositionCache: { pageIndex: number; offset: number } | null = null
 
 export function saveScrollPosition(pageIndex: number, offset: number) {
@@ -59,13 +52,6 @@ export function clearScrollPosition() {
   scrollPositionCache = null
 }
 
-// ============================================
-// HOOKS
-// ============================================
-
-/**
- * ✅ Fetch infinite feed
- */
 export function useFeed() {
   const { user } = useCurrentUser()
   
@@ -111,9 +97,6 @@ export function useFeed() {
   })
 }
 
-/**
- * ✅ Toggle like - ĐỒNG BỘ 2 CHIỀU (Feed + Detail)
- */
 export function useToggleLike() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
@@ -140,7 +123,6 @@ export function useToggleLike() {
       return { ...data, threadId }
     },
     
-    // ✅ Optimistic update - Chỉ update Feed
     onMutate: async (threadId) => {
       await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
       
@@ -174,35 +156,27 @@ export function useToggleLike() {
       return { previousFeed }
     },
     
-    // ✅ Success - Đồng bộ cả Feed + Detail
     onSuccess: (data) => {
       const { threadId, action, likes_count } = data
       const isLiked = action === 'liked'
       
       // 1️⃣ Update FEED Cache
-      const syncFeedThread = (thread: FeedThread): FeedThread => {
-        if (thread.id !== threadId) return thread
-        
-        return {
-          ...thread,
-          is_liked: isLiked,
-          likes_count: likes_count
-        }
-      }
-      
       queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
         if (!old) return old
-        
         return {
           ...old,
           pages: old.pages.map(page => ({
             ...page,
-            threads: page.threads.map(syncFeedThread)
+            threads: page.threads.map(t => 
+              t.id === threadId 
+                ? { ...t, is_liked: isLiked, likes_count } 
+                : t
+            )
           }))
         }
       })
       
-      // 2️⃣ Update DETAIL Cache - TẤT CẢ keys có threadId này
+      // 2️⃣ Update DETAIL Cache
       const detailKeys = queryClient.getQueryCache()
         .findAll({ queryKey: ['thread-detail', threadId] })
       
@@ -219,9 +193,26 @@ export function useToggleLike() {
           }
         })
       })
+      
+      // ✅ 3️⃣ UPDATE PROFILE CACHE (KEY FIX)
+      // Tìm tất cả cache bắt đầu bằng 'profile-threads'
+      const profileKeys = queryClient.getQueryCache()
+        .findAll({ queryKey: ['profile-threads'] })
+      
+      profileKeys.forEach(query => {
+        queryClient.setQueryData(query.queryKey, (old: any) => {
+          if (!old || !Array.isArray(old)) return old
+          
+          // Map qua array và update thread tương ứng
+          return old.map((t: any) => 
+            t.id === threadId 
+              ? { ...t, is_liked: isLiked, likes_count } 
+              : t
+          )
+        })
+      })
     },
     
-    // ✅ Error - Rollback
     onError: (err, threadId, context) => {
       console.error('[LIKE ERROR]', err)
       
@@ -234,9 +225,6 @@ export function useToggleLike() {
   })
 }
 
-/**
- * ✅ Refresh feed
- */
 export function useRefreshFeed() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
