@@ -29,19 +29,22 @@ export async function PATCH(
       bio: bio?.trim() || null,
     }
 
-    // Note: 'name' field không có trong users table hiện tại
-    // Nếu cần thêm name, phải alter table trước
-
     const { data, error } = await supabase
       .from('users')
       .update(updateData)
       .eq('id', userId)
       .select()
-      .single()
+      .maybeSingle() // ✅ SỬA Ở ĐÂY: Dùng maybeSingle thay vì single
 
+    // Nếu có lỗi hệ thống thực sự (DB sập, sai cú pháp...)
     if (error) {
       console.error('Error updating profile:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // ✅ FIX CHUẨN: Lúc này data null nghĩa là không tìm thấy user hoặc bị chặn RLS
+    if (!data) {
+      return NextResponse.json({ error: 'User not found or permission denied' }, { status: 404 })
     }
 
     return NextResponse.json({ success: true, user: data })

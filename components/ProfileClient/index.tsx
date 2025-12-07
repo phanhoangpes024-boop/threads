@@ -106,8 +106,18 @@ export default function ProfileClient({
 
   const handleCommentSubmit = useCallback(() => {
     setActiveCommentThreadId(null)
-    router.refresh()
-  }, [router])
+    queryClient.setQueryData<ProfileThread[]>(
+    ['profile-threads', initialProfile.id],
+    (old) => {
+      if (!old) return old
+      return old.map(t => 
+        t.id === activeCommentThreadId 
+          ? { ...t, comments_count: t.comments_count + 1 }
+          : t
+      )
+    }
+  )
+}, [queryClient, initialProfile.id, activeCommentThreadId])
 
   const handleOpenCreateModal = useCallback(() => {
     setShowCreateModal(true)

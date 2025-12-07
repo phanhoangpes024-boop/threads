@@ -6,24 +6,37 @@ export function useThreadDetail(threadId: string, userId?: string) {
   const queryClient = useQueryClient()
 
   return useQuery({
-    // ✅ Key có userId để tự động refetch khi login
     queryKey: ['thread-detail', threadId, userId],
     
     initialData: () => {
-      if (!userId) return undefined // Khách không có cache
+      if (!userId) return undefined
       
+      // ✅ 1. Check feed cache
       const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', userId])
-      const thread = feedData?.pages
+      const feedThread = feedData?.pages
         .flatMap(p => p.threads)
         .find(t => t.id === threadId)
       
-      if (thread) {
-        return { thread, comments: [] }
+      if (feedThread) {
+        return { thread: feedThread, comments: [] }
       }
+      
+      // ✅ 2. Check profile cache (THÊM MỚI)
+      const profileKeys = queryClient.getQueryCache()
+        .findAll({ queryKey: ['profile-threads'] })
+      
+      for (const query of profileKeys) {
+        const threads = query.state.data as any[]
+        const profileThread = threads?.find((t: any) => t.id === threadId)
+        if (profileThread) {
+          return { thread: profileThread, comments: [] }
+        }
+      }
+      
+      return undefined
     },
     
     queryFn: async () => {
-      // ✅ userId optional - API vẫn trả về cho khách
       const params = userId ? `?user_id=${userId}` : ''
       
       const [threadRes, commentsRes] = await Promise.all([
@@ -39,9 +52,7 @@ export function useThreadDetail(threadId: string, userId?: string) {
       return { thread, comments }
     },
     
-    // ✅ FIX: Chỉ cần threadId, userId optional
     enabled: !!threadId,
-    
     staleTime: 0,
   })
 }
