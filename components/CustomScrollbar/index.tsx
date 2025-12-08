@@ -59,9 +59,16 @@ const CustomScrollbar = forwardRef<HTMLDivElement, CustomScrollbarProps>(
       }
 
       // Scroll event
-      const handleScroll = () => {
-        requestAnimationFrame(updateScrollbar)
-      }
+      let ticking = false
+const handleScroll = () => {
+  if (!ticking) {
+    requestAnimationFrame(() => {
+      updateScrollbar()
+      ticking = false
+    })
+    ticking = true
+  }
+}
 
       // Thumb drag
       const handleMouseDown = (e: MouseEvent) => {

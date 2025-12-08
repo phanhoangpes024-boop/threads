@@ -1,4 +1,4 @@
-// components/ProfileClient/index.tsx - GIẢI PHÁP ĐÚNG
+// components/ProfileClient/index.tsx - GIẢI PHÁP ĐÚNG (Gemini)
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -15,6 +15,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useToggleLike } from '@/hooks/useFeed'
 import { useCreateThread } from '@/hooks/useThreads'
 import type { ProfileData, ProfileThread } from '@/lib/data'
+import type { InfiniteData } from '@tanstack/react-query'
 import styles from './ProfileClient.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
@@ -24,6 +25,11 @@ interface ProfileClientProps {
   initialProfile: ProfileData
   initialThreads: ProfileThread[]
   initialIsFollowing: boolean
+}
+
+interface FeedPage {
+  threads: ProfileThread[]
+  nextCursor: string | null
 }
 
 export default function ProfileClient({
@@ -45,27 +51,54 @@ export default function ProfileClient({
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  // ✅ FIX: Dùng useQuery thay vì useMemo/useState
-  // React Query tự động re-render khi cache thay đổi
+  // ✅ SMART INITIAL DATA: Merge Feed cache với SSR data
+  const smartInitialThreads = (() => {
+    // ✅ Guard: Server-side hoặc no user → dùng SSR data
+    if (typeof window === 'undefined' || !currentUser?.id) {
+      return initialThreads
+    }
+
+    // ✅ Thử lấy Feed cache
+    const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>([
+      'feed', 
+      currentUser.id
+    ])
+    
+    if (!feedData?.pages) return initialThreads
+
+    // ✅ Tạo Map isLiked từ Feed
+    const likedMap = new Map<string, boolean>()
+    feedData.pages.forEach(page => {
+      page.threads.forEach(t => likedMap.set(t.id, t.is_liked))
+    })
+
+    // ✅ Merge: Có trong Feed → dùng Feed, không có → giữ nguyên SSR
+    return initialThreads.map(t => ({
+      ...t,
+      is_liked: likedMap.has(t.id) ? likedMap.get(t.id)! : t.is_liked
+    }))
+  })()
+
+  // ✅ REACT QUERY: Hiển thị instant + fetch để verify
   const { data: threads = [] } = useQuery<ProfileThread[]>({
-  queryKey: ['profile-threads', initialProfile.id, currentUser?.id],
-  
-  queryFn: async () => {
-    if (!currentUser?.id) return initialThreads
+    queryKey: ['profile-threads', initialProfile.id, currentUser?.id],
     
-    // ✅ GIỐNG HOME - Fetch động với user_id
-    const res = await fetch(
-      `/api/users/${initialProfile.id}/threads?current_user_id=${currentUser.id}`
-    )
+    queryFn: async () => {
+      if (!currentUser?.id) return initialThreads
+      
+      // ✅ Fetch động với user_id
+      const res = await fetch(
+        `/api/users/${initialProfile.id}/threads?current_user_id=${currentUser.id}`
+      )
+      
+      if (!res.ok) return initialThreads
+      return res.json()
+    },
     
-    if (!res.ok) return initialThreads
-    return res.json()
-  },
-  
-  initialData: initialThreads, // SSR data ban đầu
-  enabled: !!currentUser?.id,  // Chỉ fetch khi có user
-  staleTime: 0,
-})
+    initialData: smartInitialThreads, // ✅ Hiển thị ngay
+    staleTime: 0, // ✅ Vẫn fetch để đảm bảo đúng (5s cache)
+    enabled: !!currentUser?.id,
+  })
 
   useEffect(() => {
     setProfile(initialProfile)
@@ -106,11 +139,9 @@ export default function ProfileClient({
     }
   }
 
-  // ✅ FIX: Chỉ cần gọi mutation, React Query tự sync
+  // ✅ Chỉ cần gọi mutation, React Query tự sync
   const handleLike = useCallback((threadId: string) => {
     toggleLikeMutation.mutate(threadId)
-    // Không cần optimistic update ở đây
-    // useQuery tự động re-render khi cache thay đổi
   }, [toggleLikeMutation])
 
   const handleCommentClick = useCallback((threadId: string) => {
@@ -120,17 +151,17 @@ export default function ProfileClient({
   const handleCommentSubmit = useCallback(() => {
     setActiveCommentThreadId(null)
     queryClient.setQueryData<ProfileThread[]>(
-    ['profile-threads', initialProfile.id],
-    (old) => {
-      if (!old) return old
-      return old.map(t => 
-        t.id === activeCommentThreadId 
-          ? { ...t, comments_count: t.comments_count + 1 }
-          : t
-      )
-    }
-  )
-}, [queryClient, initialProfile.id, activeCommentThreadId])
+      ['profile-threads', initialProfile.id, currentUser?.id],
+      (old) => {
+        if (!old) return old
+        return old.map(t => 
+          t.id === activeCommentThreadId 
+            ? { ...t, comments_count: t.comments_count + 1 }
+            : t
+        )
+      }
+    )
+  }, [queryClient, initialProfile.id, currentUser?.id, activeCommentThreadId])
 
   const handleOpenCreateModal = useCallback(() => {
     setShowCreateModal(true)

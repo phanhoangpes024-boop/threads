@@ -45,7 +45,7 @@ export default function ImageGallery({
           }
         })
       },
-      { rootMargin: '200px', threshold: 0.01 }
+      { rootMargin: '400px', threshold: 0.01 }
     )
     
     observer.observe(containerRef.current)

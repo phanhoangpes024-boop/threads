@@ -29,22 +29,22 @@ export async function PATCH(
       bio: bio?.trim() || null,
     }
 
+    // ✅ FIX: Dùng maybeSingle() thay vì single()
     const { data, error } = await supabase
       .from('users')
       .update(updateData)
       .eq('id', userId)
       .select()
-      .maybeSingle() // ✅ SỬA Ở ĐÂY: Dùng maybeSingle thay vì single
+      .maybeSingle() // ← ĐÂY LÀ ĐIỂM QUAN TRỌNG
 
-    // Nếu có lỗi hệ thống thực sự (DB sập, sai cú pháp...)
     if (error) {
       console.error('Error updating profile:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // ✅ FIX CHUẨN: Lúc này data null nghĩa là không tìm thấy user hoặc bị chặn RLS
+    // ✅ Check null (không tìm thấy user)
     if (!data) {
-      return NextResponse.json({ error: 'User not found or permission denied' }, { status: 404 })
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     return NextResponse.json({ success: true, user: data })
