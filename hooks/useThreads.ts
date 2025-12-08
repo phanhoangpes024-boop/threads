@@ -91,13 +91,13 @@ export function useCreateThread() {
       }
     },
     
-    // Optimistic update
+    // ✅ FIX 1: Optimistic update với đúng Key
     onMutate: async (variables) => {
       const { content, imageUrls = [] } = variables
       
       // 1. Cancel query để tránh xung đột
       await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
-      await queryClient.cancelQueries({ queryKey: ['profile-threads'] }) // ✅ Cancel thêm Profile
+      await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
       
       const previousData = queryClient.getQueryData(['feed', user.id])
       
@@ -142,8 +142,11 @@ export function useCreateThread() {
         return { ...old, pages: newPages }
       })
 
-      // 3. ✅ Update Profile (Trang cá nhân)
-      queryClient.setQueryData(['profile-threads', user.id], (old: any) => {
+      // 3. ✅ QUAN TRỌNG: Update Profile với đúng Key 3 tham số
+      // ProfileClient dùng: ['profile-threads', profileId, currentUserId]
+      const profileQueryKey = ['profile-threads', user.id, user.id]
+
+      queryClient.setQueryData(profileQueryKey, (old: any) => {
         if (!old) return [optimisticThread] // Nếu chưa có thì tạo mới
         return [optimisticThread, ...old]   // Chèn lên đầu danh sách
       })
@@ -151,7 +154,7 @@ export function useCreateThread() {
       return { previousData, optimisticId: optimisticThread.id }
     },
     
-    // ✅ Success: Replace optimistic với real data có medias
+    // ✅ FIX 2: Success update với đúng Key
     onSuccess: (newThread, variables, context) => {
       console.log('[CREATE] Success with medias:', newThread.medias?.length || 0)
       
@@ -182,9 +185,13 @@ export function useCreateThread() {
         }
       })
 
-      // 2. ✅ Update Profile (Thay thế optimistic thread bằng thread thật)
-      queryClient.setQueryData(['profile-threads', user.id], (old: any) => {
-        if (!old) return [newThread]
+      // 2. ✅ QUAN TRỌNG: Update Profile với đúng Key 3 tham số
+      const profileQueryKey = ['profile-threads', user.id, user.id]
+      
+      queryClient.setQueryData(profileQueryKey, (old: any) => {
+        if (!old) return [newThread] // Nếu chưa có data thì set mới luôn
+        
+        // Tìm và thay thế thread ảo bằng thread thật
         return old.map((t: any) => 
           t.id === context?.optimisticId 
             ? {
@@ -200,15 +207,15 @@ export function useCreateThread() {
       })
     },
     
-    // Error: Rollback
+    // ✅ FIX 3: Error rollback với đúng Key
     onError: (err, variables, context) => {
       console.error('[CREATE ERROR]', err)
       // Rollback Feed
       if (context?.previousData) {
         queryClient.setQueryData(['feed', user.id], context.previousData)
       }
-      // Invalidate Profile để fetch lại
-      queryClient.invalidateQueries({ queryKey: ['profile-threads'] })
+      // ✅ Invalidate đúng key để fetch lại nếu lỗi
+      queryClient.invalidateQueries({ queryKey: ['profile-threads', user.id, user.id] })
     }
   })
 }

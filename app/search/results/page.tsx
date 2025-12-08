@@ -1,67 +1,56 @@
-// app/search/results/page.tsx - UPDATED
+// app/search/results/page.tsx
 'use client';
 
 import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import CustomScrollbar from '@/components/CustomScrollbar';
 import SearchResults from '@/components/SearchResults';
-import { useThreads } from '@/hooks/useThreads';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './SearchResults.module.css';
-
-interface User {
-  id: string;
-  username: string;
-  bio?: string;
-  avatar_text: string;
-}
 
 export default function SearchResultsPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
-  const { data: threads = [], isLoading } = useThreads();
+  const { user } = useCurrentUser();
 
-  const searchResults = useMemo(() => {
-    if (!query.trim()) return { relevant: [], recent: [] };
+  const { data, isLoading } = useQuery({
+    queryKey: ['search-v2', query, user.id],
+    queryFn: async () => {
+      // ✅ Đổi từ 2 → 1
+      if (!query.trim() || query.trim().length < 1) {
+        return { threads: [], users: [] };
+      }
+      
+      const res = await fetch(
+        `/api/search/v2?q=${encodeURIComponent(query)}&user_id=${user.id}`
+      );
+      
+      if (!res.ok) throw new Error('Search failed');
+      return res.json();
+    },
+    enabled: query.trim().length >= 1,  // ✅ Đổi từ 2 → 1
+    staleTime: 30000,
+  });
 
-    const lowerQuery = query.toLowerCase();
-    
-    const matchedThreads = threads.filter(thread => {
-      const contentMatch = thread.content.toLowerCase().includes(lowerQuery);
-      const usernameMatch = thread.username?.toLowerCase().includes(lowerQuery);
-      return contentMatch || usernameMatch;
-    });
+  const { threads = [], users = [] } = data || {};
 
-    const relevant = [...matchedThreads].sort((a, b) => {
-      const aExact = a.content.toLowerCase().includes(query.toLowerCase());
-      const bExact = b.content.toLowerCase().includes(query.toLowerCase());
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-      return b.likes_count - a.likes_count;
-    });
-
-    const recent = [...matchedThreads].sort((a, b) => 
+  const recentThreads = useMemo(() => {
+    return [...threads].sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
+  }, [threads]);
 
-    return { relevant, recent };
-  }, [threads, query]);
-
-  const profileUsers = useMemo(() => {
-    const userMap = new Map<string, User>();
-    
-    searchResults.relevant.forEach(thread => {
-      if (thread.user_id && !userMap.has(thread.user_id)) {
-        userMap.set(thread.user_id, {
-          id: thread.user_id,
-          username: thread.username || 'Unknown',
-          avatar_text: thread.avatar_text || 'U',
-          bio: '',
-        });
-      }
-    });
-
-    return Array.from(userMap.values());
-  }, [searchResults.relevant]);
+  // ✅ Đổi từ 2 → 1
+  if (query.trim().length < 1) {
+    return (
+      <CustomScrollbar className={styles.container}>
+        <div className={styles.empty}>
+          Nhập từ khóa để tìm kiếm
+        </div>
+      </CustomScrollbar>
+    );
+  }
 
   return (
     <CustomScrollbar className={styles.container}>
@@ -69,9 +58,8 @@ export default function SearchResultsPage() {
         <div className={styles.loading}>Đang tìm kiếm...</div>
       ) : (
         <SearchResults
-          relevantThreads={searchResults.relevant as any}
-          recentThreads={searchResults.recent as any}
-          profileUsers={profileUsers}
+          recentThreads={recentThreads}
+          profileUsers={users}
         />
       )}
     </CustomScrollbar>

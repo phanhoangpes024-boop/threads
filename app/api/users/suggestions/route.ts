@@ -1,26 +1,30 @@
 // app/api/users/suggestions/route.ts
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { MOCK_USER } from '@/lib/currentUser'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const limit = parseInt(searchParams.get('limit') || '10')
+  const currentUserId = searchParams.get('current_user_id')
+  
+  // ✅ Validate limit
+  const limitParam = searchParams.get('limit')
+  const limit = limitParam ? Math.min(parseInt(limitParam), 20) : 8
 
   try {
-    // Lấy danh sách users, loại trừ current user
-    const { data: users, error } = await supabase
+    let query = supabase
       .from('users')
-      .select('*')
-      .neq('id', MOCK_USER.id)
+      .select('id, username, bio, avatar_text, verified, followers_count')
+      .order('followers_count', { ascending: false })
       .limit(limit)
 
-    if (error) throw error
+    // ✅ Loại trừ user hiện tại
+    if (currentUserId && currentUserId !== 'undefined') {
+      query = query.neq('id', currentUserId)
+    }
 
-    // TODO: Sau này có thể thêm logic:
-    // - Loại trừ users đã follow
-    // - Sắp xếp theo số followers
-    // - Gợi ý dựa trên interests chung
+    const { data: users, error } = await query
+
+    if (error) throw error
 
     return NextResponse.json(users || [])
   } catch (error) {

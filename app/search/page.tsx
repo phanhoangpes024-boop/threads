@@ -1,4 +1,4 @@
-/// app/search/page.tsx
+// app/search/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,6 +14,8 @@ interface User {
   username: string;
   bio?: string;
   avatar_text: string;
+  verified?: boolean;
+  followers_count?: number;
 }
 
 export default function SearchPage() {
@@ -22,6 +24,7 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [matchingUsers, setMatchingUsers] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     if (user.id) {
@@ -30,30 +33,50 @@ export default function SearchPage() {
   }, [user.id]);
 
   useEffect(() => {
-    if (searchQuery.trim()) {
-      searchMatchingUsers();
-    } else {
-      setMatchingUsers([]);
-    }
+    const timer = setTimeout(() => {
+      if (searchQuery.trim().length >= 1) {
+        searchMatchingUsers();
+      } else {
+        setMatchingUsers([]);
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const fetchSuggestedUsers = async () => {
     try {
-      const res = await fetch(`/api/users/suggestions?limit=5&user_id=${user.id}`);
-      const data = await res.json();
-      setSuggestedUsers(data);
+      const res = await fetch(
+        `/api/users/suggestions?current_user_id=${user.id}&limit=8`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestedUsers(data);
+      }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
     }
   };
 
+  // ✅ SỬA HÀM NÀY - Gọi API riêng cho users
   const searchMatchingUsers = async () => {
+    setIsSearching(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}&type=users`);
-      const data = await res.json();
-      setMatchingUsers(data.users || []);
+      const res = await fetch(
+        `/api/search/users?q=${encodeURIComponent(searchQuery)}`
+      );
+      
+      if (!res.ok) throw new Error('Search failed');
+      
+      const users = await res.json();
+      setMatchingUsers(users);
+      
     } catch (error) {
       console.error('Error searching users:', error);
+      setMatchingUsers([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -79,9 +102,6 @@ export default function SearchPage() {
     }
   };
 
-  const isEmpty = searchQuery === '';
-  const hasInput = searchQuery.trim().length > 0;
-
   if (userLoading) {
     return (
       <div className={styles.container}>
@@ -91,6 +111,8 @@ export default function SearchPage() {
       </div>
     );
   }
+
+  const isEmpty = searchQuery === '';
 
   return (
     <CustomScrollbar className={styles.container}>
@@ -104,13 +126,13 @@ export default function SearchPage() {
         {isEmpty && (
           <div className={styles.state}>
             <div className={styles.sectionHeader}>Gợi ý theo dõi</div>
-            {suggestedUsers.map((user) => (
-              <div key={user.id} onClick={() => handleUserClick(user.username)}>
+            {suggestedUsers.map((u) => (
+              <div key={u.id} onClick={() => handleUserClick(u.username)}>
                 <UserCard
-                  id={user.id}
-                  username={user.username}
-                  bio={user.bio}
-                  avatarText={user.avatar_text}
+                  id={u.id}
+                  username={u.username}
+                  bio={u.bio}
+                  avatarText={u.avatar_text}
                   onFollowToggle={handleFollowToggle}
                 />
               </div>
@@ -118,22 +140,28 @@ export default function SearchPage() {
           </div>
         )}
 
-        {hasInput && (
+        {!isEmpty && (
           <div className={styles.state}>
-            {matchingUsers.length > 0 ? (
-              matchingUsers.map((user) => (
-                <div key={user.id} onClick={() => handleUserClick(user.username)}>
+            {isSearching ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
+                Đang tìm...
+              </div>
+            ) : matchingUsers.length > 0 ? (
+              matchingUsers.map((u) => (
+                <div key={u.id} onClick={() => handleUserClick(u.username)}>
                   <UserCard
-                    id={user.id}
-                    username={user.username}
-                    bio={user.bio}
-                    avatarText={user.avatar_text}
+                    id={u.id}
+                    username={u.username}
+                    bio={u.bio}
+                    avatarText={u.avatar_text}
                     onFollowToggle={handleFollowToggle}
                   />
                 </div>
               ))
             ) : (
-              <div className={styles.empty}>Không tìm thấy người dùng</div>
+              <div className={styles.empty}>
+                Không tìm thấy người dùng "{searchQuery}"
+              </div>
             )}
           </div>
         )}
