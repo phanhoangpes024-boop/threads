@@ -1,4 +1,4 @@
-// components/Header/index.tsx
+// components/Header/index.tsx - UPDATED WITH FEED TYPE
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -6,8 +6,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import MenuPopup from '@/components/MenuPopup';
 import styles from './Header.module.css';
 
-export default function Header() {
-  const [activeTab, setActiveTab] = useState<'for-you' | 'following'>('following');
+export type FeedType = 'for-you' | 'following'
+
+interface HeaderProps {
+  feedType?: FeedType
+  onFeedTypeChange?: (type: FeedType) => void
+}
+
+export default function Header({ feedType = 'for-you', onFeedTypeChange }: HeaderProps) {
+  const [activeTab, setActiveTab] = useState<FeedType>(feedType);
   const [showMenu, setShowMenu] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -18,6 +25,10 @@ export default function Header() {
     setCanGoBack(window.history.length > 1);
   }, [pathname]);
 
+  useEffect(() => {
+    setActiveTab(feedType);
+  }, [feedType]);
+
   const isThreadDetail = pathname?.startsWith('/thread/');
   const isSearchResults = pathname === '/search/results';
   const isHomePage = pathname === '/';
@@ -25,6 +36,11 @@ export default function Header() {
 
   const handleBack = () => {
     router.back();
+  };
+
+  const handleFeedTypeChange = (type: FeedType) => {
+    setActiveTab(type);
+    onFeedTypeChange?.(type);
   };
 
   const showBackButton = !isHomePage && canGoBack;
@@ -35,6 +51,10 @@ export default function Header() {
     if (isActivityPage) return 'Hoạt động';
     if (pathname?.startsWith('/profile')) return 'Trang cá nhân';
     return '';
+  };
+
+  const getFeedTypeLabel = (type: FeedType) => {
+    return type === 'following' ? 'Đang theo dõi' : 'Dành cho bạn';
   };
 
   return (
@@ -50,6 +70,16 @@ export default function Header() {
             </button>
             <div className={styles.threadTitle}>{getPageTitle()}</div>
           </>
+        ) : isHomePage ? (
+          <button className={styles.dropdownButton} onClick={() => {
+            const newType: FeedType = activeTab === 'for-you' ? 'following' : 'for-you';
+            handleFeedTypeChange(newType);
+          }}>
+            <span className={styles.dropdownText}>{getFeedTypeLabel(activeTab)}</span>
+            <svg className={styles.dropdownIcon} viewBox="0 0 24 24">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
         ) : (
           <button className={styles.dropdownButton}>
             <span className={styles.dropdownText}>Đang theo dõi</span>
@@ -93,24 +123,24 @@ export default function Header() {
           )}
         </div>
         
-        {!showBackButton && (
+        {/* Mobile Tabs - CHỈ HIỆN Ở HOMEPAGE */}
+        {isHomePage && !showBackButton && (
           <nav className={styles.mobileTabs}>
             <button
               className={`${styles.mobileTab} ${activeTab === 'for-you' ? styles.active : ''}`}
-              onClick={() => setActiveTab('for-you')}
+              onClick={() => handleFeedTypeChange('for-you')}
             >
               Dành cho bạn
             </button>
             <button
               className={`${styles.mobileTab} ${activeTab === 'following' ? styles.active : ''}`}
-              onClick={() => setActiveTab('following')}
+              onClick={() => handleFeedTypeChange('following')}
             >
               Đang theo dõi
             </button>
           </nav>
         )}
 
-        {/* Mobile Menu Popup - FIXED */}
         <MenuPopup 
           isOpen={showMenu} 
           onClose={() => setShowMenu(false)} 
