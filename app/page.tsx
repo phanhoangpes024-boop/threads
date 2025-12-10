@@ -26,6 +26,9 @@ export default function Home() {
   // ✅ THÊM: Feed Type State
   const [feedType, setFeedType] = useState<FeedType>('for-you')
   
+  // ✅ THÊM: Key để force remount virtualizer
+  const [virtualizerKey, setVirtualizerKey] = useState(0)
+  
   // ✅ THAY ĐỔI: Dùng useFeedWithType thay vì useFeed
   const { 
     data, 
@@ -157,6 +160,7 @@ export default function Home() {
     setActiveCommentThreadId(threadId)
   }, [])
   
+  // ✅ SỬA: handlePostThread với force remount virtualizer
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
     await createMutation.mutateAsync({ 
       content,
@@ -164,19 +168,24 @@ export default function Home() {
     })
     setShowModal(false)
     
-    // ✅ Xóa cache cũ và fetch lại feed từ đầu
+    // 1. Clear scroll cache TRƯỚC
+    hasRestoredScroll.current = false
+    
+    // 2. Invalidate feed
     await queryClient.invalidateQueries({ 
       queryKey: ['feed', feedType, user.id],
-      exact: true,
       refetchType: 'active'
     })
     
-    // ✅ Scroll về đầu sau khi data mới load xong
+    // 3. Force remount virtualizer bằng key mới
+    setVirtualizerKey(prev => prev + 1)
+    
+    // 4. Scroll về đầu SAU khi remount xong
     setTimeout(() => {
       if (parentRef.current) {
         parentRef.current.scrollTop = 0
       }
-    }, 300)
+    }, 150)
     
   }, [createMutation, queryClient, feedType, user.id])
   
@@ -241,7 +250,8 @@ export default function Home() {
     <>
       {/* ✅ CustomScrollbar bọc TẤT CẢ: CreateThreadInput + Feed */}
       <CustomScrollbar className={styles.mainContainer}>
-        <div ref={parentRef}>
+        {/* ✅ THÊM key vào container của virtualizer */}
+        <div ref={parentRef} key={`virtualizer-${virtualizerKey}`}>
           {/* ✅ CreateThreadInput ở đầu, TRONG scroll container */}
           <div onClick={handleOpenModal}>
             <CreateThreadInput avatarText={user.avatar_text} />

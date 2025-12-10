@@ -90,144 +90,23 @@ export function useCreateThread() {
       }
     },
     
-    onMutate: async (variables) => {
-      const { content, imageUrls = [] } = variables
+    onSuccess: (newThread) => {
+      console.log('[CREATE] Success, invalidating feed...')
       
-      // 1. Cancel query để tránh xung đột
-      await queryClient.cancelQueries({ queryKey: ['feed'] })
-      await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
-      
-      const previousData = queryClient.getQueryData(['feed', 'for-you', user.id])
-      
-      // Tạo optimistic thread
-      const optimisticThread: FeedThread = {
-        id: 'optimistic-' + crypto.randomUUID(),
-        user_id: user.id,
-        username: user.username || 'You',
-        avatar_text: user.avatar_text || 'U',
-        verified: user.verified || false,
-        content: content.trim(),
-        medias: imageUrls.map((url, index) => ({
-          id: 'opt-' + index,
-          url,
-          type: 'image',
-          width: null,
-          height: null,
-          order: index
-        })),
-        likes_count: 0,
-        comments_count: 0,
-        reposts_count: 0,
-        created_at: new Date().toISOString(),
-        is_liked: false,
-      }
-      
-      // ✅ 2. Update CẢ 2 FEED TYPES
-      const feedKeys = [
-        ['feed', 'for-you', user.id],
-        ['feed', 'following', user.id]
-      ]
-      
-      feedKeys.forEach(key => {
-        queryClient.setQueryData<{
-          pages: { threads: FeedThread[] }[]
-          pageParams: unknown[]
-        }>(key, (old) => {
-          if (!old) return old
-          
-          const newPages = [...old.pages]
-          if (newPages[0]) {
-            newPages[0] = {
-              ...newPages[0],
-              threads: [optimisticThread, ...newPages[0].threads]
-            }
-          }
-          
-          return { ...old, pages: newPages }
-        })
-      })
-
-      // 3. Update Profile
-      const profileQueryKey = ['profile-threads', user.id, user.id]
-      queryClient.setQueryData(profileQueryKey, (old: any) => {
-        if (!old) return [optimisticThread]
-        return [optimisticThread, ...old]
-      })
-      
-      return { previousData, optimisticId: optimisticThread.id }
-    },
-    
-    onSuccess: (newThread, variables, context) => {
-      console.log('[CREATE] Success with medias:', newThread.medias?.length || 0)
-      
-      // ✅ Update CẢ 2 FEED TYPES
-      const feedKeys = [
-        ['feed', 'for-you', user.id],
-        ['feed', 'following', user.id]
-      ]
-      
-      feedKeys.forEach(key => {
-        queryClient.setQueryData<{
-          pages: { threads: FeedThread[] }[]
-          pageParams: unknown[]
-        }>(key, (old) => {
-          if (!old) return old
-          
-          return {
-            ...old,
-            pages: old.pages.map(page => ({
-              ...page,
-              threads: page.threads.map(t => 
-                t.id === context?.optimisticId 
-                  ? {
-                      ...newThread,
-                      username: user.username,
-                      avatar_text: user.avatar_text,
-                      verified: user.verified || false,
-                      medias: newThread.medias || [],
-                      is_liked: false
-                    }
-                  : t
-              )
-            }))
-          }
-        })
-      })
-
-      // Update Profile
-      const profileQueryKey = ['profile-threads', user.id, user.id]
-      queryClient.setQueryData(profileQueryKey, (old: any) => {
-        if (!old) return [newThread]
-        return old.map((t: any) => 
-          t.id === context?.optimisticId 
-            ? {
-                ...newThread,
-                username: user.username,
-                avatar_text: user.avatar_text,
-                verified: user.verified || false,
-                medias: newThread.medias || [],
-                is_liked: false
-              }
-            : t
-        )
-      })
-    },
-    
-    onError: (err, variables, context) => {
-      console.error('[CREATE ERROR]', err)
-      
-      // Rollback cả 2 feed types
-      if (context?.previousData) {
-        queryClient.setQueryData(['feed', 'for-you', user.id], context.previousData)
-      }
-      
+      // Chỉ cần invalidate, React Query tự refetch
       queryClient.invalidateQueries({ 
         queryKey: ['feed'],
         exact: false 
       })
+      
       queryClient.invalidateQueries({ 
-        queryKey: ['profile-threads', user.id, user.id] 
+        queryKey: ['profile-threads'],
+        exact: false 
       })
+    },
+    
+    onError: (err) => {
+      console.error('[CREATE ERROR]', err)
     }
   })
 }
