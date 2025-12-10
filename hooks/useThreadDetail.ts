@@ -7,19 +7,26 @@ export function useThreadDetail(threadId: string, userId?: string) {
 
   return useQuery({
     queryKey: ['thread-detail', threadId, userId],
+      
+      initialData: () => {
+  if (!userId) return undefined
+  
+  // ✅ 1. Check CẢ 2 feed caches
+  const feedKeys = [
+    ['feed', 'for-you', userId],
+    ['feed', 'following', userId]
+  ]
+  
+  for (const key of feedKeys) {
+    const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>(key)
+    const feedThread = feedData?.pages
+      .flatMap(p => p.threads)
+      .find(t => t.id === threadId)
     
-    initialData: () => {
-      if (!userId) return undefined
-      
-      // ✅ 1. Check feed cache
-      const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', userId])
-      const feedThread = feedData?.pages
-        .flatMap(p => p.threads)
-        .find(t => t.id === threadId)
-      
-      if (feedThread) {
-        return { thread: feedThread, comments: [] }
-      }
+    if (feedThread) {
+      return { thread: feedThread, comments: [] }
+    }
+  }
       
       // ✅ 2. Check profile cache (THÊM MỚI)
       const profileKeys = queryClient.getQueryCache()

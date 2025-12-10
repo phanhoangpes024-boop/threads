@@ -1,6 +1,7 @@
-// app/page.tsx - OPTIMIZED WITH VIRTUALIZATION + CUSTOM SCROLLBAR
+// app/page.tsx - OPTIMIZED WITH VIRTUALIZATION + CUSTOM SCROLLBAR + FEED TYPE
 'use client'
 
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import dynamic from 'next/dynamic'
@@ -8,7 +9,8 @@ import CustomScrollbar from '@/components/CustomScrollbar'
 import CreateThreadInput from '@/components/CreateThreadInput'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
-import { useFeed, useToggleLike, useRefreshFeed, saveScrollPosition, getScrollPosition } from '@/hooks/useFeed'
+import { useFeedWithType, type FeedType } from '@/hooks/useFeedWithType'
+import { useToggleLike, useRefreshFeed, saveScrollPosition, getScrollPosition } from '@/hooks/useFeed'
 import { useCreateThread } from '@/hooks/useThreads'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { registerServiceWorker } from '@/lib/registerSW'
@@ -20,13 +22,18 @@ const CreateThreadModal = dynamic(
 )
 
 export default function Home() {
+  const queryClient = useQueryClient()
+  // ✅ THÊM: Feed Type State
+  const [feedType, setFeedType] = useState<FeedType>('for-you')
+  
+  // ✅ THAY ĐỔI: Dùng useFeedWithType thay vì useFeed
   const { 
     data, 
     isLoading, 
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage 
-  } = useFeed()
+  } = useFeedWithType(feedType)
   
   const toggleLikeMutation = useToggleLike()
   const createMutation = useCreateThread()
@@ -41,7 +48,7 @@ export default function Home() {
   const hasRestoredScroll = useRef(false)
   
   // ✅ Flatten threads từ pages
-  const allThreads = data?.pages?.flatMap(page => page.threads) ?? []
+  const allThreads = (data?.pages?.flatMap((page: any) => page.threads) ?? [])
   
   // ✅ VIRTUALIZER - Chỉ render items trong viewport
   const virtualizer = useVirtualizer({
@@ -51,6 +58,29 @@ export default function Home() {
     overscan: 5,
     measureElement: (el) => el?.getBoundingClientRect().height ?? 400,
   })
+  
+  // ✅ THÊM: Listen event từ Header (chuyển tab)
+  useEffect(() => {
+    const handleHeaderFeedTypeChange = (e: any) => {
+      if (e.detail && e.detail !== feedType) {
+        setFeedType(e.detail)
+        // Reset scroll khi đổi tab
+        hasRestoredScroll.current = false
+        if (parentRef.current) {
+          parentRef.current.scrollTop = 0
+        }
+      }
+    }
+    
+    window.addEventListener('headerFeedTypeChange', handleHeaderFeedTypeChange)
+    return () => window.removeEventListener('headerFeedTypeChange', handleHeaderFeedTypeChange)
+  }, [feedType])
+  
+  // ✅ THÊM: Dispatch event lên Layout khi feedType thay đổi
+  useEffect(() => {
+    const event = new CustomEvent('feedTypeChange', { detail: feedType })
+    window.dispatchEvent(event)
+  }, [feedType])
   
   // ✅ SCROLL RESTORATION
   useEffect(() => {
@@ -101,17 +131,15 @@ export default function Home() {
     
     if (!lastItem) return
     
-    // ✅ Prefetch khi còn cách 10 items (thay vì 5)
-    // ✅ Responsive prefetch: mobile 3, desktop 10
-const prefetchThreshold = typeof window !== 'undefined' && window.innerWidth <= 768 ? 4 : 10
+    const prefetchThreshold = typeof window !== 'undefined' && window.innerWidth <= 768 ? 4 : 10
 
-if (
-  lastItem.index >= allThreads.length - prefetchThreshold &&
-  hasNextPage &&
-  !isFetchingNextPage
-) {
-  fetchNextPage()
-}
+    if (
+      lastItem.index >= allThreads.length - prefetchThreshold &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      fetchNextPage()
+    }
   }, [
     virtualizer.getVirtualItems(),
     allThreads.length,
@@ -135,7 +163,22 @@ if (
       imageUrls: imageUrls || []
     })
     setShowModal(false)
-  }, [createMutation])
+    
+    // ✅ Xóa cache cũ và fetch lại feed từ đầu
+    await queryClient.invalidateQueries({ 
+      queryKey: ['feed', feedType, user.id],
+      exact: true,
+      refetchType: 'active'
+    })
+    
+    // ✅ Scroll về đầu sau khi data mới load xong
+    setTimeout(() => {
+      if (parentRef.current) {
+        parentRef.current.scrollTop = 0
+      }
+    }, 300)
+    
+  }, [createMutation, queryClient, feedType, user.id])
   
   const handleOpenModal = useCallback(() => {
     setShowModal(true)
@@ -203,6 +246,17 @@ if (
           <div onClick={handleOpenModal}>
             <CreateThreadInput avatarText={user.avatar_text} />
           </div>
+          
+          {/* ✅ THÊM: Empty state cho Following feed */}
+          {feedType === 'following' && allThreads.length === 0 && !isLoading && (
+            <div style={{
+              padding: '40px 20px',
+              textAlign: 'center',
+              color: '#999'
+            }}>
+              Bạn chưa theo dõi ai. Hãy tìm người để theo dõi!
+            </div>
+          )}
           
           {/* ✅ Virtual List */}
           <div

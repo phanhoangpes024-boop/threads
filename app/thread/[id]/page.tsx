@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
-import { useQueryClient, useIsFetching } from '@tanstack/react-query' // [1] Thêm useIsFetching
+import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import CustomScrollbar from '@/components/CustomScrollbar'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
@@ -12,13 +12,31 @@ import { useToggleLike } from '@/hooks/useFeed'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import styles from './ThreadDetail.module.css'
 
+// Component Skeleton Loader cho Comments
+function CommentSkeleton() {
+  return (
+    <div className={styles.commentItem}>
+      <div className={styles.commentAvatar}>
+        <div className={`${styles.avatar} ${styles.skeletonAvatar}`}></div>
+      </div>
+      <div className={styles.commentContent}>
+        <div className={styles.commentHeader}>
+          <div className={styles.skeletonUsername}></div>
+          <div className={styles.skeletonTime}></div>
+        </div>
+        <div className={styles.skeletonText}></div>
+        <div className={styles.skeletonTextShort}></div>
+      </div>
+    </div>
+  )
+}
+
 export default function ThreadDetailPage() {
   const params = useParams()
   const queryClient = useQueryClient()
   const { user, loading: userLoading } = useCurrentUser()
   const threadId = params.id as string
   
-  // [2] Lấy trạng thái fetching của query này để hiện loading khi refresh danh sách
   const isFetchingComments = useIsFetching({ queryKey: ['thread-detail', threadId] })
   
   const { data, isLoading, isError } = useThreadDetail(threadId, user?.id)
@@ -54,28 +72,22 @@ export default function ThreadDetailPage() {
     setShowCommentInput(true)
   }, [])
 
-  // -------------------------------------------------------------------
-  // 👇👇👇 PHẦN ĐÃ SỬA: OPTIMISTIC UPDATE COMMENT 👇👇👇
-  // -------------------------------------------------------------------
-  // Lưu ý: CommentInput cần truyền content vào callback này: onCommentSubmit(content)
+  // OPTIMISTIC UPDATE COMMENT
   const handleCommentSubmit = useCallback((content?: string) => {
     setShowCommentInput(false)
     
-    // 1. Nếu có content và user info -> Thực hiện Optimistic Update (Hiển thị ngay)
     if (content && user) {
       const fakeId = `temp-${Date.now()}`
       
-      // Tạo object comment giả lập
       const newOptimisticComment = {
         id: fakeId,
         content: content,
-        username: user.username || 'You', // Dùng thông tin từ user hook
+        username: user.username || 'You',
         avatar_text: user.avatar_text || 'Me', 
         created_at: new Date().toISOString(),
-        is_optimistic: true // (Optional) Cờ để có thể style riêng nếu muốn
+        is_optimistic: true
       }
 
-      // Cập nhật cache ngay lập tức
       queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
         if (!old) return old
         
@@ -85,19 +97,15 @@ export default function ThreadDetailPage() {
             ...old.thread,
             comments_count: (old.thread.comments_count || 0) + 1
           },
-          // Chèn comment mới lên đầu danh sách
           comments: [newOptimisticComment, ...(old.comments || [])]
         }
       })
     }
 
-    // 2. Refresh lại data thật từ server (Background refetch)
-    // Việc này sẽ kích hoạt isFetchingComments > 0
     queryClient.invalidateQueries({ 
       queryKey: ['thread-detail', threadId] 
     })
   }, [queryClient, threadId, user])
-  // -------------------------------------------------------------------
 
   if (userLoading || (isLoading && !data)) {
     return (
@@ -138,7 +146,7 @@ export default function ThreadDetailPage() {
       {showCommentInput && (
         <CommentInput
           threadId={threadId}
-          onCommentSubmit={handleCommentSubmit} // Đảm bảo Component này truyền text ra ngoài
+          onCommentSubmit={handleCommentSubmit}
           autoFocus
         />
       )}
@@ -146,45 +154,58 @@ export default function ThreadDetailPage() {
       <div className={styles.commentsSection}>
         <div className={styles.commentsHeader}>
           <button className={styles.sortButton}>Top Comments</button>
-          {/* [3] Hiển thị Indicator khi đang fetch lại comment thật */}
-          {isFetchingComments > 0 && (
-             <span style={{ fontSize: '12px', color: '#999', marginLeft: 'auto' }}>
-               Updating...
-             </span>
+          {isFetchingComments > 0 && comments && comments.length > 0 && (
+            <span style={{ fontSize: '12px', color: '#999', marginLeft: 'auto' }}>
+              Updating...
+            </span>
           )}
         </div>
         
-        {!comments ? (
-          <div className={styles.loading}>Loading comments...</div>
-        ) : comments.length === 0 ? (
-          <div className={styles.noComments}>No comments yet</div>
-        ) : (
-          /* [4] Thêm style opacity nhẹ khi đang fetch để user biết danh sách đang được làm mới */
-          <div 
-            className={styles.commentsList} 
-            style={{ opacity: isFetchingComments > 0 ? 0.7 : 1, transition: 'opacity 0.2s' }}
-          >
-            {comments.map((comment: any) => (
-              <div key={comment.id} className={styles.commentItem}>
-                <div className={styles.commentAvatar}>
-                  <div className={styles.avatar}>{comment.avatar_text}</div>
-                </div>
-                <div className={styles.commentContent}>
-                  <div className={styles.commentHeader}>
-                    <span className={styles.commentUsername}>{comment.username}</span>
-                    <span className={styles.commentTime}>
-                      {/* Xử lý hiển thị thời gian cho comment vừa tạo */}
-                      {comment.id.toString().startsWith('temp-') 
-                        ? 'Just now' 
-                        : new Date(comment.created_at).toLocaleDateString('vi-VN')}
-                    </span>
-                  </div>
-                  <div className={styles.commentText}>{comment.content}</div>
-                </div>
+        {(() => {
+          // 1. Nếu chưa có comments HOẶC (comments rỗng NHƯNG đang fetch)
+          // -> Hiện Skeleton Loader
+          if (!comments || (comments.length === 0 && isFetchingComments > 0)) {
+            return (
+              <div className={styles.commentsList}>
+                <CommentSkeleton />
+                <CommentSkeleton />
+                <CommentSkeleton />
               </div>
-            ))}
-          </div>
-        )}
+            )
+          }
+
+          // 2. Khi chắc chắn không fetch nữa mà vẫn rỗng -> Hiện No comments
+          if (comments.length === 0) {
+            return <div className={styles.noComments}>No comments yet</div>
+          }
+
+          // 3. Có data -> Render List
+          return (
+            <div 
+              className={styles.commentsList} 
+              style={{ opacity: isFetchingComments > 0 ? 0.7 : 1, transition: 'opacity 0.2s' }}
+            >
+              {comments.map((comment: any) => (
+                <div key={comment.id} className={styles.commentItem}>
+                  <div className={styles.commentAvatar}>
+                    <div className={styles.avatar}>{comment.avatar_text}</div>
+                  </div>
+                  <div className={styles.commentContent}>
+                    <div className={styles.commentHeader}>
+                      <span className={styles.commentUsername}>{comment.username}</span>
+                      <span className={styles.commentTime}>
+                        {comment.id.toString().startsWith('temp-') 
+                          ? 'Just now' 
+                          : new Date(comment.created_at).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                    <div className={styles.commentText}>{comment.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </div>
     </CustomScrollbar>
   )

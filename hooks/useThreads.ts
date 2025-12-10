@@ -1,4 +1,4 @@
-// hooks/useThreads.ts - FINAL FIXED VERSION
+// hooks/useThreads.ts - FINAL FIXED VERSION WITH FEED TYPE
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import type { FeedThread, FeedMedia } from './useFeed'
@@ -64,14 +64,13 @@ export function useCreateThread() {
             if (mediaRes.ok) {
               const media = await mediaRes.json()
               
-              // ✅ Map DB response → TypeScript format
               createdMedias.push({
                 id: media.id,
                 url: media.url,
-                type: 'image', // ← Map media_type → type
+                type: 'image',
                 width: media.width,
                 height: media.height,
-                order: media.order_index // ← Map order_index → order
+                order: media.order_index
               })
               
               console.log('[CREATE] Media', index, 'created OK')
@@ -91,15 +90,14 @@ export function useCreateThread() {
       }
     },
     
-    // ✅ FIX 1: Optimistic update với đúng Key
     onMutate: async (variables) => {
       const { content, imageUrls = [] } = variables
       
       // 1. Cancel query để tránh xung đột
-      await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
+      await queryClient.cancelQueries({ queryKey: ['feed'] })
       await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
       
-      const previousData = queryClient.getQueryData(['feed', user.id])
+      const previousData = queryClient.getQueryData(['feed', 'for-you', user.id])
       
       // Tạo optimistic thread
       const optimisticThread: FeedThread = {
@@ -124,74 +122,82 @@ export function useCreateThread() {
         is_liked: false,
       }
       
-      // 2. Update Feed (Trang chủ)
-      queryClient.setQueryData<{
-        pages: { threads: FeedThread[] }[]
-        pageParams: unknown[]
-      }>(['feed', user.id], (old) => {
-        if (!old) return old
-        
-        const newPages = [...old.pages]
-        if (newPages[0]) {
-          newPages[0] = {
-            ...newPages[0],
-            threads: [optimisticThread, ...newPages[0].threads]
+      // ✅ 2. Update CẢ 2 FEED TYPES
+      const feedKeys = [
+        ['feed', 'for-you', user.id],
+        ['feed', 'following', user.id]
+      ]
+      
+      feedKeys.forEach(key => {
+        queryClient.setQueryData<{
+          pages: { threads: FeedThread[] }[]
+          pageParams: unknown[]
+        }>(key, (old) => {
+          if (!old) return old
+          
+          const newPages = [...old.pages]
+          if (newPages[0]) {
+            newPages[0] = {
+              ...newPages[0],
+              threads: [optimisticThread, ...newPages[0].threads]
+            }
           }
-        }
-        
-        return { ...old, pages: newPages }
+          
+          return { ...old, pages: newPages }
+        })
       })
 
-      // 3. ✅ QUAN TRỌNG: Update Profile với đúng Key 3 tham số
-      // ProfileClient dùng: ['profile-threads', profileId, currentUserId]
+      // 3. Update Profile
       const profileQueryKey = ['profile-threads', user.id, user.id]
-
       queryClient.setQueryData(profileQueryKey, (old: any) => {
-        if (!old) return [optimisticThread] // Nếu chưa có thì tạo mới
-        return [optimisticThread, ...old]   // Chèn lên đầu danh sách
+        if (!old) return [optimisticThread]
+        return [optimisticThread, ...old]
       })
       
       return { previousData, optimisticId: optimisticThread.id }
     },
     
-    // ✅ FIX 2: Success update với đúng Key
     onSuccess: (newThread, variables, context) => {
       console.log('[CREATE] Success with medias:', newThread.medias?.length || 0)
       
-      // 1. Update Feed
-      queryClient.setQueryData<{
-        pages: { threads: FeedThread[] }[]
-        pageParams: unknown[]
-      }>(['feed', user.id], (old) => {
-        if (!old) return old
-        
-        return {
-          ...old,
-          pages: old.pages.map(page => ({
-            ...page,
-            threads: page.threads.map(t => 
-              t.id === context?.optimisticId 
-                ? {
-                    ...newThread,
-                    username: user.username,
-                    avatar_text: user.avatar_text,
-                    verified: user.verified || false,
-                    medias: newThread.medias || [], // ✅ Giữ medias đã tạo
-                    is_liked: false
-                  }
-                : t
-            )
-          }))
-        }
+      // ✅ Update CẢ 2 FEED TYPES
+      const feedKeys = [
+        ['feed', 'for-you', user.id],
+        ['feed', 'following', user.id]
+      ]
+      
+      feedKeys.forEach(key => {
+        queryClient.setQueryData<{
+          pages: { threads: FeedThread[] }[]
+          pageParams: unknown[]
+        }>(key, (old) => {
+          if (!old) return old
+          
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              threads: page.threads.map(t => 
+                t.id === context?.optimisticId 
+                  ? {
+                      ...newThread,
+                      username: user.username,
+                      avatar_text: user.avatar_text,
+                      verified: user.verified || false,
+                      medias: newThread.medias || [],
+                      is_liked: false
+                    }
+                  : t
+              )
+            }))
+          }
+        })
       })
 
-      // 2. ✅ QUAN TRỌNG: Update Profile với đúng Key 3 tham số
+      // Update Profile
       const profileQueryKey = ['profile-threads', user.id, user.id]
-      
       queryClient.setQueryData(profileQueryKey, (old: any) => {
-        if (!old) return [newThread] // Nếu chưa có data thì set mới luôn
-        
-        // Tìm và thay thế thread ảo bằng thread thật
+        if (!old) return [newThread]
         return old.map((t: any) => 
           t.id === context?.optimisticId 
             ? {
@@ -207,15 +213,21 @@ export function useCreateThread() {
       })
     },
     
-    // ✅ FIX 3: Error rollback với đúng Key
     onError: (err, variables, context) => {
       console.error('[CREATE ERROR]', err)
-      // Rollback Feed
+      
+      // Rollback cả 2 feed types
       if (context?.previousData) {
-        queryClient.setQueryData(['feed', user.id], context.previousData)
+        queryClient.setQueryData(['feed', 'for-you', user.id], context.previousData)
       }
-      // ✅ Invalidate đúng key để fetch lại nếu lỗi
-      queryClient.invalidateQueries({ queryKey: ['profile-threads', user.id, user.id] })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: ['feed'],
+        exact: false 
+      })
+      queryClient.invalidateQueries({ 
+        queryKey: ['profile-threads', user.id, user.id] 
+      })
     }
   })
 }
@@ -243,11 +255,19 @@ export function useThread(threadId: string) {
     },
     enabled: !!threadId,
     initialData: () => {
-      const feedData = queryClient.getQueryData<any>(['feed', user.id])
-      if (feedData?.pages) {
-        for (const page of feedData.pages) {
-          const thread = page.threads?.find((t: any) => t.id === threadId)
-          if (thread) return thread
+      // ✅ TÌM TRONG CẢ 2 FEED TYPES
+      const feedKeys = [
+        ['feed', 'for-you', user.id],
+        ['feed', 'following', user.id]
+      ]
+      
+      for (const key of feedKeys) {
+        const feedData = queryClient.getQueryData<any>(key)
+        if (feedData?.pages) {
+          for (const page of feedData.pages) {
+            const thread = page.threads?.find((t: any) => t.id === threadId)
+            if (thread) return thread
+          }
         }
       }
       return undefined
@@ -269,7 +289,7 @@ export function useComments(threadId: string) {
   })
 }
 
-// Create comment
+// ✅ Create comment - FIXED
 export function useCreateComment(threadId: string) {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
@@ -302,20 +322,29 @@ export function useCreateComment(threadId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', threadId] })
       
-      queryClient.setQueryData<any>(['feed', user.id], (old: any) => {
-        if (!old?.pages) return old
-        
-        return {
-          ...old,
-          pages: old.pages.map((page: any) => ({
-            ...page,
-            threads: page.threads.map((t: any) =>
-              t.id === threadId ? { ...t, comments_count: t.comments_count + 1 } : t
-            )
-          }))
-        }
+      // ✅ UPDATE CẢ 2 FEED TYPES
+      const feedKeys = [
+        ['feed', 'for-you', user.id],
+        ['feed', 'following', user.id]
+      ]
+      
+      feedKeys.forEach(key => {
+        queryClient.setQueryData<any>(key, (old: any) => {
+          if (!old?.pages) return old
+          
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              threads: page.threads.map((t: any) =>
+                t.id === threadId ? { ...t, comments_count: t.comments_count + 1 } : t
+              )
+            }))
+          }
+        })
       })
       
+      // Update thread detail cache
       queryClient.setQueryData<FeedThread>(['thread', threadId], (old: any) =>
         old ? { ...old, comments_count: old.comments_count + 1 } : old
       )

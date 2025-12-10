@@ -1,7 +1,7 @@
 // components/ProfileHeader/index.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './ProfileHeader.module.css';
 
 interface ProfileHeaderProps {
@@ -39,27 +39,21 @@ export default function ProfileHeader({
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [loading, setLoading] = useState(false);
 
-  const handleFollowClick = async () => {
+  // ✅ Nhận kết quả từ cha khi API xong
+  useEffect(() => {
+    setIsFollowing(initialIsFollowing);
+    setLoading(false);
+  }, [initialIsFollowing]);
+
+  const handleFollowClick = () => {
     if (!currentUserId || loading) return;
-
+    
+    // Chỉ update UI tạm thời + loading
+    setIsFollowing(!isFollowing);
     setLoading(true);
-    try {
-      const res = await fetch(`/api/users/${userId}/follow`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId }),
-      });
-
-      if (res.ok) {
-        const newState = !isFollowing;
-        setIsFollowing(newState);
-        onFollowToggle?.(newState);
-      }
-    } catch (error) {
-      console.error('Error toggling follow:', error);
-    } finally {
-      setLoading(false);
-    }
+    
+    // Báo cho cha biết - cha sẽ gọi API
+    onFollowToggle?.(!isFollowing);
   };
 
   return (

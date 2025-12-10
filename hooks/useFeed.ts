@@ -1,4 +1,4 @@
-// hooks/useFeed.ts
+// hooks/useFeed.ts - FIXED WITH FEED TYPE SUPPORT
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import { useCallback } from 'react'
@@ -124,14 +124,12 @@ export function useToggleLike() {
     },
     
     onMutate: async (threadId) => {
-      // 1. Cancel các query liên quan để tránh xung đột dữ liệu
-      await queryClient.cancelQueries({ queryKey: ['feed', user.id] })
+      // 1. Cancel các query liên quan
+      await queryClient.cancelQueries({ queryKey: ['feed'] })
       await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
       
-      // Snapshot dữ liệu cũ để rollback nếu lỗi
       const previousFeed = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
       
-      // Hàm update logic chung cho 1 thread
       const updateThreadLikeStatus = (thread: FeedThread | any) => {
         if (thread.id !== threadId) return thread
         
@@ -145,27 +143,33 @@ export function useToggleLike() {
         }
       }
       
-      // 2. Update Optimistic cho FEED (Trang chủ)
-      queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          pages: old.pages.map(page => ({
-            ...page,
-            threads: page.threads.map(updateThreadLikeStatus)
-          }))
-        }
+      // ✅ 2. Update CẢ 2 FEED TYPES
+      const feedKeys = [
+        ['feed', 'for-you', user.id],
+        ['feed', 'following', user.id]
+      ]
+      
+      feedKeys.forEach(key => {
+        queryClient.setQueryData<InfiniteData<FeedPage>>(key, (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              threads: page.threads.map(updateThreadLikeStatus)
+            }))
+          }
+        })
       })
 
-      // 3. ✅ Update Optimistic cho PROFILE (Trang cá nhân)
-      // ✅ FIX: Dùng exact: false để match cả query có params
+      // 3. Update Profile
       queryClient.getQueryCache().findAll({ 
         queryKey: ['profile-threads'],
         exact: false 
       }).forEach(query => {
         queryClient.setQueryData(query.queryKey, (old: any) => {
-            if (!old || !Array.isArray(old)) return old
-            return old.map(updateThreadLikeStatus)
+          if (!old || !Array.isArray(old)) return old
+          return old.map(updateThreadLikeStatus)
         })
       })
       
@@ -176,23 +180,30 @@ export function useToggleLike() {
       const { threadId, action, likes_count } = data
       const isLiked = action === 'liked'
       
-      // 1️⃣ Update FEED Cache (Sync data thật từ server)
-      queryClient.setQueryData<InfiniteData<FeedPage>>(['feed', user.id], (old) => {
-        if (!old) return old
-        return {
-          ...old,
-          pages: old.pages.map(page => ({
-            ...page,
-            threads: page.threads.map(t => 
-              t.id === threadId 
-                ? { ...t, is_liked: isLiked, likes_count } 
-                : t
-            )
-          }))
-        }
+      // ✅ 1. Update CẢ 2 FEED TYPES
+      const feedKeys = [
+        ['feed', 'for-you', user.id],
+        ['feed', 'following', user.id]
+      ]
+      
+      feedKeys.forEach(key => {
+        queryClient.setQueryData<InfiniteData<FeedPage>>(key, (old) => {
+          if (!old) return old
+          return {
+            ...old,
+            pages: old.pages.map(page => ({
+              ...page,
+              threads: page.threads.map(t => 
+                t.id === threadId 
+                  ? { ...t, is_liked: isLiked, likes_count } 
+                  : t
+              )
+            }))
+          }
+        })
       })
       
-      // 2️⃣ Update DETAIL Cache
+      // 2. Update DETAIL Cache
       const detailKeys = queryClient.getQueryCache()
         .findAll({ queryKey: ['thread-detail', threadId] })
       
@@ -210,8 +221,7 @@ export function useToggleLike() {
         })
       })
       
-      // 3️⃣ ✅ Update PROFILE Cache (Sync data thật từ server)
-      // ✅ FIX: Dùng exact: false để match cả query có params
+      // 3. Update PROFILE Cache
       const profileKeys = queryClient.getQueryCache()
         .findAll({ 
           queryKey: ['profile-threads'],
@@ -238,7 +248,12 @@ export function useToggleLike() {
       if (context?.previousFeed) {
         queryClient.setQueryData(['feed', user.id], context.previousFeed)
       }
-      // Invalidate để fetch lại dữ liệu đúng nhất
+      
+      // Invalidate tất cả feed types
+      queryClient.invalidateQueries({ 
+        queryKey: ['feed'],
+        exact: false 
+      })
       queryClient.invalidateQueries({ 
         queryKey: ['profile-threads'],
         exact: false 
@@ -254,8 +269,12 @@ export function useRefreshFeed() {
   const { user } = useCurrentUser()
   
   return useCallback(() => {
-    return queryClient.invalidateQueries({ 
-      queryKey: ['feed', user.id] 
+    // ✅ Invalidate CẢ 2 FEED TYPES
+    queryClient.invalidateQueries({ 
+      queryKey: ['feed', 'for-you', user.id] 
+    })
+    queryClient.invalidateQueries({ 
+      queryKey: ['feed', 'following', user.id] 
     })
   }, [queryClient, user.id])
 }
