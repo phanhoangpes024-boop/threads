@@ -10,6 +10,7 @@ import styles from './ThreadCard.module.css'
 
 interface ThreadCardProps {
   id: string
+  avatarBg?: string // ← THÊM
   username: string
   timestamp: string
   content: string
@@ -117,8 +118,13 @@ function ThreadCard({
     >
       <div className={styles.threadContainer}>
         <div className={styles.threadAvatar}>
-          <div className={styles.avatar}>{avatarText}</div>
-        </div>
+  <div 
+    className={styles.avatar}
+    style={{ background: avatarBg || '#0077B6' }} // ← Dùng màu động
+  >
+    {avatarText}
+  </div>
+</div>
 
         <div className={styles.threadContent}>
           <header className={styles.threadHeader}>

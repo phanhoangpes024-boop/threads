@@ -8,7 +8,7 @@ export async function PATCH(
 ) {
   const params = await context.params
   const userId = params.id
-  const { name, avatar_text, bio } = await request.json()
+  const { name, avatar_text, avatar_bg, bio } = await request.json()
 
   // Validate
   if (!avatar_text || avatar_text.trim().length === 0) {
@@ -29,20 +29,23 @@ export async function PATCH(
       bio: bio?.trim() || null,
     }
 
-    // ✅ FIX: Dùng maybeSingle() thay vì single()
+    // ✅ Update avatar_bg nếu có
+    if (avatar_bg) {
+      updateData.avatar_bg = avatar_bg
+    }
+
     const { data, error } = await supabase
       .from('users')
       .update(updateData)
       .eq('id', userId)
       .select()
-      .maybeSingle() // ← ĐÂY LÀ ĐIỂM QUAN TRỌNG
+      .maybeSingle()
 
     if (error) {
       console.error('Error updating profile:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // ✅ Check null (không tìm thấy user)
     if (!data) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }

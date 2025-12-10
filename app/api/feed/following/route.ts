@@ -52,6 +52,7 @@ export async function GET(request: Request) {
       reposts_count: t.reposts_count ?? 0,
       username: t.username,
       avatar_text: t.avatar_text,
+      avatar_bg: t.avatar_bg || '#0077B6', // ← THÊM DÒNG NÀY
       verified: t.verified ?? false,
       is_liked: t.is_liked ?? false,
       medias: Array.isArray(t.medias) 

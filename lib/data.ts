@@ -11,6 +11,7 @@ export interface ProfileData {
   username: string
   email: string
   avatar_text: string
+  avatar_bg: string // ← THÊM
   verified: boolean
   bio: string | null
   followers_count: number
@@ -29,6 +30,7 @@ export interface ProfileThread {
   reposts_count: number
   username: string
   avatar_text: string
+  avatar_bg: string // ← THÊM
   verified: boolean
   is_liked: boolean
   medias: Array<{
@@ -45,19 +47,14 @@ export interface ProfileThread {
 // FUNCTIONS (Server-side Cached)
 // ============================================
 
-/**
- * Lấy thông tin profile của 1 user (qua username)
- * Bọc cache để dùng chung cho metadata SEO và Page UI
- */
 export const getProfileByUsername = cache(async (username: string): Promise<ProfileData | null> => {
   const { data, error } = await supabase
     .from('users')
-    .select('id, username, email, avatar_text, verified, bio, followers_count, following_count, threads_count, created_at')
+    .select('id, username, email, avatar_text, avatar_bg, verified, bio, followers_count, following_count, threads_count, created_at') // ← THÊM avatar_bg
     .eq('username', username)
     .single()
 
   if (error) {
-    // Chỉ log lỗi thật (không log "không tìm thấy user")
     if (error.code !== 'PGRST116') {
       console.error('[getProfileByUsername] Error:', error)
     }
@@ -67,9 +64,6 @@ export const getProfileByUsername = cache(async (username: string): Promise<Prof
   return data
 })
 
-/**
- * Lấy danh sách threads của 1 user (dùng RPC)
- */
 export const getProfileThreads = cache(async (
   targetUserId: string,
   viewerId?: string | null,
@@ -91,14 +85,10 @@ export const getProfileThreads = cache(async (
   return data || []
 })
 
-/**
- * Kiểm tra xem viewer có đang follow target user không
- */
 export const checkIsFollowing = cache(async (
   viewerId: string,
   targetUserId: string
 ): Promise<boolean> => {
-  // Tự xem profile mình thì không cần check
   if (viewerId === targetUserId) return false
 
   const { data, error } = await supabase
@@ -116,18 +106,13 @@ export const checkIsFollowing = cache(async (
   return !!data
 })
 
-/**
- * CORE FUNCTION: Fetch song song tất cả data cho Profile page
- */
 export async function getProfileData(username: string, viewerId?: string | null) {
-  // 1. Lấy profile info trước
   const profile = await getProfileByUsername(username)
   
   if (!profile) {
     return null
   }
 
-  // 2. Fetch song song: threads + follow status
   const [threads, isFollowing] = await Promise.all([
     getProfileThreads(profile.id, viewerId),
     viewerId ? checkIsFollowing(viewerId, profile.id) : Promise.resolve(false)

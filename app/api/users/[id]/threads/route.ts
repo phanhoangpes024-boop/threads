@@ -21,8 +21,9 @@ export async function GET(
         likes_count,
         comments_count,
         reposts_count,
-        users (username, avatar_text, verified)
+        users (username, avatar_text, avatar_bg, verified)
       `)
+      // ← CHỈ THÊM avatar_bg VÀO SELECT
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
 
@@ -69,12 +70,11 @@ export async function GET(
       reposts_count: t.reposts_count || 0,
       username: t.users?.username ?? null,
       avatar_text: t.users?.avatar_text ?? null,
+      avatar_bg: t.users?.avatar_bg ?? '#0077B6', // ← THÊM DÒNG NÀY
       verified: t.users?.verified ?? false,
       
-      // ✅ FIX 1: snake_case
       is_liked: likedThreadIds.has(t.id),
       
-      // ✅ FIX 2: Map medias đúng format
       medias: (mediasMap.get(t.id) || []).map(m => ({
         id: m.id,
         url: m.url,

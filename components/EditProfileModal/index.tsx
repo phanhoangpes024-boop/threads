@@ -1,9 +1,18 @@
+// components/EditProfileModal/index.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './EditProfileModal.module.css';
+
+const AVATAR_COLORS = [
+  '#0077B6',
+  '#2A9D8F',
+  '#E76F51',
+  '#7B68EE',
+  '#607D8B'
+];
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -12,6 +21,7 @@ interface EditProfileModalProps {
     name?: string;
     username: string;
     avatar_text: string;
+    avatar_bg?: string; // ← MỚI
     bio?: string;
   };
   onSave: () => void;
@@ -26,6 +36,7 @@ export default function EditProfileModal({
   const { user } = useCurrentUser();
   const [name, setName] = useState(currentProfile.name || '');
   const [avatarText, setAvatarText] = useState(currentProfile.avatar_text);
+  const [avatarBg, setAvatarBg] = useState(currentProfile.avatar_bg || '#0077B6'); // ← MỚI
   const [bio, setBio] = useState(currentProfile.bio || '');
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +44,7 @@ export default function EditProfileModal({
     if (isOpen) {
       setName(currentProfile.name || '');
       setAvatarText(currentProfile.avatar_text);
+      setAvatarBg(currentProfile.avatar_bg || '#0077B6'); // ← MỚI
       setBio(currentProfile.bio || '');
       document.body.style.overflow = 'hidden';
     } else {
@@ -54,6 +66,7 @@ export default function EditProfileModal({
         body: JSON.stringify({
           name: name.trim(),
           avatar_text: avatarText.trim().toUpperCase().slice(0, 2),
+          avatar_bg: avatarBg, // ← MỚI
           bio: bio.trim(),
         }),
       });
@@ -62,6 +75,7 @@ export default function EditProfileModal({
         const updatedUser = {
           ...user,
           avatar_text: avatarText.trim().toUpperCase().slice(0, 2),
+          avatar_bg: avatarBg, // ← MỚI
           bio: bio.trim(),
         };
         localStorage.setItem('currentUser', JSON.stringify(updatedUser));
@@ -91,7 +105,6 @@ export default function EditProfileModal({
   const modalContent = (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className={styles.header}>
           <button className={styles.closeBtn} onClick={onClose}>
             <svg viewBox="0 0 24 24" width="24" height="24">
@@ -102,9 +115,8 @@ export default function EditProfileModal({
           <h2 className={styles.title}>Chỉnh sửa trang cá nhân</h2>
         </div>
 
-        {/* Body */}
         <div className={styles.body}>
-          {/* Name + Avatar */}
+          {/* Name + Avatar Preview */}
           <div className={styles.field}>
             <label className={styles.label}>Tên đầy đủ</label>
             <div className={styles.nameRow}>
@@ -116,7 +128,10 @@ export default function EditProfileModal({
                 onChange={(e) => setName(e.target.value)}
                 maxLength={50}
               />
-              <div className={styles.avatarPreview}>
+              <div 
+                className={styles.avatarPreview}
+                style={{ background: avatarBg }} // ← Dùng màu đã chọn
+              >
                 {avatarText || 'PH'}
               </div>
             </div>
@@ -152,6 +167,33 @@ export default function EditProfileModal({
             />
           </div>
 
+          {/* ✅ Color Picker */}
+          <div className={styles.field}>
+            <label className={styles.label}>Màu nền Avatar</label>
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              {AVATAR_COLORS.map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setAvatarBg(color)}
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: color,
+                    border: avatarBg === color ? '3px solid #000' : '2px solid #e0e0e0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+
           {/* Bio */}
           <div className={styles.field}>
             <label className={styles.label}>Tiểu sử</label>
@@ -167,7 +209,6 @@ export default function EditProfileModal({
           </div>
         </div>
 
-        {/* Footer */}
         <div className={styles.footer}>
           <button
             className={styles.saveBtn}

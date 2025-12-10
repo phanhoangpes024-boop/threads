@@ -4,6 +4,7 @@ export interface User {
   username: string;
   email: string;
   avatar_text: string;
+  avatar_bg: string; // ← MỚI
   verified?: boolean;
   bio?: string;
 }
@@ -13,6 +14,7 @@ const DEFAULT_USER: User = {
   username: 'daniel_dev',
   email: 'daniel@threads.com',
   avatar_text: 'D',
+  avatar_bg: '#0077B6', // ← MỚI
   verified: true,
 };
 
@@ -24,7 +26,12 @@ export function getCurrentUser(): User {
   try {
     const stored = localStorage.getItem('currentUser');
     if (stored) {
-      return JSON.parse(stored);
+      const user = JSON.parse(stored);
+      // ✅ Fallback cho user cũ chưa có avatar_bg
+      if (!user.avatar_bg) {
+        user.avatar_bg = '#0077B6';
+      }
+      return user;
     }
   } catch (error) {
     console.error('Error loading user:', error);

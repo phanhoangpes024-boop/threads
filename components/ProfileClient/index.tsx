@@ -245,6 +245,7 @@ export default function ProfileClient({
                   reposts={thread.reposts_count}
                   verified={thread.verified}
                   avatarText={thread.avatar_text}
+                  avatarBg={thread.avatar_bg || '#0077B6'}
                   isLiked={thread.is_liked}
                   onLikeClick={handleLike}
                   onCommentClick={handleCommentClick}

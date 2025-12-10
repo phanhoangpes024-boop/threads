@@ -10,8 +10,9 @@ const THREAD_SELECT = `
   likes_count,
   comments_count,
   reposts_count,
-  users (username, avatar_text, verified)
+  users (username, avatar_text, avatar_bg, verified)
 `;
+// ← CHỈ THÊM avatar_bg VÀO SELECT
 
 export async function GET(
   request: Request,
@@ -70,6 +71,7 @@ export async function GET(
       created_at: threadData.created_at,
       username: threadData.users?.username ?? null,
       avatar_text: threadData.users?.avatar_text ?? null,
+      avatar_bg: threadData.users?.avatar_bg ?? '#0077B6', // ← THÊM DÒNG NÀY
       verified: threadData.users?.verified ?? false,
       likes_count: threadData.likes_count ?? 0,
       comments_count: threadData.comments_count ?? 0,

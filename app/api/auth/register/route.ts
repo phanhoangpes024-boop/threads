@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
-    const { email, password, username, avatarText } = await request.json();
+    const { email, password, username, avatarText, avatarBg } = await request.json();
 
     // Validation
     if (!email || !password || !username || !avatarText) {
@@ -49,17 +49,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Tạo user - lưu password trực tiếp (demo only)
+    // ✅ Tạo user với avatar_bg
     const { data: newUser, error: insertError } = await supabase
       .from('users')
       .insert({
         email,
         username,
         avatar_text: avatarText.toUpperCase(),
-        password_hash: password, // Lưu thẳng password
+        avatar_bg: avatarBg || '#0077B6', // ← MỚI
+        password_hash: password,
         verified: false,
       })
-      .select('id, email, username, avatar_text, verified, bio')
+      .select('id, email, username, avatar_text, avatar_bg, verified, bio')
       .single();
 
     if (insertError) {

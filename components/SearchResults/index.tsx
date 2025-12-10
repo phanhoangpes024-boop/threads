@@ -63,6 +63,7 @@ export default function SearchResults({
                     reposts={thread.reposts_count}
                     verified={thread.verified}
                     avatarText={thread.avatar_text}
+                    avatarBg={thread.avatar_bg || '#0077B6'}
                     isLiked={thread.isLiked}
                     onLikeClick={handleLike}
                     onCommentClick={() => setActiveCommentThreadId(thread.id)}

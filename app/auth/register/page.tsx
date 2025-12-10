@@ -5,6 +5,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import styles from '../login/auth.module.css';
 
+const AVATAR_COLORS = [
+  '#0077B6',
+  '#2A9D8F',
+  '#E76F51',
+  '#7B68EE',
+  '#607D8B'
+];
+
 export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -12,6 +20,7 @@ export default function RegisterPage() {
     password: '',
     username: '',
     avatarText: '',
+    avatarBg: '#0077B6', // ← MỚI
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +30,6 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
-    // Validation
     if (formData.password.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự');
       setLoading(false);
@@ -47,10 +55,8 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Đăng ký thất bại');
       }
 
-      // Lưu user info vào localStorage
       localStorage.setItem('currentUser', JSON.stringify(data.user));
       
-      // Redirect về home
       router.push('/');
       router.refresh();
     } catch (err: any) {
@@ -63,7 +69,6 @@ export default function RegisterPage() {
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     
-    // Format avatar text
     if (field === 'avatarText') {
       value = value.toUpperCase().slice(0, 2);
     }
@@ -106,15 +111,61 @@ export default function RegisterPage() {
 
           <div className={styles.field}>
             <label>Avatar (1-2 ký tự)</label>
-            <input
-              type="text"
-              value={formData.avatarText}
-              onChange={handleChange('avatarText')}
-              placeholder="AB"
-              required
-              maxLength={2}
-              disabled={loading}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <input
+                type="text"
+                value={formData.avatarText}
+                onChange={handleChange('avatarText')}
+                placeholder="AB"
+                required
+                maxLength={2}
+                disabled={loading}
+                style={{ flex: 1 }}
+              />
+              {/* Preview Avatar */}
+              <div style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                background: formData.avatarBg,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white',
+                fontSize: '20px',
+                fontWeight: '600'
+              }}>
+                {formData.avatarText || 'AB'}
+              </div>
+            </div>
+          </div>
+
+          {/* ✅ Color Picker */}
+          <div className={styles.field}>
+            <label>Màu nền Avatar</label>
+            <div style={{ 
+              display: 'flex', 
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              {AVATAR_COLORS.map(color => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, avatarBg: color }))}
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    background: color,
+                    border: formData.avatarBg === color ? '3px solid #000' : '2px solid #e0e0e0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  disabled={loading}
+                />
+              ))}
+            </div>
           </div>
 
           <div className={styles.field}>

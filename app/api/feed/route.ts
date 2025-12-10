@@ -21,6 +21,7 @@ interface FeedThread {
   reposts_count: number
   username: string
   avatar_text: string
+  avatar_bg: string // ← ĐÃ CÓ
   verified: boolean
   is_liked: boolean
   medias: FeedMedia[]
@@ -63,32 +64,31 @@ export async function GET(request: Request) {
       )
     }
 
-    // ✅ FIX: Map media_type → type
+    // ✅ Map data với avatar_bg
     const threads: FeedThread[] = (data || []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
       content: t.content,
       created_at: t.created_at,
       
-      // ✅ NULL SAFETY cho counts
       likes_count: t.likes_count ?? 0,
       comments_count: t.comments_count ?? 0,
       reposts_count: t.reposts_count ?? 0,
       
       username: t.username,
       avatar_text: t.avatar_text,
+      avatar_bg: t.avatar_bg || '#0077B6', // ← THÊM với fallback
       verified: t.verified ?? false,
       is_liked: t.is_liked ?? false,
       
-      // ✅ FIX: Map medias với field mapping đúng
       medias: Array.isArray(t.medias) 
         ? t.medias.map((m: any) => ({
             id: m.id,
             url: m.url,
-            type: m.media_type || m.type || 'image', // ← Map media_type → type
+            type: m.media_type || m.type || 'image',
             width: m.width ?? null,
             height: m.height ?? null,
-            order: m.order_index ?? m.order ?? 0 // ← Map order_index → order
+            order: m.order_index ?? m.order ?? 0
           }))
         : []
     }))

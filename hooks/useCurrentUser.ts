@@ -7,6 +7,7 @@ export interface User {
   username: string;
   email: string;
   avatar_text: string;
+  avatar_bg: string; // ← MỚI
   verified?: boolean;
   bio?: string;
 }
@@ -17,12 +18,15 @@ export function useCurrentUser() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Chỉ chạy trên client
     const stored = localStorage.getItem('currentUser');
     if (stored) {
-      setUser(JSON.parse(stored));
+      const parsedUser = JSON.parse(stored);
+      // ✅ Fallback cho user cũ
+      if (!parsedUser.avatar_bg) {
+        parsedUser.avatar_bg = '#0077B6';
+      }
+      setUser(parsedUser);
     } else {
-      // KHÔNG redirect nếu đang ở trang auth
       if (!pathname?.startsWith('/auth')) {
         window.location.href = '/auth/login';
         return;
@@ -37,6 +41,7 @@ export function useCurrentUser() {
       username: '', 
       email: '', 
       avatar_text: 'U',
+      avatar_bg: '#0077B6', // ← MỚI
       verified: false 
     }, 
     loading 
