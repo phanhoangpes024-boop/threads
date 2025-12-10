@@ -211,6 +211,7 @@ export default function ProfileClient({
           username={profile.username}
           bio={profile.bio || ''}
           avatarText={profile.avatar_text}
+            avatarBg={profile.avatar_bg || '#0077B6'}  // ← THÊM
           verified={profile.verified}
           followersCount={profile.followers_count}
           isOwnProfile={isOwnProfile}
@@ -224,7 +225,8 @@ export default function ProfileClient({
 
         {isOwnProfile && (
           <div onClick={handleOpenCreateModal}>
-            <CreateThreadInput avatarText={currentUser?.avatar_text || 'U'} />
+            <CreateThreadInput avatarText={currentUser?.avatar_text || 'U'}   avatarBg={currentUser?.avatar_bg || '#0077B6'}
+ />
           </div>
         )}
 
@@ -271,6 +273,8 @@ export default function ProfileClient({
           onSubmit={handlePostThread}
           username={currentUser?.username || ''}
           avatarText={currentUser?.avatar_text || 'U'}
+            avatarBg={currentUser?.avatar_bg || '#0077B6'}  // ← THÊM
+
         />
       )}
 

@@ -92,7 +92,7 @@ export default function SearchResults({
                 username: u.username,
                 name: u.username,
                 avatarText: u.avatar_text,
-                gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    gradient: u.avatar_bg || '#0077B6'  // ← ĐỔI DÒNG NÀY
               }))} 
             />
           )

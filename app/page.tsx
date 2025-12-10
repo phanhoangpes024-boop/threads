@@ -356,6 +356,8 @@ export default function Home() {
           onSubmit={handlePostThread}
           username={user.username}
           avatarText={user.avatar_text}
+            avatarBg={user.avatar_bg || '#0077B6'}  // ← THÊM
+
         />
       )}
     </>

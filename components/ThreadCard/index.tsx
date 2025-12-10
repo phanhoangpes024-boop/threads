@@ -29,6 +29,7 @@ interface ThreadCardProps {
 function ThreadCard({
   id,
   username,
+  avatarBg, 
   timestamp,
   content,
   medias = [],

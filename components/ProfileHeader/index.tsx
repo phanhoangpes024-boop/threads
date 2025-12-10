@@ -10,6 +10,7 @@ interface ProfileHeaderProps {
   username: string;
   bio?: string;
   avatarText: string;
+    avatarBg?: string;  // ← THÊM
   avatarUrl?: string;
   verified?: boolean;
   followersCount: number;
@@ -27,6 +28,7 @@ export default function ProfileHeader({
   username,
   bio,
   avatarText,
+    avatarBg = '#0077B6',  // ← THÊM
   avatarUrl,
   verified = false,
   followersCount,
@@ -64,7 +66,9 @@ export default function ProfileHeader({
             {avatarUrl ? (
               <img src={avatarUrl} alt={name} className={styles.avatarImage} />
             ) : (
-              <div className={styles.avatarInner}>{avatarText}</div>
+              <div className={styles.avatarInner} style={{ background: avatarBg }}>
+  {avatarText}
+</div>
             )}
           </div>
         </div>

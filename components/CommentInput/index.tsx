@@ -49,7 +49,9 @@ export default function CommentInput({
     <div className={styles.commentInputContainer}>
       <div className={styles.commentInputWrapper}>
         <div className={styles.avatar}>
-          <div className={styles.avatarCircle}>{user.avatar_text}</div>
+          <div className={styles.avatarCircle} style={{ background: user.avatar_bg || '#0077B6' }}>
+  {user.avatar_text}
+</div>
         </div>
 
         <div className={styles.inputSection}>

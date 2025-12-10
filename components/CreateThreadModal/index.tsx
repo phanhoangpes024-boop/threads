@@ -12,6 +12,7 @@ interface CreateThreadModalProps {
   onSubmit: (content: string, imageUrls?: string[]) => Promise<void>;
   username: string;
   avatarText: string;
+    avatarBg?: string;  // ← THÊM
 }
 
 export default function CreateThreadModal({
@@ -19,7 +20,9 @@ export default function CreateThreadModal({
   onClose,
   onSubmit,
   username,
-  avatarText
+  avatarText,
+  avatarBg = '#0077B6'  // ← THÊM
+
 }: CreateThreadModalProps) {
   const [content, setContent] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -136,8 +139,7 @@ export default function CreateThreadModal({
 
         <div className={styles.body}>
           <div className={styles.inputSection}>
-            <div className={styles.avatar}>{avatarText}</div>
-            <div className={styles.inputContainer}>
+<div className={styles.avatar} style={{ background: avatarBg }}>{avatarText}</div>            <div className={styles.inputContainer}>
               <div className={styles.userInfo}>
                 <span className={styles.username}>{username}</span>
                 <span className={styles.addCaption}>Thêm chú đề</span>
