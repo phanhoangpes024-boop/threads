@@ -14,6 +14,7 @@ interface User {
   username: string;
   bio?: string;
   avatar_text: string;
+    avatar_bg?: string;  // ← THÊM DÒNG NÀY
   verified?: boolean;
   followers_count?: number;
 }
@@ -133,6 +134,7 @@ export default function SearchPage() {
                   username={u.username}
                   bio={u.bio}
                   avatarText={u.avatar_text}
+                  gradient={u.avatar_bg || '#0077B6'}  // ← THÊM DÒNG NÀY
                   onFollowToggle={handleFollowToggle}
                 />
               </div>
@@ -154,6 +156,7 @@ export default function SearchPage() {
                     username={u.username}
                     bio={u.bio}
                     avatarText={u.avatar_text}
+                    gradient={u.avatar_bg || '#0077B6'}  // ← THÊM DÒNG NÀY
                     onFollowToggle={handleFollowToggle}
                   />
                 </div>

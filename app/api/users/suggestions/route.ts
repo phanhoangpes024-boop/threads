@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   try {
     let query = supabase
       .from('users')
-      .select('id, username, bio, avatar_text, verified, followers_count')
+      .select('id, username, bio, avatar_text, avatar_bg,verified, followers_count')
       .order('followers_count', { ascending: false })
       .limit(limit)
 

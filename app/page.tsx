@@ -254,7 +254,8 @@ export default function Home() {
         <div ref={parentRef} key={`virtualizer-${virtualizerKey}`}>
           {/* ✅ CreateThreadInput ở đầu, TRONG scroll container */}
           <div onClick={handleOpenModal}>
-            <CreateThreadInput avatarText={user.avatar_text} />
+            <CreateThreadInput avatarText={user.avatar_text}  avatarBg={user.avatar_bg || '#0077B6'}
+ />
           </div>
           
           {/* ✅ THÊM: Empty state cho Following feed */}

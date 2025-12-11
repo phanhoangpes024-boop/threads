@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     if (type === 'users' || type === 'all') {
       const { data: users, error: usersError } = await supabase
         .from('users')
-        .select('id, username, bio, avatar_text, verified')
+        .select('id, username, bio, avatar_text, avatar_bg, verified')
         .or(`username.ilike.%${query}%,bio.ilike.%${query}%`)
         .limit(20)
 
