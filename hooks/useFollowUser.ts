@@ -1,4 +1,4 @@
-// hooks/useFollowUser.ts
+// hooks/useFollowUser.ts - CẬP NHẬT
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 
@@ -20,9 +20,16 @@ export function useFollowUser() {
       return res.json()
     },
 
-    onSuccess: () => {
-      // Invalidate notifications để refresh danh sách
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    onSuccess: (data, targetUserId) => {
+      // ✅ Invalidate cache isFollowing của user này
+      queryClient.invalidateQueries({ 
+        queryKey: ['isFollowing', user.id, targetUserId] 
+      })
+      
+      // ✅ Invalidate notifications
+      queryClient.invalidateQueries({ 
+        queryKey: ['notifications'] 
+      })
     }
   })
 }

@@ -1,12 +1,13 @@
-// app/activity/page.tsx
+// app/activity/page.tsx - CẬP NHẬT
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Heart, MessageCircle, UserPlus } from 'lucide-react'
 import CustomScrollbar from '@/components/CustomScrollbar'
 import { useNotifications, useMarkAsRead } from '@/hooks/useNotifications'
 import { useFollowUser } from '@/hooks/useFollowUser'
+import { useIsFollowing } from '@/hooks/useIsFollowing'
 import type { Notification } from '@/hooks/useNotifications'
 import styles from './Activity.module.css'
 
@@ -26,13 +27,15 @@ function NotificationItem({ notification }: { notification: Notification }) {
   const router = useRouter()
   const markAsRead = useMarkAsRead()
   const followMutation = useFollowUser()
-  const [followed, setFollowed] = useState(false)
 
   const actors = notification.actors || []
   if (actors.length === 0) return null
   
   const firstActor = actors[0]
   const othersCount = actors.length - 1
+
+  // ✅ Fetch trạng thái theo dõi từ server
+  const { data: isFollowing = false, isLoading } = useIsFollowing(firstActor.id)
 
   useEffect(() => {
     if (!notification.is_read) {
@@ -53,12 +56,10 @@ function NotificationItem({ notification }: { notification: Notification }) {
 
   const handleFollowBack = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (followMutation.isPending || followed) return
-    setFollowed(true)
+    if (followMutation.isPending) return
     followMutation.mutate(firstActor.id)
   }
 
-  // Text aggregation
   let notificationText = ''
   if (notification.type === 'like') {
     notificationText = othersCount > 0
@@ -72,7 +73,6 @@ function NotificationItem({ notification }: { notification: Notification }) {
       : ' đã theo dõi bạn'
   }
 
-  // Badge icon cho avatar
   const getBadgeIcon = () => {
     if (notification.type === 'like') {
       return <Heart className={styles.badge} fill="#f43f5e" stroke="#f43f5e" size={12} />
@@ -91,7 +91,6 @@ function NotificationItem({ notification }: { notification: Notification }) {
       className={`${styles.notificationItem} ${!notification.is_read ? styles.unread : ''}`}
       onClick={handleClick}
     >
-      {/* LEFT: Avatar Stack - actors[0] là người MỚI NHẤT (từ SQL ORDER BY ordinality DESC) */}
       <div className={styles.avatarSection}>
         <div className={styles.avatarStack}>
           {actors.map((actor, idx) => (
@@ -111,7 +110,6 @@ function NotificationItem({ notification }: { notification: Notification }) {
         </div>
       </div>
 
-      {/* MIDDLE: Text */}
       <div className={styles.textSection}>
         <div className={styles.text}>
           <strong>{firstActor.username}</strong>
@@ -120,20 +118,19 @@ function NotificationItem({ notification }: { notification: Notification }) {
         <div className={styles.time}>{getRelativeTime(notification.updated_at)}</div>
       </div>
 
-      {/* RIGHT: Thumbnail or Follow Button */}
       <div className={styles.rightSection}>
         {notification.type === 'follow' ? (
           <button 
             className={styles.followButton}
             onClick={handleFollowBack}
-            disabled={followMutation.isPending || followed}
-            style={followed ? {
+            disabled={followMutation.isPending || isLoading}
+            style={isFollowing ? {
               background: '#f0f0f0',
               color: '#666',
               border: '1px solid #e0e0e0'
             } : undefined}
           >
-            {followed ? 'Đang theo dõi' : 'Theo dõi lại'}
+            {isLoading ? '...' : isFollowing ? 'Đang theo dõi' : 'Theo dõi lại'}
           </button>
         ) : notification.thread_first_media ? (
           <img

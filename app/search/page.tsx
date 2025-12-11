@@ -1,4 +1,4 @@
-// app/search/page.tsx
+// app/search/page.tsx - CẬP NHẬT
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,7 +14,7 @@ interface User {
   username: string;
   bio?: string;
   avatar_text: string;
-    avatar_bg?: string;  // ← THÊM DÒNG NÀY
+  avatar_bg?: string;
   verified?: boolean;
   followers_count?: number;
 }
@@ -60,7 +60,6 @@ export default function SearchPage() {
     }
   };
 
-  // ✅ SỬA HÀM NÀY - Gọi API riêng cho users
   const searchMatchingUsers = async () => {
     setIsSearching(true);
     try {
@@ -81,18 +80,6 @@ export default function SearchPage() {
     }
   };
 
-  const handleFollowToggle = async (userId: string, isFollowing: boolean) => {
-    try {
-      await fetch(`/api/users/${userId}/follow`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id }),
-      });
-    } catch (error) {
-      console.error('Error toggling follow:', error);
-    }
-  };
-
   const handleUserClick = (username: string) => {
     router.push(`/profile/${username}`);
   };
@@ -106,69 +93,60 @@ export default function SearchPage() {
   if (userLoading) {
     return (
       <div className={styles.container}>
-        <div style={{ padding: '40px 20px', textAlign: 'center', color: '#999' }}>
-          Loading...
-        </div>
+        <div className={styles.loading}>Đang tải...</div>
       </div>
     );
   }
 
-  const isEmpty = searchQuery === '';
-
   return (
     <CustomScrollbar className={styles.container}>
-      <SearchBar 
-        value={searchQuery} 
-        onChange={setSearchQuery}
-        onKeyDown={handleSearch}
-      />
+      <div className={styles.searchWrapper}>
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onKeyDown={handleSearch}
+        />
+      </div>
 
-      <div className={styles.content}>
-        {isEmpty && (
-          <div className={styles.state}>
-            <div className={styles.sectionHeader}>Gợi ý theo dõi</div>
-            {suggestedUsers.map((u) => (
-              <div key={u.id} onClick={() => handleUserClick(u.username)}>
+      {isSearching ? (
+        <div className={styles.loading}>Đang tìm kiếm...</div>
+      ) : matchingUsers.length > 0 ? (
+        <div className={styles.resultsSection}>
+          <h2 className={styles.sectionTitle}>Kết quả tìm kiếm</h2>
+          <div className={styles.userList}>
+            {matchingUsers.map((user) => (
+              <div key={user.id} onClick={() => handleUserClick(user.username)}>
                 <UserCard
-                  id={u.id}
-                  username={u.username}
-                  bio={u.bio}
-                  avatarText={u.avatar_text}
-                  gradient={u.avatar_bg || '#0077B6'}  // ← THÊM DÒNG NÀY
-                  onFollowToggle={handleFollowToggle}
+                  id={user.id}
+                  username={user.username}
+                  bio={user.bio}
+                  avatarText={user.avatar_text}
+                  gradient={user.avatar_bg || '#0077B6'}
                 />
               </div>
             ))}
           </div>
-        )}
-
-        {!isEmpty && (
-          <div className={styles.state}>
-            {isSearching ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                Đang tìm...
+        </div>
+      ) : searchQuery.trim() ? (
+        <div className={styles.empty}>Không tìm thấy kết quả</div>
+      ) : (
+        <div className={styles.suggestionsSection}>
+          <h2 className={styles.sectionTitle}>Gợi ý theo dõi</h2>
+          <div className={styles.userList}>
+            {suggestedUsers.map((user) => (
+              <div key={user.id} onClick={() => handleUserClick(user.username)}>
+                <UserCard
+                  id={user.id}
+                  username={user.username}
+                  bio={user.bio}
+                  avatarText={user.avatar_text}
+                  gradient={user.avatar_bg || '#0077B6'}
+                />
               </div>
-            ) : matchingUsers.length > 0 ? (
-              matchingUsers.map((u) => (
-                <div key={u.id} onClick={() => handleUserClick(u.username)}>
-                  <UserCard
-                    id={u.id}
-                    username={u.username}
-                    bio={u.bio}
-                    avatarText={u.avatar_text}
-                    gradient={u.avatar_bg || '#0077B6'}  // ← THÊM DÒNG NÀY
-                    onFollowToggle={handleFollowToggle}
-                  />
-                </div>
-              ))
-            ) : (
-              <div className={styles.empty}>
-                Không tìm thấy người dùng "{searchQuery}"
-              </div>
-            )}
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </CustomScrollbar>
   );
 }

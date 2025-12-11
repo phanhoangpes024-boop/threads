@@ -1,7 +1,9 @@
-// components/UserCard/index.tsx
+// components/UserCard/index.tsx - CẬP NHẬT
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import { useFollowUser } from '@/hooks/useFollowUser';
+import { useIsFollowing } from '@/hooks/useIsFollowing';
 import styles from './UserCard.module.css';
 
 interface UserCardProps {
@@ -10,7 +12,6 @@ interface UserCardProps {
   bio?: string;
   avatarText: string;
   gradient?: string;
-  onFollowToggle?: (userId: string, isFollowing: boolean) => void;
 }
 
 export default function UserCard({
@@ -19,15 +20,14 @@ export default function UserCard({
   bio,
   avatarText,
   gradient = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  onFollowToggle,
 }: UserCardProps) {
-  const [isFollowing, setIsFollowing] = useState(false);
+  // ✅ Fetch trạng thái từ server
+  const { data: isFollowing = false, isLoading } = useIsFollowing(id);
+  const followMutation = useFollowUser();
 
   const handleFollow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const newState = !isFollowing;
-    setIsFollowing(newState);
-    onFollowToggle?.(id, newState);
+    followMutation.mutate(id);
   };
 
   return (
@@ -42,8 +42,9 @@ export default function UserCard({
       <button
         className={`${styles.followButton} ${isFollowing ? styles.following : ''}`}
         onClick={handleFollow}
+        disabled={followMutation.isPending || isLoading}
       >
-        {isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+        {isLoading ? '...' : isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
       </button>
     </div>
   );

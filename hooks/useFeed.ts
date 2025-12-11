@@ -1,4 +1,4 @@
-// hooks/useFeed.ts - FIXED WITH FEED TYPE SUPPORT
+// hooks/useFeed.ts - COMPLETE VERSION WITH FeedCursor EXPORT
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import { useCallback } from 'react'
@@ -22,6 +22,7 @@ export interface FeedThread {
   reposts_count: number
   username: string
   avatar_text: string
+  avatar_bg: string
   verified: boolean
   is_liked: boolean
   medias: FeedMedia[]
@@ -33,7 +34,8 @@ export interface FeedPage {
   hasMore: boolean
 }
 
-interface FeedCursor {
+// ✅ EXPORT FeedCursor
+export interface FeedCursor {
   time: string
   id: string
 }

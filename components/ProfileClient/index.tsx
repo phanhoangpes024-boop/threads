@@ -1,4 +1,4 @@
-// components/ProfileClient/index.tsx - GIẢI PHÁP ĐÚNG (Gemini)
+// components/ProfileClient/index.tsx - CẬP NHẬT
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -24,7 +24,7 @@ const EditProfileModal = dynamic(() => import('@/components/EditProfileModal'), 
 interface ProfileClientProps {
   initialProfile: ProfileData
   initialThreads: ProfileThread[]
-  initialIsFollowing: boolean
+  initialIsFollowing: boolean // ← BỎ KHÔNG DÙNG NỮA
 }
 
 interface FeedPage {
@@ -35,7 +35,6 @@ interface FeedPage {
 export default function ProfileClient({
   initialProfile,
   initialThreads,
-  initialIsFollowing
 }: ProfileClientProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -44,21 +43,15 @@ export default function ProfileClient({
   const createThreadMutation = useCreateThread()
   
   const [profile, setProfile] = useState(initialProfile)
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing)
-  const [isFollowLoading, setIsFollowLoading] = useState(false)
-  
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  // ✅ SMART INITIAL DATA: Merge Feed cache với SSR data
   const smartInitialThreads = (() => {
-    // ✅ Guard: Server-side hoặc no user → dùng SSR data
     if (typeof window === 'undefined' || !currentUser?.id) {
       return initialThreads
     }
 
-    // ✅ Thử lấy Feed cache
     const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>([
       'feed', 
       currentUser.id
@@ -66,27 +59,23 @@ export default function ProfileClient({
     
     if (!feedData?.pages) return initialThreads
 
-    // ✅ Tạo Map isLiked từ Feed
     const likedMap = new Map<string, boolean>()
     feedData.pages.forEach(page => {
       page.threads.forEach(t => likedMap.set(t.id, t.is_liked))
     })
 
-    // ✅ Merge: Có trong Feed → dùng Feed, không có → giữ nguyên SSR
     return initialThreads.map(t => ({
       ...t,
       is_liked: likedMap.has(t.id) ? likedMap.get(t.id)! : t.is_liked
     }))
   })()
 
-  // ✅ REACT QUERY: Hiển thị instant + fetch để verify
   const { data: threads = [] } = useQuery<ProfileThread[]>({
     queryKey: ['profile-threads', initialProfile.id, currentUser?.id],
     
     queryFn: async () => {
       if (!currentUser?.id) return initialThreads
       
-      // ✅ Fetch động với user_id
       const res = await fetch(
         `/api/users/${initialProfile.id}/threads?current_user_id=${currentUser.id}`
       )
@@ -95,8 +84,8 @@ export default function ProfileClient({
       return res.json()
     },
     
-    initialData: smartInitialThreads, // ✅ Hiển thị ngay
-    staleTime: 0, // ✅ Vẫn fetch để đảm bảo đúng (5s cache)
+    initialData: smartInitialThreads,
+    staleTime: 0,
     enabled: !!currentUser?.id,
   })
 
@@ -104,42 +93,8 @@ export default function ProfileClient({
     setProfile(initialProfile)
   }, [initialProfile])
 
-  useEffect(() => {
-    setIsFollowing(initialIsFollowing)
-  }, [initialIsFollowing])
-
   const isOwnProfile = currentUser?.id === profile.id
 
-  const handleFollowToggle = async () => {
-    if (!currentUser?.id || isFollowLoading) return
-    setIsFollowLoading(true)
-    const newIsFollowing = !isFollowing
-    setIsFollowing(newIsFollowing)
-    setProfile(prev => ({
-      ...prev,
-      followers_count: newIsFollowing ? prev.followers_count + 1 : Math.max(0, prev.followers_count - 1)
-    }))
-
-    try {
-      const res = await fetch(`/api/users/${profile.id}/follow`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.id })
-      })
-      if (!res.ok) throw new Error('Failed to toggle follow')
-    } catch (error) {
-      console.error('Follow error:', error)
-      setIsFollowing(!newIsFollowing)
-      setProfile(prev => ({
-        ...prev,
-        followers_count: newIsFollowing ? Math.max(0, prev.followers_count - 1) : prev.followers_count + 1
-      }))
-    } finally {
-      setIsFollowLoading(false)
-    }
-  }
-
-  // ✅ Chỉ cần gọi mutation, React Query tự sync
   const handleLike = useCallback((threadId: string) => {
     toggleLikeMutation.mutate(threadId)
   }, [toggleLikeMutation])
@@ -211,22 +166,22 @@ export default function ProfileClient({
           username={profile.username}
           bio={profile.bio || ''}
           avatarText={profile.avatar_text}
-            avatarBg={profile.avatar_bg || '#0077B6'}  // ← THÊM
+          avatarBg={profile.avatar_bg || '#0077B6'}
           verified={profile.verified}
           followersCount={profile.followers_count}
           isOwnProfile={isOwnProfile}
-          isFollowing={isFollowing}
           currentUserId={currentUser?.id}
           onEditClick={handleEditProfile}
-          onFollowToggle={handleFollowToggle}
         />
 
         <ProfileTabs />
 
         {isOwnProfile && (
           <div onClick={handleOpenCreateModal}>
-            <CreateThreadInput avatarText={currentUser?.avatar_text || 'U'}   avatarBg={currentUser?.avatar_bg || '#0077B6'}
- />
+            <CreateThreadInput 
+              avatarText={currentUser?.avatar_text || 'U'} 
+              avatarBg={currentUser?.avatar_bg || '#0077B6'}
+            />
           </div>
         )}
 
@@ -273,8 +228,7 @@ export default function ProfileClient({
           onSubmit={handlePostThread}
           username={currentUser?.username || ''}
           avatarText={currentUser?.avatar_text || 'U'}
-            avatarBg={currentUser?.avatar_bg || '#0077B6'}  // ← THÊM
-
+          avatarBg={currentUser?.avatar_bg || '#0077B6'}
         />
       )}
 

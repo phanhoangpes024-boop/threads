@@ -1,7 +1,9 @@
-// components/ProfileHeader/index.tsx
+// components/ProfileHeader/index.tsx - CẬP NHẬT
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useFollowUser } from '@/hooks/useFollowUser';
+import { useIsFollowing } from '@/hooks/useIsFollowing';
 import styles from './ProfileHeader.module.css';
 
 interface ProfileHeaderProps {
@@ -10,16 +12,14 @@ interface ProfileHeaderProps {
   username: string;
   bio?: string;
   avatarText: string;
-    avatarBg?: string;  // ← THÊM
+  avatarBg?: string;
   avatarUrl?: string;
   verified?: boolean;
   followersCount: number;
   followingCount?: number;
   isOwnProfile: boolean;
-  isFollowing?: boolean;
   currentUserId?: string;
   onEditClick?: () => void;
-  onFollowToggle?: (isFollowing: boolean) => void;
 }
 
 export default function ProfileHeader({
@@ -28,34 +28,21 @@ export default function ProfileHeader({
   username,
   bio,
   avatarText,
-    avatarBg = '#0077B6',  // ← THÊM
+  avatarBg = '#0077B6',
   avatarUrl,
   verified = false,
   followersCount,
   isOwnProfile,
-  isFollowing: initialIsFollowing = false,
   currentUserId,
   onEditClick,
-  onFollowToggle,
 }: ProfileHeaderProps) {
-  const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
-  const [loading, setLoading] = useState(false);
-
-  // ✅ Nhận kết quả từ cha khi API xong
-  useEffect(() => {
-    setIsFollowing(initialIsFollowing);
-    setLoading(false);
-  }, [initialIsFollowing]);
+  // ✅ Fetch trạng thái từ server
+  const { data: isFollowing = false, isLoading } = useIsFollowing(userId);
+  const followMutation = useFollowUser();
 
   const handleFollowClick = () => {
-    if (!currentUserId || loading) return;
-    
-    // Chỉ update UI tạm thời + loading
-    setIsFollowing(!isFollowing);
-    setLoading(true);
-    
-    // Báo cho cha biết - cha sẽ gọi API
-    onFollowToggle?.(!isFollowing);
+    if (!currentUserId) return;
+    followMutation.mutate(userId);
   };
 
   return (
@@ -67,8 +54,8 @@ export default function ProfileHeader({
               <img src={avatarUrl} alt={name} className={styles.avatarImage} />
             ) : (
               <div className={styles.avatarInner} style={{ background: avatarBg }}>
-  {avatarText}
-</div>
+                {avatarText}
+              </div>
             )}
           </div>
         </div>
@@ -107,7 +94,7 @@ export default function ProfileHeader({
               <button className={styles.iconButton} aria-label="Notifications">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                  <path d="M13.73 21a2 0 0 1-3.46 0" />
                 </svg>
               </button>
               <button className={styles.iconButton} aria-label="More">
@@ -131,12 +118,9 @@ export default function ProfileHeader({
           <button 
             className={`${styles.followButton} ${isFollowing ? styles.following : ''}`}
             onClick={handleFollowClick}
-            disabled={loading}
+            disabled={followMutation.isPending || isLoading}
           >
-            {loading ? '...' : isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
-          </button>
-          <button className={styles.mentionButton}>
-            Nhắc đến
+            {isLoading ? '...' : isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
           </button>
         </div>
       )}
