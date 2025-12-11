@@ -1,70 +1,190 @@
-// app/activity/page.tsx - FIXED
+// app/activity/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Heart, MessageCircle, UserPlus } from 'lucide-react'
 import CustomScrollbar from '@/components/CustomScrollbar'
-import ThreadCard from '@/components/ThreadCard'
-import CommentInput from '@/components/CommentInput'
-import { useThreads } from '@/hooks/useThreads'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useNotifications, useMarkAsRead } from '@/hooks/useNotifications'
+import { useFollowUser } from '@/hooks/useFollowUser'
+import type { Notification } from '@/hooks/useNotifications'
 import styles from './Activity.module.css'
 
+function getRelativeTime(dateString: string): string {
+  const now = new Date()
+  const date = new Date(dateString)
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d`
+  return `${Math.floor(seconds / 604800)}w`
+}
+
+function NotificationItem({ notification }: { notification: Notification }) {
+  const router = useRouter()
+  const markAsRead = useMarkAsRead()
+  const followMutation = useFollowUser()
+  const [followed, setFollowed] = useState(false)
+
+  const actors = notification.actors || []
+  if (actors.length === 0) return null
+  
+  const firstActor = actors[0]
+  const othersCount = actors.length - 1
+
+  useEffect(() => {
+    if (!notification.is_read) {
+      const timer = setTimeout(() => {
+        markAsRead.mutate([notification.id])
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [notification.id, notification.is_read, markAsRead])
+
+  const handleClick = () => {
+    if (notification.type === 'follow') {
+      router.push(`/profile/${firstActor.username}`)
+    } else if (notification.thread_id) {
+      router.push(`/thread/${notification.thread_id}`)
+    }
+  }
+
+  const handleFollowBack = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (followMutation.isPending || followed) return
+    setFollowed(true)
+    followMutation.mutate(firstActor.id)
+  }
+
+  // Text aggregation
+  let notificationText = ''
+  if (notification.type === 'like') {
+    notificationText = othersCount > 0
+      ? ` và ${othersCount} người khác đã thích bài viết của bạn`
+      : ' đã thích bài viết của bạn'
+  } else if (notification.type === 'comment') {
+    notificationText = ` đã bình luận: "${notification.comment_content}"`
+  } else if (notification.type === 'follow') {
+    notificationText = othersCount > 0
+      ? ` và ${othersCount} người khác đã theo dõi bạn`
+      : ' đã theo dõi bạn'
+  }
+
+  // Badge icon cho avatar
+  const getBadgeIcon = () => {
+    if (notification.type === 'like') {
+      return <Heart className={styles.badge} fill="#f43f5e" stroke="#f43f5e" size={12} />
+    }
+    if (notification.type === 'comment') {
+      return <MessageCircle className={styles.badge} fill="#3b82f6" stroke="#fff" size={12} />
+    }
+    if (notification.type === 'follow') {
+      return <UserPlus className={styles.badge} fill="#10b981" stroke="#fff" size={12} />
+    }
+    return null
+  }
+
+  return (
+    <div
+      className={`${styles.notificationItem} ${!notification.is_read ? styles.unread : ''}`}
+      onClick={handleClick}
+    >
+      {/* LEFT: Avatar Stack - actors[0] là người MỚI NHẤT (từ SQL ORDER BY ordinality DESC) */}
+      <div className={styles.avatarSection}>
+        <div className={styles.avatarStack}>
+          {actors.map((actor, idx) => (
+            <div
+              key={actor.id}
+              className={styles.avatar}
+              style={{
+                backgroundColor: actor.avatar_bg,
+                zIndex: actors.length - idx,
+                marginLeft: idx > 0 ? '-12px' : '0'
+              }}
+            >
+              {actor.avatar_text}
+            </div>
+          ))}
+          {getBadgeIcon()}
+        </div>
+      </div>
+
+      {/* MIDDLE: Text */}
+      <div className={styles.textSection}>
+        <div className={styles.text}>
+          <strong>{firstActor.username}</strong>
+          {notificationText}
+        </div>
+        <div className={styles.time}>{getRelativeTime(notification.updated_at)}</div>
+      </div>
+
+      {/* RIGHT: Thumbnail or Follow Button */}
+      <div className={styles.rightSection}>
+        {notification.type === 'follow' ? (
+          <button 
+            className={styles.followButton}
+            onClick={handleFollowBack}
+            disabled={followMutation.isPending || followed}
+            style={followed ? {
+              background: '#f0f0f0',
+              color: '#666',
+              border: '1px solid #e0e0e0'
+            } : undefined}
+          >
+            {followed ? 'Đang theo dõi' : 'Theo dõi lại'}
+          </button>
+        ) : notification.thread_first_media ? (
+          <img
+            src={notification.thread_first_media}
+            alt="Thread"
+            className={styles.thumbnail}
+          />
+        ) : (
+          <div className={styles.thumbnailPlaceholder}>
+            {notification.type === 'like' && (
+              <Heart size={24} stroke="#d1d5db" fill="none" />
+            )}
+            {notification.type === 'comment' && (
+              <MessageCircle size={24} stroke="#d1d5db" fill="none" />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function ActivityPage() {
-  const { data: threads = [], isLoading } = useThreads()
-  const { user, loading: userLoading } = useCurrentUser()
-  const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
+  const { data: notifications = [], isLoading } = useNotifications()
 
-  // Lọc threads liên quan đến user (user đã like, comment, hoặc được mention)
-  // Tạm thời hiện tất cả threads
-  const activityThreads = threads
-
-  if (isLoading || userLoading) {
+  if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.loading}>Đang tải...</div>
+      </div>
+    )
+  }
+
+  if (notifications.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.empty}>
+          <Heart size={48} stroke="#999" fill="none" />
+          <p>Chưa có thông báo nào</p>
+        </div>
       </div>
     )
   }
 
   return (
     <CustomScrollbar className={styles.container}>
-      {activityThreads.length === 0 ? (
-        <div className={styles.empty}>
-          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#999" strokeWidth="1.5">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <p>Chưa có hoạt động nào</p>
-        </div>
-      ) : (
-        <div className={styles.threadsList}>
-          {activityThreads.map((thread: any) => (
-            <div key={thread.id}>
-              <ThreadCard
-                id={thread.id}
-                username={thread.username}
-                timestamp={thread.created_at}
-                content={thread.content}
-                imageUrls={thread.image_urls || []}
-                likes={thread.likes_count.toString()}
-                comments={thread.comments_count.toString()}
-                reposts={thread.reposts_count.toString()}
-                verified={thread.verified}
-                avatarText={thread.avatar_text}
-                isLiked={thread.isLiked}
-                onCommentClick={() => setActiveCommentThreadId(thread.id)}
-              />
-              
-              {activeCommentThreadId === thread.id && (
-                <CommentInput
-                  threadId={thread.id}
-                  onCommentSubmit={() => setActiveCommentThreadId(null)}
-                  autoFocus={true}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className={styles.notificationsList}>
+        {notifications.map((notification) => (
+          <NotificationItem key={notification.id} notification={notification} />
+        ))}
+      </div>
     </CustomScrollbar>
   )
 }

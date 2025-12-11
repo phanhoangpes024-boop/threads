@@ -9,7 +9,6 @@
   border-radius: 16px 16px 0 0;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05);
   
-  /* Fixed container - giống page.module.css */
   position: fixed;
   top: 61px;
   left: 50%;
@@ -42,8 +41,142 @@
   margin: 0;
 }
 
-.threadsList {
+.notificationsList {
   background: #ffffff;
+}
+
+/* Notification Item */
+.notificationItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.notificationItem:hover {
+  background: #fafafa;
+}
+
+.notificationItem.unread {
+  background: #f8fafc; /* bg-slate-50 */
+}
+
+/* Avatar Section */
+.avatarSection {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.avatarStack {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  border: 2px solid white;
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: white;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Text Section */
+.textSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.text {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #000;
+  margin-bottom: 4px;
+}
+
+.text strong {
+  font-weight: 600;
+}
+
+.time {
+  font-size: 13px;
+  color: #666;
+}
+
+/* Right Section */
+.rightSection {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbnail {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.thumbnailPlaceholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.followButton {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  background: #000;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+  width: auto;
+  min-width: fit-content;
+}
+
+.followButton:hover {
+  background: #333;
+}
+
+.followButton:active {
+  transform: scale(0.98);
+}
+
+.followButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
@@ -57,5 +190,9 @@
     left: 0;
     transform: none;
     max-width: 100%;
+  }
+
+  .notificationItem {
+    padding: 12px 16px;
   }
 }
