@@ -1,12 +1,12 @@
-// app/api/auth/register/route.ts
+// app/api/auth/register/route.ts - ✅ THAY TOÀN BỘ
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseServer } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
     const { email, password, username, avatarText, avatarBg } = await request.json();
+    console.log('📝 Register body:', email, password, username, avatarText, avatarBg); // ← THÊM
 
-    // Validation
     if (!email || !password || !username || !avatarText) {
       return NextResponse.json(
         { error: 'Vui lòng điền đầy đủ thông tin' },
@@ -21,26 +21,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Kiểm tra email đã tồn tại
-    const { data: existingEmail } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (existingEmail) {
-      return NextResponse.json(
-        { error: 'Email đã được đăng ký' },
-        { status: 409 }
-      );
-    }
-
     // Kiểm tra username đã tồn tại
-    const { data: existingUsername } = await supabase
+    const { data: existingUsername } = await supabaseServer
       .from('users')
       .select('id')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
     if (existingUsername) {
       return NextResponse.json(
@@ -49,22 +35,39 @@ export async function POST(request: Request) {
       );
     }
 
-    // ✅ Tạo user với avatar_bg
-    const { data: newUser, error: insertError } = await supabase
+    // ✅ Tạo auth user
+    const { data: authData, error: signUpError } = await supabaseServer.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    console.log('🔐 Auth result:', { authData, signUpError }); // ← THÊM
+
+    if (signUpError) {
+      return NextResponse.json(
+        { error: signUpError.message },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Tạo profile với CÙNG ID
+    const { data: newUser, error: insertError } = await supabaseServer
       .from('users')
       .insert({
+        id: authData.user.id,
         email,
         username,
         avatar_text: avatarText.toUpperCase(),
-        avatar_bg: avatarBg || '#0077B6', // ← MỚI
-        password_hash: password,
+        avatar_bg: avatarBg || '#0077B6',
         verified: false,
       })
       .select('id, email, username, avatar_text, avatar_bg, verified, bio')
       .single();
 
     if (insertError) {
-      console.error('Insert error:', insertError);
+      // Rollback
+      await supabaseServer.auth.admin.deleteUser(authData.user.id);
+      
       return NextResponse.json(
         { error: insertError.message },
         { status: 500 }

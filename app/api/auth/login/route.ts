@@ -1,6 +1,6 @@
-// app/api/auth/login/route.ts
+// app/api/auth/login/route.ts - ✅ THAY TOÀN BỘ
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseServer } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -13,33 +13,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // Tìm user theo email và password
-    const { data: user, error } = await supabase
+    // ✅ Đăng nhập với Supabase Auth
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      return NextResponse.json(
+        { error: 'Email hoặc mật khẩu không đúng' },
+        { status: 401 }
+      );
+    }
+
+    // ✅ Lấy profile
+    const { data: user, error: userError } = await supabaseServer
       .from('users')
-      .select('id, email, username, avatar_text, verified, bio, password_hash')
-      .eq('email', email)
+      .select('id, email, username, avatar_text, avatar_bg, verified, bio')
+      .eq('id', authData.user.id)
       .single();
 
-    if (error || !user) {
+    if (userError || !user) {
       return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không đúng' },
-        { status: 401 }
+        { error: 'Không tìm thấy thông tin user' },
+        { status: 404 }
       );
     }
-
-    // So sánh password trực tiếp
-    if (user.password_hash !== password) {
-      return NextResponse.json(
-        { error: 'Email hoặc mật khẩu không đúng' },
-        { status: 401 }
-      );
-    }
-
-    const { password_hash, ...userInfo } = user;
 
     return NextResponse.json({
       success: true,
-      user: userInfo,
+      user,
+      session: authData.session,
     });
   } catch (error) {
     console.error('Login error:', error);

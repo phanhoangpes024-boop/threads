@@ -12,33 +12,37 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  // app/auth/login/page.tsx - ✅ SỬA phần handleLogin
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
 
-      const data = await res.json();
+    const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Đăng nhập thất bại');
-      }
-
-      localStorage.setItem('currentUser', JSON.stringify(data.user));
-      router.push('/');
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (!res.ok) {
+      throw new Error(data.error || 'Đăng nhập thất bại');
     }
-  };
+
+    // ✅ Lưu cả user và session
+    localStorage.setItem('currentUser', JSON.stringify(data.user));
+    localStorage.setItem('supabase.auth.token', JSON.stringify(data.session));
+    
+    router.push('/');
+    router.refresh();
+  } catch (err: any) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className={styles.container}>
