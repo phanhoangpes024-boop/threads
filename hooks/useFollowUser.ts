@@ -25,6 +25,11 @@ export function useFollowUser() {
       queryClient.invalidateQueries({ 
         queryKey: ['isFollowing', user.id, targetUserId] 
       })
+
+      queryClient.invalidateQueries({ 
+    queryKey: ['profile-data'],
+    exact: false 
+  })
       
       // ✅ Invalidate notifications
       queryClient.invalidateQueries({ 

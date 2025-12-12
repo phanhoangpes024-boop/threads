@@ -1,9 +1,9 @@
 // app/auth/register/page.tsx
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import styles from '../login/auth.module.css';
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import styles from '../login/auth.module.css'
 
 const AVATAR_COLORS = [
   '#0077B6',
@@ -11,35 +11,35 @@ const AVATAR_COLORS = [
   '#E76F51',
   '#7B68EE',
   '#607D8B'
-];
+]
 
 export default function RegisterPage() {
-  const router = useRouter();
+  const router = useRouter()
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     username: '',
     avatarText: '',
-    avatarBg: '#0077B6', // ← MỚI
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+    avatarBg: '#0077B6',
+  })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
     if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
-      setLoading(false);
-      return;
+      setError('Mật khẩu phải có ít nhất 6 ký tự')
+      setLoading(false)
+      return
     }
 
     if (formData.avatarText.length < 1 || formData.avatarText.length > 2) {
-      setError('Avatar phải có 1-2 ký tự');
-      setLoading(false);
-      return;
+      setError('Avatar phải có 1-2 ký tự')
+      setLoading(false)
+      return
     }
 
     try {
@@ -47,34 +47,35 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
-      });
+      })
 
-      const data = await res.json();
+      const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || 'Đăng ký thất bại');
+        throw new Error(data.error || 'Đăng ký thất bại')
       }
 
-      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      // ✅ CHỈ LƯU user info (không nhạy cảm)
+      localStorage.setItem('currentUser', JSON.stringify(data.user))
       
-      router.push('/');
-      router.refresh();
+      router.push('/')
+      router.refresh()
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
+    let value = e.target.value
     
     if (field === 'avatarText') {
-      value = value.toUpperCase().slice(0, 2);
+      value = value.toUpperCase().slice(0, 2)
     }
     
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
 
   return (
     <div className={styles.container}>
@@ -122,7 +123,6 @@ export default function RegisterPage() {
                 disabled={loading}
                 style={{ flex: 1 }}
               />
-              {/* Preview Avatar */}
               <div style={{
                 width: '48px',
                 height: '48px',
@@ -140,7 +140,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* ✅ Color Picker */}
           <div className={styles.field}>
             <label>Màu nền Avatar</label>
             <div style={{ 
@@ -193,5 +192,5 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

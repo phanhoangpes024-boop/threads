@@ -1,48 +1,46 @@
 // app/auth/login/page.tsx
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import styles from './auth.module.css';
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import styles from './auth.module.css'
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  // app/auth/login/page.tsx - ✅ SỬA phần handleLogin
-const handleLogin = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
-  setLoading(true);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    const data = await res.json();
+      const data = await res.json()
 
-    if (!res.ok) {
-      throw new Error(data.error || 'Đăng nhập thất bại');
+      if (!res.ok) {
+        throw new Error(data.error || 'Đăng nhập thất bại')
+      }
+
+      // ✅ CHỈ LƯU user info (không nhạy cảm)
+      localStorage.setItem('currentUser', JSON.stringify(data.user))
+      
+      router.push('/')
+      router.refresh()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
-
-    // ✅ Lưu cả user và session
-    localStorage.setItem('currentUser', JSON.stringify(data.user));
-    localStorage.setItem('supabase.auth.token', JSON.stringify(data.session));
-    
-    router.push('/');
-    router.refresh();
-  } catch (err: any) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
   }
-};
 
   return (
     <div className={styles.container}>
@@ -90,5 +88,5 @@ const handleLogin = async (e: React.FormEvent) => {
         </div>
       </div>
     </div>
-  );
+  )
 }
