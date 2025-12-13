@@ -1,6 +1,5 @@
-// app/api/notifications/route.ts
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -12,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { data, error } = await supabase.rpc('get_notifications', {
+    const { data, error } = await supabaseServer.rpc('get_notifications', {
       p_user_id: userId,
       p_limit: limit
     })
@@ -34,7 +33,7 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const { error } = await supabase
+    const { error } = await supabaseServer
       .from('notifications')
       .update({ is_read: true })
       .in('id', notification_ids)
