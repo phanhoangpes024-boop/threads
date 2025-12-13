@@ -6,28 +6,45 @@ export function useUnreadNotifications() {
   const { user } = useCurrentUser()
 
   return useQuery({
-    queryKey: ['unread-notifications', user.id],
+    queryKey: ['unread-notifications', user?.id],
     queryFn: async () => {
-      // Lấy last_notified_viewed_at từ users
-      const { data: userData } = await supabase
-        .from('users')
-        .select('last_notified_viewed_at')
-        .eq('id', user.id)
-        .single()
+      if (!user?.id) return 0
 
-      if (!userData?.last_notified_viewed_at) return 0
+      try {
+        // 1. Lấy last_viewed trực tiếp từ bảng users
+        const { data: userData } = await supabase
+          .from('users')
+          .select('last_notified_viewed_at')
+          .eq('id', user.id)
+          .single()
 
-      // Đếm notifications mới hơn last_viewed
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('recipient_id', user.id)
-        .gt('created_at', userData.last_notified_viewed_at)
+        const lastViewed = userData?.last_notified_viewed_at
+        
+        // 2. Đếm số lượng từ bảng notifications (Chỉ đếm, không tải cả data về)
+        let query = supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('recipient_id', user.id)
 
-      return count || 0
+        if (lastViewed) {
+          query = query.gt('created_at', lastViewed)
+        }
+
+        const { count, error } = await query
+        if (error) throw error
+
+        console.log('--- DEBUG NOTIFICATION ---')
+        console.log('User ID:', user.id)
+        console.log('Thời điểm xem cuối:', lastViewed)
+        console.log('Số thông báo mới:', count)
+        
+        return count || 0
+      } catch (err) {
+        console.error('❌ Lỗi useUnreadNotifications:', err)
+        return 0
+      }
     },
-    enabled: !!user.id,
-    staleTime: 1000 * 30, // 30s
-    refetchInterval: 1000 * 60, // Poll mỗi 1 phút
+    enabled: !!user?.id,
+    refetchInterval: 1000 * 30, // Poll mỗi 30s
   })
 }

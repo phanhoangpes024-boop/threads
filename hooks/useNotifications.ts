@@ -34,8 +34,8 @@ export function useNotifications() {
       return data.notifications
     },
     enabled: !!user.id,
-    staleTime: 1000 * 30, // 30s
-    refetchInterval: 1000 * 60, // Poll mỗi 1 phút
+    staleTime: 1000 * 30,
+    refetchInterval: 1000 * 60,
   })
 }
 
@@ -54,6 +54,7 @@ export function useMarkAsRead() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications'] })
     }
   })
 }

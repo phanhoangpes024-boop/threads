@@ -16,7 +16,8 @@ export function useMarkNotificationsViewed() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['unread-notifications'] })
+      // ✅ PHẢI KHỚP VỚI queryKey bên useUnreadNotifications
+      queryClient.invalidateQueries({ queryKey: ['unread-notifications', user.id] })
     }
   })
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Heart, MessageCircle, UserPlus } from 'lucide-react'
 import CustomScrollbar from '@/components/CustomScrollbar'
@@ -37,7 +37,6 @@ function NotificationItem({ notification }: { notification: Notification }) {
   const { data: isFollowing = false, isLoading } = useIsFollowing(firstActor.id)
 
   const handleClick = () => {
-    // Mark as read khi click
     if (!notification.is_read) {
       markAsRead.mutate([notification.id])
     }
@@ -151,11 +150,14 @@ function NotificationItem({ notification }: { notification: Notification }) {
 export default function ActivityPage() {
   const { data: notifications = [], isLoading } = useNotifications()
   const markViewedMutation = useMarkNotificationsViewed()
+  const hasMarkedViewed = useRef(false)
 
-  // Khi vào trang thông báo, mark as viewed
   useEffect(() => {
-    markViewedMutation.mutate()
-  }, [])
+    if (!hasMarkedViewed.current) {
+      markViewedMutation.mutate()
+      hasMarkedViewed.current = true
+    }
+  }, [markViewedMutation])
 
   if (isLoading) {
     return (
