@@ -11,7 +11,7 @@ export async function GET(
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, avatar_text, verified, bio, created_at')
+      .select('id, username, email, avatar_text, avatar_bg, verified, bio, created_at')
       .eq('username', username)
       .single()
 
@@ -19,22 +19,32 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Đếm followers
-    const { count: followersCount } = await supabase
-      .from('follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('following_id', user.id)
-
-    // Đếm following
-    const { count: followingCount } = await supabase
-      .from('follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('follower_id', user.id)
+    // Đếm followers, following, threads song song
+    const [followersCount, followingCount, threadsCount] = await Promise.all([
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', user.id)
+        .then(res => res.count || 0),
+      
+      supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', user.id)
+        .then(res => res.count || 0),
+      
+      supabase
+        .from('threads')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .then(res => res.count || 0),
+    ])
 
     return NextResponse.json({
       ...user,
-      followers_count: followersCount || 0,
-      following_count: followingCount || 0,
+      followers_count: followersCount,
+      following_count: followingCount,
+      threads_count: threadsCount,
     })
   } catch (error) {
     console.error('Error fetching user:', error)

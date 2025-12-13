@@ -1,67 +1,58 @@
 // app/profile/[username]/page.tsx
-import { notFound } from 'next/navigation'
-import { getProfileData, getProfileByUsername } from '@/lib/data'
+'use client'
+
+import { useParams } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import ProfileClient from '@/components/ProfileClient'
-import type { Metadata } from 'next'
+import type { ProfileData } from '@/lib/data'
 
-// ============================================
-// METADATA (SEO) - Tối ưu
-// ============================================
+export default function ProfilePage() {
+  const params = useParams()
+  const username = params.username as string
 
-export async function generateMetadata({ 
-  params 
-}: { 
-  params: Promise<{ username: string }> 
-}): Promise<Metadata> {
-  const { username } = await params
-  
-  // Chỉ fetch user info (nhẹ hơn), không fetch threads
-  const profile = await getProfileByUsername(username)
+  const { data: profile, isLoading, isError } = useQuery<ProfileData>({
+    queryKey: ['profile', username],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/by-username/${username}`)
+      if (!res.ok) throw new Error('Profile not found')
+      return res.json()
+    },
+    staleTime: 1000 * 60,
+  })
 
-  if (!profile) {
-    return {
-      title: 'User Not Found'
-    }
+  if (isLoading) {
+    return (
+      <div style={{ 
+        maxWidth: '600px', 
+        margin: '80px auto', 
+        padding: '40px 20px', 
+        textAlign: 'center', 
+        color: '#999' 
+      }}>
+        Đang tải...
+      </div>
+    )
   }
 
-  return {
-    title: `${profile.username} (@${profile.username})`,
-    description: profile.bio || `${profile.threads_count} threads • ${profile.followers_count} followers`
-  }
-}
-
-// ============================================
-// PAGE COMPONENT
-// ============================================
-
-export default async function ProfilePage({ 
-  params 
-}: { 
-  params: Promise<{ username: string }> 
-}) {
-  const { username } = await params
-  
-  // ⚠️ Server không đọc được localStorage
-  // Sau khi làm Auth Cookie (Phase 2), đổi thành: cookies().get('token')
-  const viewerId = null
-
-  // Fetch data từ server
-  const data = await getProfileData(username, viewerId)
-
-  // 404 nếu không tìm thấy user
-  if (!data) {
-    notFound()
+  if (isError || !profile) {
+    return (
+      <div style={{ 
+        maxWidth: '600px', 
+        margin: '80px auto', 
+        padding: '40px 20px', 
+        textAlign: 'center', 
+        color: '#999' 
+      }}>
+        Không tìm thấy người dùng
+      </div>
+    )
   }
 
-  const { profile, threads, isFollowing } = data
-
-  // Truyền xuống Client Component
-  // Client sẽ tự check isOwnProfile và currentUserId bằng localStorage
   return (
     <ProfileClient
       initialProfile={profile}
-      initialThreads={threads}
-      initialIsFollowing={isFollowing}
+      initialThreads={[]}
+      initialIsFollowing={false}
     />
   )
 }
