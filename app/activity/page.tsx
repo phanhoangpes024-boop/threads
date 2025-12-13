@@ -1,4 +1,3 @@
-// app/activity/page.tsx - CẬP NHẬT
 'use client'
 
 import { useEffect } from 'react'
@@ -6,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Heart, MessageCircle, UserPlus } from 'lucide-react'
 import CustomScrollbar from '@/components/CustomScrollbar'
 import { useNotifications, useMarkAsRead } from '@/hooks/useNotifications'
+import { useMarkNotificationsViewed } from '@/hooks/useMarkNotificationsViewed'
 import { useFollowUser } from '@/hooks/useFollowUser'
 import { useIsFollowing } from '@/hooks/useIsFollowing'
 import type { Notification } from '@/hooks/useNotifications'
@@ -34,19 +34,14 @@ function NotificationItem({ notification }: { notification: Notification }) {
   const firstActor = actors[0]
   const othersCount = actors.length - 1
 
-  // ✅ Fetch trạng thái theo dõi từ server
   const { data: isFollowing = false, isLoading } = useIsFollowing(firstActor.id)
 
-  useEffect(() => {
-    if (!notification.is_read) {
-      const timer = setTimeout(() => {
-        markAsRead.mutate([notification.id])
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [notification.id, notification.is_read, markAsRead])
-
   const handleClick = () => {
+    // Mark as read khi click
+    if (!notification.is_read) {
+      markAsRead.mutate([notification.id])
+    }
+
     if (notification.type === 'follow') {
       router.push(`/profile/${firstActor.username}`)
     } else if (notification.thread_id) {
@@ -155,6 +150,12 @@ function NotificationItem({ notification }: { notification: Notification }) {
 
 export default function ActivityPage() {
   const { data: notifications = [], isLoading } = useNotifications()
+  const markViewedMutation = useMarkNotificationsViewed()
+
+  // Khi vào trang thông báo, mark as viewed
+  useEffect(() => {
+    markViewedMutation.mutate()
+  }, [])
 
   if (isLoading) {
     return (

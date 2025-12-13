@@ -179,6 +179,11 @@
   cursor: not-allowed;
 }
 
+/* Notification Item với highlight */
+.notificationItem.unread {
+  background: #f0f9ff; /* Light blue highlight */
+}
+
 @media (max-width: 768px) {
   .container {
     border-left: none;

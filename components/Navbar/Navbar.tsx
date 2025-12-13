@@ -1,10 +1,10 @@
-// components/Navbar/Navbar.tsx
 'use client'
 
 import React, { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useCreateThread } from '@/hooks/useThreads'
+import { useUnreadNotifications } from '@/hooks/useUnreadNotifications'
 import { getCurrentUser } from '@/lib/currentUser'
 import MenuPopup from '@/components/MenuPopup'
 import styles from './Navbar.module.css'
@@ -17,6 +17,8 @@ export default function Navbar() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const currentUser = getCurrentUser()
+  
+  const { data: unreadCount = 0 } = useUnreadNotifications()
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/'
@@ -63,21 +65,24 @@ export default function Navbar() {
           </button>
           
           <a href="/activity" className={`${styles.navItem} ${isActive('/activity') ? styles.active : ''}`}>
-            <svg viewBox="0 0 24 24">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
+            <div className={styles.iconWrapper}>
+              <svg viewBox="0 0 24 24">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {unreadCount > 0 && <span className={styles.badge}></span>}
+            </div>
           </a>
           
           <a href={`/profile/${currentUser.username}`} className={`${styles.navItem} ${isActive('/profile') ? styles.active : ''}`}>
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="10" r="3" />
-              <path d="M6.168 18.849A4 4 0 0 1 10 16h4a4 4 0 0 1 3.834 2.855" />
-            </svg>
+            <div 
+              className={styles.avatar}
+              style={{ backgroundColor: currentUser.avatar_bg }}
+            >
+              {currentUser.avatar_text}
+            </div>
           </a>
         </div>
-        
-        {/* Hamburger menu ở cuối navbar desktop */}
+
         <div className={styles.navMenu}>
           <button className={styles.navItem} onClick={() => setShowMenu(!showMenu)}>
             <svg viewBox="0 0 24 24">
@@ -86,10 +91,17 @@ export default function Navbar() {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </button>
+          {showMenu && (
+  <MenuPopup 
+    isOpen={showMenu} 
+    onClose={() => setShowMenu(false)} 
+    position="desktop"
+  />
+)}
         </div>
       </nav>
 
-      {/* Mobile Bottom Navigation - KHÔNG có hamburger */}
+      {/* Mobile Bottom Navigation */}
       <nav className={styles.mobileNav}>
         <div className={styles.mobileNavItems}>
           <a href="/" className={`${styles.mobileNavItem} ${isActive('/') && !pathname?.startsWith('/search') && !pathname?.startsWith('/profile') && !pathname?.startsWith('/activity') ? styles.active : ''}`}>
@@ -98,53 +110,51 @@ export default function Navbar() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </a>
-          
+
           <a href="/search" className={`${styles.mobileNavItem} ${isActive('/search') ? styles.active : ''}`}>
             <svg viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
           </a>
-          
+
           <button className={`${styles.mobileNavItem} ${styles.plusBtn}`} onClick={() => setShowCreateModal(true)}>
             <svg viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
-          
+
           <a href="/activity" className={`${styles.mobileNavItem} ${isActive('/activity') ? styles.active : ''}`}>
-            <svg viewBox="0 0 24 24">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
+            <div className={styles.iconWrapper}>
+              <svg viewBox="0 0 24 24">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {unreadCount > 0 && <span className={styles.badge}></span>}
+            </div>
           </a>
-          
+
           <a href={`/profile/${currentUser.username}`} className={`${styles.mobileNavItem} ${isActive('/profile') ? styles.active : ''}`}>
-            <svg viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <circle cx="12" cy="10" r="3" />
-              <path d="M6.168 18.849A4 4 0 0 1 10 16h4a4 4 0 0 1 3.834 2.855" />
-            </svg>
+            <div 
+              className={styles.avatar}
+              style={{ backgroundColor: currentUser.avatar_bg }}
+            >
+              {currentUser.avatar_text}
+            </div>
           </a>
         </div>
       </nav>
 
-      {/* Menu Popup cho desktop */}
-      <MenuPopup 
-        isOpen={showMenu} 
-        onClose={() => setShowMenu(false)} 
-        position="desktop" 
-      />
-
       {showCreateModal && (
-        <CreateThreadModal
-          isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
-          onSubmit={handleCreateThread}
-          username={currentUser.username}
-          avatarText={currentUser.avatar_text}
-        />
-      )}
+  <CreateThreadModal
+    isOpen={showCreateModal}
+    onClose={() => setShowCreateModal(false)}
+    onSubmit={handleCreateThread}
+    username={currentUser.username}
+    avatarText={currentUser.avatar_text}
+    avatarBg={currentUser.avatar_bg}
+  />
+)}
     </>
   )
 }
