@@ -7,7 +7,7 @@ export interface User {
   username: string;
   email: string;
   avatar_text: string;
-  avatar_bg: string; // ← MỚI
+  avatar_bg: string;
   verified?: boolean;
   bio?: string;
 }
@@ -21,7 +21,7 @@ export function useCurrentUser() {
     const stored = localStorage.getItem('currentUser');
     if (stored) {
       const parsedUser = JSON.parse(stored);
-      // ✅ Fallback cho user cũ
+      // Fallback cho user cũ
       if (!parsedUser.avatar_bg) {
         parsedUser.avatar_bg = '#0077B6';
       }
@@ -41,7 +41,7 @@ export function useCurrentUser() {
       username: '', 
       email: '', 
       avatar_text: 'U',
-      avatar_bg: '#0077B6', // ← MỚI
+      avatar_bg: '#0077B6',
       verified: false 
     }, 
     loading 

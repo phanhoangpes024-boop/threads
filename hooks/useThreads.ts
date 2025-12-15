@@ -91,23 +91,24 @@ export function useCreateThread() {
     },
     
     onSuccess: (newThread) => {
-      console.log('[CREATE] Success, invalidating feed...')
-      
-      // Chỉ cần invalidate, React Query tự refetch
-      queryClient.invalidateQueries({ 
-        queryKey: ['feed'],
-        exact: false 
-      })
-      
-      queryClient.invalidateQueries({ 
-        queryKey: ['profile-threads'],
-        exact: false 
-      })
-    },
-    
-    onError: (err) => {
-      console.error('[CREATE ERROR]', err)
-    }
+  console.log('[CREATE] Success, invalidating feed...')
+  
+  queryClient.invalidateQueries({ 
+    queryKey: ['feed', 'for-you', user.id] 
+  })
+  
+  queryClient.invalidateQueries({ 
+    queryKey: ['feed', 'following', user.id] 
+  })
+  
+  queryClient.invalidateQueries({ 
+    queryKey: ['profile-threads', user.id]
+  })
+},
+
+onError: (err) => {
+  console.error('[CREATE ERROR]', err)
+}
   })
 }
 

@@ -1,4 +1,4 @@
-// middleware.ts
+// middleware.ts - FIXED VERSION
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -13,45 +13,62 @@ export async function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('sb-refresh-token')?.value
   const path = request.nextUrl.pathname
 
-  // ✅ FIX: Bỏ qua auth routes VÀ auth API
+  // Bỏ qua auth routes
   if (path.startsWith('/auth') || path.startsWith('/api/auth')) {
     return NextResponse.next()
   }
 
-  // Không có token → redirect login
-  if (!accessToken) {
+  // Không có token
+  if (!accessToken && !refreshToken) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
   try {
-    // Thử verify access token
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken)
-    
-    if (error && refreshToken) {
-      // Access token hết hạn → dùng refresh token
+    let currentUser = null
+    let newSession = null
+
+    // Thử dùng access token
+    if (accessToken) {
+      const { data: { user }, error } = await supabase.auth.getUser(accessToken)
+      if (!error && user) {
+        currentUser = user
+      }
+    }
+
+    // Access token hết hạn → dùng refresh token
+    if (!currentUser && refreshToken) {
       const { data, error: refreshError } = await supabase.auth.refreshSession({
         refresh_token: refreshToken
       })
 
       if (refreshError || !data.session) {
-        // Refresh thất bại → logout
+        // Refresh thất bại → redirect login
         const response = NextResponse.redirect(new URL('/auth/login', request.url))
         response.cookies.delete('sb-access-token')
         response.cookies.delete('sb-refresh-token')
         return response
       }
 
-      // Refresh thành công → set cookie mới
-      const requestHeaders = new Headers(request.headers)
-      requestHeaders.set('x-user-id', data.user!.id)
-      
-      const response = NextResponse.next({
-        request: {
-          headers: requestHeaders
-        }
-      })
+      // ✅ Refresh thành công
+      currentUser = data.user
+      newSession = data.session
+    }
 
-      response.cookies.set('sb-access-token', data.session.access_token, {
+    if (!currentUser) {
+      throw new Error('No valid session')
+    }
+
+    // Set header với user_id
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-user-id', currentUser.id)
+
+    const response = NextResponse.next({
+      request: { headers: requestHeaders }
+    })
+
+    // ✅ Nếu có session mới → cập nhật cookies
+    if (newSession) {
+      response.cookies.set('sb-access-token', newSession.access_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -59,30 +76,16 @@ export async function middleware(request: NextRequest) {
         path: '/'
       })
 
-      response.cookies.set('sb-refresh-token', data.session.refresh_token, {
+      response.cookies.set('sb-refresh-token', newSession.refresh_token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: 60 * 60 * 24 * 30,
         path: '/'
       })
-
-      return response
     }
 
-    if (error || !user) {
-      throw new Error('Invalid token')
-    }
-
-    // Token hợp lệ → set header và tiếp tục
-    const requestHeaders = new Headers(request.headers)
-    requestHeaders.set('x-user-id', user.id)
-
-    return NextResponse.next({
-      request: {
-        headers: requestHeaders
-      }
-    })
+    return response
 
   } catch {
     const response = NextResponse.redirect(new URL('/auth/login', request.url))
@@ -92,7 +95,6 @@ export async function middleware(request: NextRequest) {
   }
 }
 
-// ✅ FIX: Thêm api/auth và auth vào matcher
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|api/auth|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
