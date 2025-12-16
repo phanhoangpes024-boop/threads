@@ -1,4 +1,4 @@
-// lib/data.ts
+// lib/data.ts - GIỮ NGUYÊN (KHÔNG CẦN RETRY)
 import { supabase } from '@/lib/supabase'
 import { cache } from 'react'
 
@@ -11,7 +11,7 @@ export interface ProfileData {
   username: string
   email: string
   avatar_text: string
-  avatar_bg: string // ← THÊM
+  avatar_bg: string
   verified: boolean
   bio: string | null
   followers_count: number
@@ -30,7 +30,7 @@ export interface ProfileThread {
   reposts_count: number
   username: string
   avatar_text: string
-  avatar_bg: string // ← THÊM
+  avatar_bg: string
   verified: boolean
   is_liked: boolean
   medias: Array<{
@@ -50,7 +50,7 @@ export interface ProfileThread {
 export const getProfileByUsername = cache(async (username: string): Promise<ProfileData | null> => {
   const { data, error } = await supabase
     .from('users')
-    .select('id, username, email, avatar_text, avatar_bg, verified, bio, followers_count, following_count, threads_count, created_at') // ← THÊM avatar_bg
+    .select('id, username, email, avatar_text, avatar_bg, verified, bio, followers_count, following_count, threads_count, created_at')
     .eq('username', username)
     .single()
 

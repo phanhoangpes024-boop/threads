@@ -1,4 +1,4 @@
-// lib/imageTransform.ts - UPDATED WITH MANUAL OPTIONS
+// lib/imageTransform.ts - OPTIMIZED với Memoization Cache
 import { supabase } from './supabase'
 
 interface TransformOptions {
@@ -7,66 +7,54 @@ interface TransformOptions {
   quality?: number
 }
 
+// ✅ Cache để tránh transform lặp lại cùng URL
+const urlCache = new Map<string, string>()
+
 /**
  * Transform Supabase Storage URL với resize parameters
  * ✅ SAFE: Fallback to original nếu transform fail
+ * ✅ OPTIMIZED: Memoization cache
  */
 export function transformImageUrl(
   url: string, 
   options: TransformOptions = {}
 ): string {
-  // ✅ SAFETY: Return original nếu không phải Supabase URL
-  if (!url || !url.includes('supabase.co')) {
-    console.log('[imageTransform] Not Supabase URL, returning original:', url.substring(0, 60))
-    return url
+  if (!url || !url.includes('supabase.co')) return url
+
+  // Tạo cache key
+  const cacheKey = `${url}-${JSON.stringify(options)}`
+  if (urlCache.has(cacheKey)) {
+    return urlCache.get(cacheKey)!
   }
 
-  const {
-    width = 800,
-    quality = 80
-  } = options
+  const { width = 800, quality = 80 } = options
 
   try {
-    // Parse URL để lấy path
     const urlObj = new URL(url)
     const path = urlObj.pathname.split('/storage/v1/object/public/')[1]
     
-    if (!path) {
-      console.log('[imageTransform] Cannot parse path, returning original')
-      return url
-    }
+    if (!path) return url
 
-    // Extract bucket và file path
     const [bucket, ...fileParts] = path.split('/')
     const filePath = fileParts.join('/')
 
-    if (!bucket || !filePath) {
-      console.log('[imageTransform] Invalid bucket/path, returning original')
-      return url
-    }
+    if (!bucket || !filePath) return url
 
-    // ✅ Try transform with Supabase
     const { data } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath, {
-        transform: {
-          width,
-          quality
-        }
+        transform: { width, quality }
       })
 
     const transformed = data.publicUrl
     
-    console.log('[imageTransform] Transformed OK:', {
-      original: url.substring(0, 60),
-      transformed: transformed.substring(0, 60)
-    })
+    // Lưu vào cache
+    urlCache.set(cacheKey, transformed)
     
     return transformed
     
   } catch (error) {
-    console.error('[imageTransform] Error, returning original:', error)
-    return url // ✅ Fallback to original
+    return url 
   }
 }
 
@@ -84,54 +72,28 @@ export function getResponsiveImageUrls(originalUrl: string) {
 }
 
 /**
- * 🚀 NEW: Get optimal image URL với manual options
- * Dùng cho ImageGallery để control chất lượng ảnh
+ * Get optimal image URL với manual options
  */
 export function getOptimalImageUrl(
   originalUrl: string,
   options?: TransformOptions
 ): string {
-  // ✅ SAFETY: Guard
-  if (!originalUrl) {
-    console.error('[getOptimalImageUrl] Empty URL!')
-    return ''
-  }
+  if (!originalUrl) return ''
+  if (!originalUrl.includes('supabase.co')) return originalUrl
+  if (options) return transformImageUrl(originalUrl, options)
 
-  // ✅ SAFETY: Nếu không phải Supabase, return nguyên bản
-  if (!originalUrl.includes('supabase.co')) {
-    console.log('[getOptimalImageUrl] Not Supabase, returning original')
-    return originalUrl
-  }
-
-  // 🚀 Nếu có options được truyền vào (manual mode), dùng luôn
-  if (options) {
-    console.log('[getOptimalImageUrl] Manual mode:', options)
-    return transformImageUrl(originalUrl, options)
-  }
-
-  // 🤖 Auto-detect mode (fallback cho các component cũ)
-  // ✅ Server-side rendering guard
   if (typeof window === 'undefined') {
-    console.log('[getOptimalImageUrl] SSR, using default 800px')
     return transformImageUrl(originalUrl, { width: 800 })
   }
 
-  const viewportWidth = window.innerWidth
+  const w = window.innerWidth
+  let width = 1200
+  let quality = 85
+
+  if (w <= 640) { width = 600; quality = 75 }
+  else if (w <= 1024) { width = 800; quality = 80 }
   
-  console.log('[getOptimalImageUrl] Viewport:', viewportWidth)
-  
-  // Mobile
-  if (viewportWidth <= 640) {
-    return transformImageUrl(originalUrl, { width: 600, quality: 75 })
-  }
-  
-  // Tablet
-  if (viewportWidth <= 1024) {
-    return transformImageUrl(originalUrl, { width: 800, quality: 80 })
-  }
-  
-  // Desktop
-  return transformImageUrl(originalUrl, { width: 1200, quality: 85 })
+  return transformImageUrl(originalUrl, { width, quality })
 }
 
 /**
@@ -139,17 +101,10 @@ export function getOptimalImageUrl(
  */
 export function preloadImage(url: string): Promise<void> {
   if (!url) return Promise.reject('Empty URL')
-  
   return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload = () => {
-      console.log('[preloadImage] Loaded:', url.substring(0, 60))
-      resolve()
-    }
-    img.onerror = (e) => {
-      console.error('[preloadImage] Failed:', url.substring(0, 60), e)
-      reject(e)
-    }
+    img.onload = () => resolve()
+    img.onerror = (e) => reject(e)
     img.src = url
   })
 }
@@ -158,31 +113,23 @@ export function preloadImage(url: string): Promise<void> {
  * Lazy load images với Intersection Observer
  */
 export function lazyLoadImage(
-  imgElement: HTMLImageElement,
+  imgElement: HTMLImageElement, 
   src: string
 ): () => void {
-  if (!src) {
-    console.error('[lazyLoadImage] Empty src!')
-    return () => {}
-  }
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          console.log('[lazyLoadImage] Loading:', src.substring(0, 60))
-          imgElement.src = src
-          observer.unobserve(imgElement)
-        }
-      })
-    },
-    {
-      rootMargin: '50px',
-      threshold: 0.01
-    }
-  )
-
+  if (!src) return () => {}
+  
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        imgElement.src = src
+        observer.unobserve(imgElement)
+      }
+    })
+  }, { 
+    rootMargin: '50px', 
+    threshold: 0.01 
+  })
+  
   observer.observe(imgElement)
-
   return () => observer.disconnect()
 }
