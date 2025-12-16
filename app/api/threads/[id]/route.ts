@@ -1,99 +1,59 @@
-// app/api/threads/[id]/route.ts - FIXED WITH MEDIAS
+// app/api/threads/[id]/route.ts - UPDATED WITH RPC
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-
-const THREAD_SELECT = `
-  id,
-  user_id,
-  content,
-  created_at,
-  likes_count,
-  comments_count,
-  reposts_count,
-  users (username, avatar_text, avatar_bg, verified)
-`;
-// ← CHỈ THÊM avatar_bg VÀO SELECT
 
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
-  const { searchParams } = new URL(request.url);
-  const userId = searchParams.get('user_id');
+  const { id } = await context.params
+  const { searchParams } = new URL(request.url)
+  const userId = searchParams.get('user_id')
 
   try {
-    // 1️⃣ Fetch thread info
-    const { data: thread, error: threadError } = await supabase
-      .from('threads')
-      .select(THREAD_SELECT)
-      .eq('id', id)
-      .single();
+    const { data, error } = await supabase.rpc('get_thread_detail', {
+      p_thread_id: id,
+      p_user_id: userId || null
+    })
 
-    if (threadError || !thread) {
-      return NextResponse.json(
-        { error: threadError?.message ?? "Thread not found" }, 
-        { status: 404 }
-      );
+    if (error) {
+      console.error('Error:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 2️⃣ Fetch medias từ thread_medias
-    const { data: medias, error: mediasError } = await supabase
-      .from('thread_medias')
-      .select('*')
-      .eq('thread_id', id)
-      .order('order_index', { ascending: true });
-
-    if (mediasError) {
-      console.error('Error fetching medias:', mediasError);
+    if (!data) {
+      return NextResponse.json({ error: 'Thread not found' }, { status: 404 })
     }
 
-    // 3️⃣ Check liked status (nếu có userId)
-    let isLiked = false;
-    if (userId) {
-      const { data: likeData } = await supabase
-        .from('likes')
-        .select('id')
-        .eq('thread_id', id)
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      isLiked = !!likeData;
+    // Map để giữ format cũ
+    const result = {
+      id: data.id,
+      user_id: data.user_id,
+      content: data.content,
+      created_at: data.created_at,
+      likes_count: data.likes_count || 0,
+      comments_count: data.comments_count || 0,
+      reposts_count: data.reposts_count || 0,
+      username: data.username,
+      avatar_text: data.avatar_text,
+      avatar_bg: data.avatar_bg || '#0077B6',
+      verified: data.verified || false,
+      is_liked: data.is_liked || false,
+      medias: Array.isArray(data.medias)
+        ? data.medias.map((m: any) => ({
+            id: m.id,
+            url: m.url,
+            type: m.type || 'image',
+            width: m.width || null,
+            height: m.height || null,
+            order: m.order || 0
+          }))
+        : []
     }
 
-    const threadData = thread as any;
-
-    // 4️⃣ Format giống Feed API
-    return NextResponse.json({
-      id: threadData.id,
-      user_id: threadData.user_id,
-      content: threadData.content,
-      created_at: threadData.created_at,
-      username: threadData.users?.username ?? null,
-      avatar_text: threadData.users?.avatar_text ?? null,
-      avatar_bg: threadData.users?.avatar_bg ?? '#0077B6', // ← THÊM DÒNG NÀY
-      verified: threadData.users?.verified ?? false,
-      likes_count: threadData.likes_count ?? 0,
-      comments_count: threadData.comments_count ?? 0,
-      reposts_count: threadData.reposts_count ?? 0,
-      is_liked: isLiked,
-      
-      // ✅ MEDIAS - Map từ thread_medias
-      medias: (medias || []).map(m => ({
-        id: m.id,
-        url: m.url,
-        type: m.media_type || 'image',
-        width: m.width,
-        height: m.height,
-        order: m.order_index
-      }))
-    });
-
+    return NextResponse.json(result)
   } catch (error) {
-    console.error('Unexpected error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' }, 
-      { status: 500 }
-    );
+    console.error('Unexpected error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

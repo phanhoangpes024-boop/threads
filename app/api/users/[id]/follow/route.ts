@@ -1,4 +1,4 @@
-// app/api/users/[id]/follow/route.ts - WITH DEBUG
+// app/api/users/[id]/follow/route.ts - UPDATED WITH RPC
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -13,36 +13,23 @@ export async function POST(
     const body = await request.json()
     const followerUserId = body.user_id
     
-    // ✅ LOG 1: Check input
-    console.log('[FOLLOW API] Input:', {
-      targetUserId,
-      followerUserId,
-      body
-    })
-
     if (!followerUserId) {
-      console.error('[FOLLOW API] Missing user_id')
       return NextResponse.json({ error: 'user_id is required' }, { status: 400 })
     }
 
-    // ✅ LOG 2: Check existing follow
-    const { data: existing, error: checkError } = await supabase
-      .from('follows')
-      .select('id')
-      .match({ follower_id: followerUserId, following_id: targetUserId })
-      .maybeSingle()
-
-    console.log('[FOLLOW API] Check existing:', { existing, checkError })
+    // ✅ Dùng RPC check_is_following
+    const { data: isFollowing, error: checkError } = await supabase.rpc('check_is_following', {
+      p_follower_id: followerUserId,
+      p_following_id: targetUserId
+    })
 
     if (checkError) {
       console.error('[FOLLOW API] Check error:', checkError)
       throw checkError
     }
 
-    if (existing) {
+    if (isFollowing) {
       // UNFOLLOW
-      console.log('[FOLLOW API] Unfollowing...')
-      
       const { error: deleteError } = await supabase
         .from('follows')
         .delete()
@@ -53,29 +40,22 @@ export async function POST(
         throw deleteError
       }
       
-      console.log('[FOLLOW API] Unfollowed successfully')
       return NextResponse.json({ success: true, action: 'unfollowed' })
       
     } else {
       // FOLLOW
-      console.log('[FOLLOW API] Following...')
-      
-      const { data: inserted, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('follows')
         .insert({ 
           follower_id: followerUserId, 
           following_id: targetUserId 
         })
-        .select()
-
-      console.log('[FOLLOW API] Insert result:', { inserted, insertError })
 
       if (insertError) {
         console.error('[FOLLOW API] Insert error:', insertError)
         throw insertError
       }
       
-      console.log('[FOLLOW API] Followed successfully')
       return NextResponse.json({ success: true, action: 'followed' })
     }
     
@@ -102,13 +82,18 @@ export async function GET(
   }
 
   try {
-    const { data } = await supabase
-      .from('follows')
-      .select('id')
-      .match({ follower_id: followerUserId, following_id: targetUserId })
-      .maybeSingle()
+    // ✅ Dùng RPC check_is_following
+    const { data: isFollowing, error } = await supabase.rpc('check_is_following', {
+      p_follower_id: followerUserId,
+      p_following_id: targetUserId
+    })
 
-    return NextResponse.json({ isFollowing: !!data })
+    if (error) {
+      console.error('[FOLLOW API] Check error:', error)
+      return NextResponse.json({ isFollowing: false })
+    }
+
+    return NextResponse.json({ isFollowing: isFollowing || false })
   } catch (error) {
     console.error('[FOLLOW API] Check follow error:', error)
     return NextResponse.json({ isFollowing: false })

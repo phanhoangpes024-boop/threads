@@ -1,4 +1,4 @@
-// components/ProfileClient/index.tsx - CẬP NHẬT
+// components/ProfileClient/index.tsx - WITH OPTIMISTIC FOLLOWERS COUNT
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -24,7 +24,7 @@ const EditProfileModal = dynamic(() => import('@/components/EditProfileModal'), 
 interface ProfileClientProps {
   initialProfile: ProfileData
   initialThreads: ProfileThread[]
-  initialIsFollowing: boolean // ← BỎ KHÔNG DÙNG NỮA
+  initialIsFollowing: boolean
 }
 
 interface FeedPage {
@@ -42,10 +42,21 @@ export default function ProfileClient({
   const toggleLikeMutation = useToggleLike()
   const createThreadMutation = useCreateThread()
   
-  const [profile, setProfile] = useState(initialProfile)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
+
+  // ✅ Query profile với query key chuẩn
+  const { data: profile = initialProfile } = useQuery<ProfileData>({
+    queryKey: ['profile', initialProfile.id],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/by-username/${initialProfile.username}`)
+      if (!res.ok) throw new Error('Failed to fetch profile')
+      return res.json()
+    },
+    initialData: initialProfile,
+    staleTime: 1000 * 30,
+  })
 
   const smartInitialThreads = (() => {
     if (typeof window === 'undefined' || !currentUser?.id) {
@@ -88,10 +99,6 @@ export default function ProfileClient({
     staleTime: 0,
     enabled: !!currentUser?.id,
   })
-
-  useEffect(() => {
-    setProfile(initialProfile)
-  }, [initialProfile])
 
   const isOwnProfile = currentUser?.id === profile.id
 
@@ -147,15 +154,15 @@ export default function ProfileClient({
     
     const updatedUser = JSON.parse(localStorage.getItem('currentUser') || '{}')
     if (updatedUser.id === profile.id) {
-      setProfile(prev => ({
-        ...prev,
+      queryClient.setQueryData(['profile', profile.id], (old: any) => ({
+        ...old,
         avatar_text: updatedUser.avatar_text,
         bio: updatedUser.bio
       }))
     }
     
     router.refresh()
-  }, [profile.id, router])
+  }, [profile.id, router, queryClient])
 
   return (
     <>
