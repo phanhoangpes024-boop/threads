@@ -1,7 +1,11 @@
-// hooks/useFeed.ts - COMPLETE VERSION WITH FeedCursor EXPORT
+// hooks/useFeed.ts - PRODUCTION READY với RPC & Helper Cache
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
+import { updateThreadInCaches, captureAllCachesSnapshot, restoreCachesSnapshot } from '@/lib/cache-helper'
+import { supabase } from '@/lib/supabase'
 import { useCallback } from 'react'
+
+// ==================== TYPES ====================
 
 export interface FeedMedia {
   id: string
@@ -34,11 +38,12 @@ export interface FeedPage {
   hasMore: boolean
 }
 
-// ✅ EXPORT FeedCursor
 export interface FeedCursor {
   time: string
   id: string
 }
+
+// ==================== SCROLL POSITION CACHE ====================
 
 let scrollPositionCache: { pageIndex: number; offset: number } | null = null
 
@@ -53,6 +58,8 @@ export function getScrollPosition() {
 export function clearScrollPosition() {
   scrollPositionCache = null
 }
+
+// ==================== MAIN FEED QUERY ====================
 
 export function useFeed() {
   const { user } = useCurrentUser()
@@ -99,6 +106,8 @@ export function useFeed() {
   })
 }
 
+// ==================== TOGGLE LIKE (Dùng Helper) ====================
+
 export function useToggleLike() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
@@ -126,15 +135,15 @@ export function useToggleLike() {
     },
     
     onMutate: async (threadId) => {
-      // 1. Cancel các query liên quan
+      // Cancel queries để tránh conflict
       await queryClient.cancelQueries({ queryKey: ['feed'] })
       await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
       
-      const previousFeed = queryClient.getQueryData<InfiniteData<FeedPage>>(['feed', user.id])
+      // Lưu snapshot để rollback nếu lỗi
+      const snapshot = captureAllCachesSnapshot(queryClient)
       
-      const updateThreadLikeStatus = (thread: FeedThread | any) => {
-        if (thread.id !== threadId) return thread
-        
+      // Optimistic update - Dùng helper (3 dòng thay vì 50 dòng)
+      updateThreadInCaches(queryClient, threadId, (thread) => {
         const newIsLiked = !thread.is_liked
         return {
           ...thread,
@@ -143,135 +152,121 @@ export function useToggleLike() {
             ? thread.likes_count + 1 
             : Math.max(0, thread.likes_count - 1)
         }
-      }
-      
-      // ✅ 2. Update CẢ 2 FEED TYPES
-      const feedKeys = [
-        ['feed', 'for-you', user.id],
-        ['feed', 'following', user.id]
-      ]
-      
-      feedKeys.forEach(key => {
-        queryClient.setQueryData<InfiniteData<FeedPage>>(key, (old) => {
-          if (!old) return old
-          return {
-            ...old,
-            pages: old.pages.map(page => ({
-              ...page,
-              threads: page.threads.map(updateThreadLikeStatus)
-            }))
-          }
-        })
-      })
-
-      // 3. Update Profile
-      queryClient.getQueryCache().findAll({ 
-        queryKey: ['profile-threads'],
-        exact: false 
-      }).forEach(query => {
-        queryClient.setQueryData(query.queryKey, (old: any) => {
-          if (!old || !Array.isArray(old)) return old
-          return old.map(updateThreadLikeStatus)
-        })
       })
       
-      return { previousFeed }
-    },
-    
-    onSuccess: (data) => {
-      const { threadId, action, likes_count } = data
-      const isLiked = action === 'liked'
-      
-      // ✅ 1. Update CẢ 2 FEED TYPES
-      const feedKeys = [
-        ['feed', 'for-you', user.id],
-        ['feed', 'following', user.id]
-      ]
-      
-      feedKeys.forEach(key => {
-        queryClient.setQueryData<InfiniteData<FeedPage>>(key, (old) => {
-          if (!old) return old
-          return {
-            ...old,
-            pages: old.pages.map(page => ({
-              ...page,
-              threads: page.threads.map(t => 
-                t.id === threadId 
-                  ? { ...t, is_liked: isLiked, likes_count } 
-                  : t
-              )
-            }))
-          }
-        })
-      })
-      
-      // 2. Update DETAIL Cache
-      const detailKeys = queryClient.getQueryCache()
-        .findAll({ queryKey: ['thread-detail', threadId] })
-      
-      detailKeys.forEach(query => {
-        queryClient.setQueryData(query.queryKey, (old: any) => {
-          if (!old) return old
-          return {
-            ...old,
-            thread: {
-              ...old.thread,
-              is_liked: isLiked,
-              likes_count: likes_count
-            }
-          }
-        })
-      })
-      
-      // 3. Update PROFILE Cache
-      const profileKeys = queryClient.getQueryCache()
-        .findAll({ 
-          queryKey: ['profile-threads'],
-          exact: false 
-        })
-      
-      profileKeys.forEach(query => {
-        queryClient.setQueryData(query.queryKey, (old: any) => {
-          if (!old || !Array.isArray(old)) return old
-          
-          return old.map((t: any) => 
-            t.id === threadId 
-              ? { ...t, is_liked: isLiked, likes_count } 
-              : t
-          )
-        })
-      })
+      return { snapshot }
     },
     
     onError: (err, threadId, context) => {
       console.error('[LIKE ERROR]', err)
       
-      // Rollback Feed nếu lỗi
-      if (context?.previousFeed) {
-        queryClient.setQueryData(['feed', user.id], context.previousFeed)
+      // Rollback về trạng thái cũ
+      if (context?.snapshot) {
+        restoreCachesSnapshot(queryClient, context.snapshot)
       }
+    },
+    
+    onSuccess: (data, threadId) => {
+      const { likes_count, action } = data
       
-      // Invalidate tất cả feed types
-      queryClient.invalidateQueries({ 
-        queryKey: ['feed'],
-        exact: false 
-      })
-      queryClient.invalidateQueries({ 
-        queryKey: ['profile-threads'],
-        exact: false 
-      })
+      // Sync với server response (đảm bảo đúng 100%)
+      updateThreadInCaches(queryClient, threadId, (thread) => ({
+        ...thread,
+        is_liked: action === 'liked',
+        likes_count
+      }))
     },
     
     retry: false,
   })
 }
 
+// ==================== CREATE THREAD với RPC ====================
+
+export function useCreateThread() {
+  const queryClient = useQueryClient()
+  const { user } = useCurrentUser()
+  
+  return useMutation({
+    mutationFn: async ({ 
+      content, 
+      imageUrls = [] 
+    }: { 
+      content: string
+      imageUrls?: string[] 
+    }) => {
+      if (!user.id) throw new Error('No user ID')
+      
+      console.log('[CREATE] Using RPC with', imageUrls.length, 'images')
+      
+      // Gọi RPC - 1 request duy nhất, atomic transaction
+      const { data, error } = await supabase.rpc('create_full_thread', {
+        p_user_id: user.id,
+        p_content: content.trim(),
+        p_media_urls: imageUrls.length > 0 ? imageUrls : null
+      })
+      
+      if (error) {
+        console.error('[CREATE] RPC Error:', error)
+        throw new Error(error.message || 'Failed to create thread')
+      }
+      
+      if (!data || data.length === 0) {
+        throw new Error('RPC returned no data')
+      }
+      
+      const result = data[0]
+      console.log('[CREATE] RPC Success:', result)
+      
+      // Format về FeedThread
+      return {
+        id: result.thread_id,
+        user_id: user.id,
+        content: result.thread_content,
+        created_at: result.thread_created_at,
+        likes_count: 0,
+        comments_count: 0,
+        reposts_count: 0,
+        username: user.username,
+        avatar_text: user.avatar_text,
+        avatar_bg: user.avatar_bg,
+        verified: user.verified || false,
+        is_liked: false,
+        medias: result.medias || []
+      } as FeedThread
+    },
+    
+    onSuccess: (newThread) => {
+      console.log('[CREATE] Invalidating caches...')
+      
+      // Invalidate tất cả feed types
+      queryClient.invalidateQueries({ 
+        queryKey: ['feed', 'for-you', user.id] 
+      })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: ['feed', 'following', user.id] 
+      })
+      
+      // Invalidate profile
+      queryClient.invalidateQueries({ 
+        queryKey: ['profile-threads', user.id]
+      })
+    },
+
+    onError: (err) => {
+      console.error('[CREATE ERROR]', err)
+    }
+  })
+}
+
+// ==================== REFRESH FEED ====================
+
 export function useRefreshFeed() {
   const queryClient = useQueryClient()
   const { user } = useCurrentUser()
   
   return useCallback(() => {
-    // ✅ Invalidate CẢ 2 FEED TYPES
     queryClient.invalidateQueries({ 
       queryKey: ['feed', 'for-you', user.id] 
     })
