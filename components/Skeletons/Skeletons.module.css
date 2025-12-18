@@ -5,6 +5,7 @@
   100% { background-position: -200% 0; }
 }
 
+/* ✅ BASE SKELETON - CÓ THỂ DÙNG CLASS CHUNG */
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
   background-size: 200% 100%;
@@ -12,7 +13,8 @@
   border-radius: 4px;
 }
 
-/* CreateInput */
+/* ==================== CREATE INPUT ==================== */
+
 .createInput {
   display: flex;
   gap: 12px;
@@ -22,7 +24,11 @@
 }
 
 .createInput .avatar {
-  composes: skeleton;
+  /* ✅ THAY CHỈ .avatar */
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -30,20 +36,27 @@
 }
 
 .createInput .placeholder {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 180px;
   height: 20px;
   flex: 1;
 }
 
 .createInput .button {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 70px;
   height: 36px;
   border-radius: 8px;
 }
 
-/* ThreadCard */
+/* ==================== THREAD CARD ==================== */
+
 .card {
   display: flex;
   gap: 16px;
@@ -52,7 +65,10 @@
 }
 
 .card .avatar {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -70,27 +86,39 @@
 }
 
 .username {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 120px;
   height: 16px;
 }
 
 .time {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 60px;
   height: 14px;
   margin-left: auto;
 }
 
 .text {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 100%;
   height: 14px;
   margin-bottom: 8px;
 }
 
 .image {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 100%;
   height: 280px;
   border-radius: 12px;
@@ -110,26 +138,56 @@
 }
 
 .icon {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 36px;
   height: 36px;
   border-radius: 50%;
 }
 
 .count {
-  composes: skeleton;
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
   width: 30px;
   height: 14px;
 }
 
-/* Mobile */
-@media (max-width: 768px) {
-  .createInput { display: none; }
-  .card { padding: 16px; }
-  .card .avatar { width: 40px; height: 40px; }
-}
+/* ==================== DARK MODE ==================== */
 
-/* Dark mode */
 [data-theme="dark"] .skeleton {
   background: linear-gradient(90deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
+}
+
+[data-theme="dark"] .createInput .avatar,
+[data-theme="dark"] .createInput .placeholder,
+[data-theme="dark"] .createInput .button,
+[data-theme="dark"] .card .avatar,
+[data-theme="dark"] .username,
+[data-theme="dark"] .time,
+[data-theme="dark"] .text,
+[data-theme="dark"] .image,
+[data-theme="dark"] .icon,
+[data-theme="dark"] .count {
+  background: linear-gradient(90deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
+}
+
+/* ==================== MOBILE ==================== */
+
+@media (max-width: 768px) {
+  .createInput {
+    display: none;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .card .avatar {
+    width: 40px;
+    height: 40px;
+  }
 }
