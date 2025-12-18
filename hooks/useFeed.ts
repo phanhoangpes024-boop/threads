@@ -275,3 +275,51 @@ export function useRefreshFeed() {
     })
   }, [queryClient, user.id])
 }
+
+// ==================== FEED WITH TYPE ====================
+
+export function useFeedWithType(feedType: 'for-you' | 'following') {
+  const { user } = useCurrentUser()
+  
+  return useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, string[], FeedCursor | undefined>({
+    queryKey: ['feed', feedType, user.id],
+    
+    queryFn: async ({ pageParam }): Promise<FeedPage> => {
+      const params = new URLSearchParams({
+        user_id: user.id,
+        limit: '20',
+        feed_type: feedType // THÊM param này
+      })
+      
+      if (pageParam) {
+        params.append('cursor_time', pageParam.time)
+        params.append('cursor_id', pageParam.id)
+      }
+      
+      const res = await fetch(`/api/feed?${params}`, { 
+        cache: 'no-store' 
+      })
+      
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ message: 'Failed to fetch feed' }))
+        throw new Error(error.message)
+      }
+      
+      return res.json()
+    },
+    
+    initialPageParam: undefined,
+    
+    getNextPageParam: (lastPage): FeedCursor | undefined => {
+      return lastPage.hasMore && lastPage.nextCursor 
+        ? lastPage.nextCursor 
+        : undefined
+    },
+    
+    enabled: !!user.id,
+    staleTime: 1000 * 60,
+    gcTime: 1000 * 60 * 10,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
+}

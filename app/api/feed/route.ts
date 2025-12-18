@@ -1,4 +1,4 @@
-// app/api/feed/route.ts - FIXED COMPLETE VERSION
+// app/api/feed/route.ts - FIXED WITH FEED TYPE SUPPORT
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -21,7 +21,7 @@ interface FeedThread {
   reposts_count: number
   username: string
   avatar_text: string
-  avatar_bg: string // ← ĐÃ CÓ
+  avatar_bg: string
   verified: boolean
   is_liked: boolean
   medias: FeedMedia[]
@@ -40,6 +40,9 @@ export async function GET(request: Request) {
   const cursorTime = searchParams.get('cursor_time')
   const cursorId = searchParams.get('cursor_id')
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
+  
+  // ✅ THÊM: Parse feed_type param
+  const feedType = searchParams.get('feed_type') || 'for-you'
 
   if (!userId) {
     return NextResponse.json(
@@ -49,7 +52,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { data, error } = await supabase.rpc('get_feed_optimized', {
+    // ✅ THAY ĐỔI: Chọn RPC function dựa vào feed_type
+    const rpcFunction = feedType === 'following' 
+      ? 'get_following_feed' 
+      : 'get_feed_optimized'
+
+    const { data, error } = await supabase.rpc(rpcFunction, {
       p_user_id: userId,
       p_cursor_time: cursorTime || null,
       p_cursor_id: cursorId || null,
@@ -57,14 +65,14 @@ export async function GET(request: Request) {
     })
 
     if (error) {
-      console.error('Feed RPC error:', error)
+      console.error(`[${feedType.toUpperCase()} FEED] RPC error:`, error)
       return NextResponse.json(
         { error: error.message }, 
         { status: 500 }
       )
     }
 
-    // ✅ Map data với avatar_bg
+    // Map data với avatar_bg
     const threads: FeedThread[] = (data || []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
@@ -77,7 +85,7 @@ export async function GET(request: Request) {
       
       username: t.username,
       avatar_text: t.avatar_text,
-      avatar_bg: t.avatar_bg || '#0077B6', // ← THÊM với fallback
+      avatar_bg: t.avatar_bg || '#0077B6',
       verified: t.verified ?? false,
       is_liked: t.is_liked ?? false,
       
@@ -113,7 +121,7 @@ export async function GET(request: Request) {
     })
 
   } catch (error) {
-    console.error('Unexpected feed error:', error)
+    console.error(`[${feedType.toUpperCase()} FEED] Unexpected error:`, error)
     return NextResponse.json(
       { error: 'Internal server error' }, 
       { status: 500 }

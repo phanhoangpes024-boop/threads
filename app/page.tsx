@@ -1,8 +1,9 @@
-// app/page.tsx - OPTIMIZED WITH VIRTUALIZATION + CUSTOM SCROLLBAR + FEED TYPE
+// app/page.tsx - OPTIMIZED WITH VIRTUALIZATION + CUSTOM SCROLLBAR + URL-BASED FEED TYPE
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import dynamic from 'next/dynamic'
 import CustomScrollbar from '@/components/CustomScrollbar'
@@ -23,8 +24,8 @@ const CreateThreadModal = dynamic(
 
 export default function Home() {
   const queryClient = useQueryClient()
-  // ✅ THÊM: Feed Type State
-  const [feedType, setFeedType] = useState<FeedType>('for-you')
+  const searchParams = useSearchParams()
+  const feedType = (searchParams.get('feed') || 'for-you') as FeedType
   
   // ✅ THÊM: Key để force remount virtualizer
   const [virtualizerKey, setVirtualizerKey] = useState(0)
@@ -62,27 +63,12 @@ export default function Home() {
     measureElement: (el) => el?.getBoundingClientRect().height ?? 400,
   })
   
-  // ✅ THÊM: Listen event từ Header (chuyển tab)
+  // Reset scroll khi đổi feed type
   useEffect(() => {
-    const handleHeaderFeedTypeChange = (e: any) => {
-      if (e.detail && e.detail !== feedType) {
-        setFeedType(e.detail)
-        // Reset scroll khi đổi tab
-        hasRestoredScroll.current = false
-        if (parentRef.current) {
-          parentRef.current.scrollTop = 0
-        }
-      }
+    hasRestoredScroll.current = false
+    if (parentRef.current) {
+      parentRef.current.scrollTop = 0
     }
-    
-    window.addEventListener('headerFeedTypeChange', handleHeaderFeedTypeChange)
-    return () => window.removeEventListener('headerFeedTypeChange', handleHeaderFeedTypeChange)
-  }, [feedType])
-  
-  // ✅ THÊM: Dispatch event lên Layout khi feedType thay đổi
-  useEffect(() => {
-    const event = new CustomEvent('feedTypeChange', { detail: feedType })
-    window.dispatchEvent(event)
   }, [feedType])
   
   // ✅ SCROLL RESTORATION

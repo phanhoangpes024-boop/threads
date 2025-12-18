@@ -1,6 +1,7 @@
 // components/ImageGallery/index.tsx - WITH ELASTIC BOUNCE
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import type { FeedMedia } from '@/hooks/useFeed'
+import { preloadImage } from '@/lib/imageTransform'
 import styles from './ImageGallery.module.css'
 
 interface ImageGalleryProps {
@@ -22,17 +23,19 @@ export default function ImageGallery({
 }: ImageGalleryProps) {
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set())
   const [isInViewport, setIsInViewport] = useState(false)
+  const [loadingQueue, setLoadingQueue] = useState<number>(0)
   
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   
-  // âœ… ELASTIC BOUNCE STATE
+  // ✅ ELASTIC BOUNCE STATE
   const isDragging = useRef(false)
   const startX = useRef(0)
   const scrollLeft = useRef(0)
   const hasMoved = useRef(false)
   const currentX = useRef(0)
 
+  // Progressive load images khi vào viewport
   useEffect(() => {
     if (!containerRef.current) return
     
@@ -53,7 +56,41 @@ export default function ImageGallery({
     return () => observer.disconnect()
   }, [])
 
-  // âœ… MOUSE HANDLERS
+  // Load ảnh tuần tự khi vào viewport
+  useEffect(() => {
+    if (!isInViewport || images.length === 0) return
+    
+    let cancelled = false
+    
+    const loadNextImage = async () => {
+      for (let i = 0; i < images.length; i++) {
+        if (cancelled || loadedImages.has(i)) continue
+        
+        setLoadingQueue(i)
+        
+        try {
+          await preloadImage(images[i])
+          if (!cancelled) {
+            setLoadedImages(prev => new Set(prev).add(i))
+          }
+          // Delay 100ms giữa các ảnh
+          await new Promise(resolve => setTimeout(resolve, 100))
+        } catch (error) {
+          console.error('Failed to load image:', images[i])
+          if (!cancelled) {
+            setLoadedImages(prev => new Set(prev).add(i)) // Mark as loaded để skip
+          }
+        }
+      }
+      setLoadingQueue(-1)
+    }
+    
+    loadNextImage()
+    
+    return () => { cancelled = true }
+  }, [isInViewport, images, loadedImages])
+
+  // ✅ MOUSE HANDLERS
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollRef.current) return
     isDragging.current = true
@@ -77,21 +114,21 @@ export default function ImageGallery({
     
     if (Math.abs(deltaX) > 5) hasMoved.current = true
     
-    // âœ… ELASTIC RESISTANCE
+    // ✅ ELASTIC RESISTANCE
     if (newScroll < 0) {
-      // KÃ©o trÃ¡i quÃ¡
+      // Kéo trái quá
       const overscroll = Math.abs(newScroll)
       const damped = overscroll * RESISTANCE
       scrollRef.current.scrollLeft = 0
       scrollRef.current.style.transform = `translateX(${Math.min(damped, 210)}px)`
     } else if (newScroll > maxScroll) {
-      // KÃ©o pháº£i quÃ¡
+      // Kéo phải quá
       const overscroll = newScroll - maxScroll
       const damped = overscroll * RESISTANCE
       scrollRef.current.scrollLeft = maxScroll
       scrollRef.current.style.transform = `translateX(-${Math.min(damped, 210)}px)`
     } else {
-      // Trong giá»›i háº¡n bÃ¬nh thÆ°á»ng
+      // Trong giới hạn bình thường
       scrollRef.current.scrollLeft = newScroll
       scrollRef.current.style.transform = 'translateX(0)'
     }
@@ -103,7 +140,7 @@ export default function ImageGallery({
     isDragging.current = false
     scrollRef.current.classList.remove(styles.isDragging)
     
-    // âœ… BOUNCE BACK
+    // ✅ BOUNCE BACK
     scrollRef.current.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
     scrollRef.current.style.transform = 'translateX(0)'
     
@@ -120,7 +157,7 @@ export default function ImageGallery({
     }
   }, [handleMouseUp])
 
-  // âœ… TOUCH HANDLERS
+  // ✅ TOUCH HANDLERS
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!scrollRef.current) return
     const touch = e.touches[0]
@@ -211,7 +248,7 @@ export default function ImageGallery({
           
           {mode === 'edit' && onDelete && (
             <button className={styles.deleteBtn} onClick={(e) => handleDelete(e, 0)}>
-              Ã—
+              ×
             </button>
           )}
         </div>
@@ -250,7 +287,7 @@ export default function ImageGallery({
                 
                 {mode === 'edit' && onDelete && (
                   <button className={styles.deleteBtn} onClick={(e) => handleDelete(e, index)}>
-                    Ã—
+                    ×
                   </button>
                 )}
               </div>
@@ -261,7 +298,7 @@ export default function ImageGallery({
     )
   }
 
-  // CASE 3+: Film Strip vá»›i ELASTIC BOUNCE
+  // CASE 3+: Film Strip với ELASTIC BOUNCE
   return (
     <div 
       ref={containerRef}
@@ -309,7 +346,7 @@ export default function ImageGallery({
               
               {mode === 'edit' && onDelete && (
                 <button className={styles.deleteBtn} onClick={(e) => handleDelete(e, index)}>
-                  Ã—
+                  ×
                 </button>
               )}
             </div>

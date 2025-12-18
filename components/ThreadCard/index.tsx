@@ -1,7 +1,7 @@
 // components/ThreadCard/index.tsx - KING VERSION (NO BUGS)
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
@@ -10,7 +10,7 @@ import styles from './ThreadCard.module.css'
 
 interface ThreadCardProps {
   id: string
-  avatarBg?: string // ← THÊM
+  avatarBg?: string
   username: string
   timestamp: string
   content: string
@@ -83,8 +83,8 @@ function ThreadCard({
     router.push(`/profile/${username}`)
   }, [username, router])
 
-  const formatTimestamp = useCallback((ts: string) => {
-    const date = new Date(ts)
+  const formattedTime = useMemo(() => {
+    const date = new Date(timestamp)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
@@ -94,7 +94,7 @@ function ThreadCard({
     if (diffHours < 48) return 'Hôm qua'
     
     return date.toLocaleDateString('vi-VN')
-  }, [])
+  }, [timestamp])
 
   const imageUrls = React.useMemo(() => {
     if (!Array.isArray(medias) || medias.length === 0) return []
@@ -119,13 +119,13 @@ function ThreadCard({
     >
       <div className={styles.threadContainer}>
         <div className={styles.threadAvatar}>
-  <div 
-    className={styles.avatar}
-    style={{ background: avatarBg || '#0077B6' }} // ← Dùng màu động
-  >
-    {avatarText}
-  </div>
-</div>
+          <div 
+            className={styles.avatar}
+            style={{ background: avatarBg || '#0077B6' }}
+          >
+            {avatarText}
+          </div>
+        </div>
 
         <div className={styles.threadContent}>
           <header className={styles.threadHeader}>
@@ -141,7 +141,7 @@ function ThreadCard({
                   </svg>
                 </div>
               )}
-              <span className={styles.timestamp}>{formatTimestamp(timestamp)}</span>
+              <span className={styles.timestamp}>{formattedTime}</span>
             </div>
             <div className={styles.menuButton}>
               <svg viewBox="0 0 24 24">

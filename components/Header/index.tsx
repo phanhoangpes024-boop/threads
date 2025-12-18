@@ -1,23 +1,21 @@
-// components/Header/index.tsx - UPDATED WITH FEED TYPE
+// components/Header/index.tsx - UPDATED WITH URL-BASED FEED TYPE
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import MenuPopup from '@/components/MenuPopup';
 import styles from './Header.module.css';
 
 export type FeedType = 'for-you' | 'following'
 
-interface HeaderProps {
-  feedType?: FeedType
-  onFeedTypeChange?: (type: FeedType) => void
-}
-
-export default function Header({ feedType = 'for-you', onFeedTypeChange }: HeaderProps) {
+export default function Header() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const feedType = (searchParams.get('feed') || 'for-you') as FeedType
+  
   const [activeTab, setActiveTab] = useState<FeedType>(feedType);
   const [showMenu, setShowMenu] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   
   const [canGoBack, setCanGoBack] = useState(false);
 
@@ -40,7 +38,7 @@ export default function Header({ feedType = 'for-you', onFeedTypeChange }: Heade
 
   const handleFeedTypeChange = (type: FeedType) => {
     setActiveTab(type);
-    onFeedTypeChange?.(type);
+    router.push(`/?feed=${type}`);
   };
 
   const showBackButton = !isHomePage && canGoBack;
@@ -123,7 +121,7 @@ export default function Header({ feedType = 'for-you', onFeedTypeChange }: Heade
           )}
         </div>
         
-        {/* Mobile Tabs - CHỈ HIỆN Ở HOMEPAGE */}
+        {/* Mobile Tabs - CHỈ HIỆN ở HOMEPAGE */}
         {isHomePage && !showBackButton && (
           <nav className={styles.mobileTabs}>
             <button
