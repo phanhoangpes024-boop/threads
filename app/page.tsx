@@ -1,6 +1,8 @@
 // app/page.tsx - OPTIMIZED WITH VIRTUALIZATION + CUSTOM SCROLLBAR + URL-BASED FEED TYPE
 'use client'
 
+import CreateThreadInputSkeleton from '@/components/Skeletons/CreateThreadInputSkeleton'
+import ThreadCardSkeleton from '@/components/Skeletons/ThreadCardSkeleton'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -191,35 +193,21 @@ export default function Home() {
     registerServiceWorker()
   }, [])
 
-  if (isLoading || userLoading) {
-    return (
-      <CustomScrollbar className={styles.mainContainer}>
-        <div style={{ padding: '20px' }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} style={{ 
-              padding: '20px', 
-              borderBottom: '1px solid #f0f0f0',
-              animation: 'pulse 1.5s ease-in-out infinite'
-            }}>
-              <div style={{ 
-                width: '100px', 
-                height: '16px', 
-                background: '#e0e0e0', 
-                borderRadius: '4px',
-                marginBottom: '12px'
-              }} />
-              <div style={{ 
-                width: '100%', 
-                height: '60px', 
-                background: '#e0e0e0', 
-                borderRadius: '4px'
-              }} />
-            </div>
-          ))}
-        </div>
-      </CustomScrollbar>
-    )
-  }
+// ✅ MỚI - ĐƠN GIẢN VÀ SẠCH
+if (isLoading || userLoading) {
+  return (
+    <CustomScrollbar className={styles.mainContainer}>
+      <div>
+        <CreateThreadInputSkeleton />
+        <ThreadCardSkeleton />
+        <ThreadCardSkeleton hasImage />
+        <ThreadCardSkeleton />
+        <ThreadCardSkeleton hasImage />
+        <ThreadCardSkeleton />
+      </div>
+    </CustomScrollbar>
+  )
+}
 
   const virtualItems = virtualizer.getVirtualItems()
 
