@@ -24,7 +24,6 @@
 }
 
 .createInput .avatar {
-  /* ✅ THAY CHỈ .avatar */
   background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
@@ -156,6 +155,144 @@
   height: 14px;
 }
 
+/* ==================== PROFILE HEADER ==================== */
+
+.profileHeader {
+  padding: 24px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.profileHeaderContent {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-direction: row-reverse; /* Avatar bên phải */
+  align-items: flex-start;
+}
+
+.profileAvatarWrapper {
+  flex-shrink: 0;
+}
+
+.profileAvatar {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+}
+
+.profileInfoSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.profileNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.profileName {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 180px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.profileUsername {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 120px;
+  height: 18px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+}
+
+.profileBio {
+  margin-bottom: 16px;
+}
+
+.profileBioLine {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 100%;
+  height: 16px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+}
+
+.profileStatsRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.profileStat {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 120px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.profileSocialIcons {
+  display: flex;
+  gap: 12px;
+}
+
+.profileIconButton {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.profileEditButton {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  width: 100%;
+  height: 44px;
+  border-radius: 12px;
+}
+
+/* ==================== PROFILE TABS ==================== */
+
+.profileTabs {
+  display: flex;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 20px;
+  gap: 0;
+}
+
+.profileTab {
+  background: linear-gradient(90deg, #f0f0f0 0%, #e0e0e0 50%, #f0f0f0 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  
+  flex: 1;
+  height: 48px;
+  border-radius: 4px;
+  margin: 8px 4px;
+}
+
 /* ==================== DARK MODE ==================== */
 
 [data-theme="dark"] .skeleton {
@@ -175,6 +312,18 @@
   background: linear-gradient(90deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
 }
 
+[data-theme="dark"] .profileAvatar,
+[data-theme="dark"] .profileName,
+[data-theme="dark"] .profileUsername,
+[data-theme="dark"] .profileBioLine,
+[data-theme="dark"] .profileStat,
+[data-theme="dark"] .profileIconButton,
+[data-theme="dark"] .profileEditButton,
+[data-theme="dark"] .profileTab {
+  background: linear-gradient(90deg, #2a2a2a 0%, #1a1a1a 50%, #2a2a2a 100%);
+  background-size: 200% 100%;
+}
+
 /* ==================== MOBILE ==================== */
 
 @media (max-width: 768px) {
@@ -189,5 +338,41 @@
   .card .avatar {
     width: 40px;
     height: 40px;
+  }
+
+  .profileHeader {
+    padding: 20px 16px;
+  }
+
+  .profileHeaderContent {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profileAvatar {
+    width: 70px;
+    height: 70px;
+  }
+
+  .profileNameRow {
+    justify-content: center;
+  }
+
+  .profileStatsRow {
+    justify-content: center;
+  }
+
+  .profileSocialIcons {
+    justify-content: center;
+  }
+
+  .profileTabs {
+    padding: 0 16px;
+  }
+
+  .profileTab {
+    height: 44px;
+    margin: 6px 2px;
   }
 }

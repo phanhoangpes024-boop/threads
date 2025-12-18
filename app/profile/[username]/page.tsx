@@ -1,10 +1,15 @@
-// app/profile/[username]/page.tsx
+// app/profile/[username]/page.tsx - UPDATED WITH SKELETON
 'use client'
 
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
+import CustomScrollbar from '@/components/CustomScrollbar'
 import ProfileClient from '@/components/ProfileClient'
+import ProfileHeaderSkeleton from '@/components/Skeletons/ProfileHeaderSkeleton'
+import ProfileTabsSkeleton from '@/components/Skeletons/ProfileTabsSkeleton'
+import ThreadCardSkeleton from '@/components/Skeletons/ThreadCardSkeleton'
 import type { ProfileData } from '@/lib/data'
+import styles from '@/components/ProfileClient/ProfileClient.module.css'
 
 export default function ProfilePage() {
   const params = useParams()
@@ -20,19 +25,23 @@ export default function ProfilePage() {
     staleTime: 1000 * 60,
   })
 
-  if (isLoading) {
-    return (
-      <div style={{ 
-        maxWidth: '600px', 
-        margin: '80px auto', 
-        padding: '40px 20px', 
-        textAlign: 'center', 
-        color: '#999' 
-      }}>
-        Đang tải...
+if (isLoading) {
+  return (
+    <CustomScrollbar className={styles.container}>
+      <div>
+        <ProfileHeaderSkeleton />        
+        <ProfileTabsSkeleton />         
+        <div className={styles.threadsSection}>
+          <ThreadCardSkeleton />        
+          <ThreadCardSkeleton hasImage /> 
+          <ThreadCardSkeleton />         
+          <ThreadCardSkeleton hasImage /> 
+          <ThreadCardSkeleton />        
+        </div>
       </div>
-    )
-  }
+    </CustomScrollbar>
+  )
+}
 
   if (isError || !profile) {
     return (
