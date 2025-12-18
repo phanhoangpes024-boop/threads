@@ -9,10 +9,22 @@ export async function GET(
   const { username } = await context.params
 
   try {
-    // ✅ CHỈ 1 QUERY - Dùng fields có sẵn trong table users
+    // ✅ CHỈ 1 QUERY - Dùng fields có sẵn trong table users (KHÔNG COUNT LẠI)
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, avatar_text, avatar_bg, verified, bio, created_at, followers_count, following_count, threads_count')
+      .select(`
+        id, 
+        username, 
+        email, 
+        avatar_text, 
+        avatar_bg, 
+        verified, 
+        bio, 
+        created_at, 
+        followers_count, 
+        following_count, 
+        threads_count
+      `)
       .eq('username', username)
       .single()
 
@@ -20,7 +32,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // ✅ Trả luôn, không cần count thêm
+    // ✅ Trả về ngay, KHÔNG count lại
     return NextResponse.json(user)
   } catch (error) {
     console.error('Error fetching user:', error)
