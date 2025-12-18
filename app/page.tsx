@@ -27,10 +27,10 @@ export default function Home() {
   const searchParams = useSearchParams()
   const feedType = (searchParams.get('feed') || 'for-you') as FeedType
   
-  // ✅ THÊM: Key để force remount virtualizer
+  // ✅ Key để force remount virtualizer
   const [virtualizerKey, setVirtualizerKey] = useState(0)
   
-  // ✅ THAY ĐỔI: Dùng useFeedWithType thay vì useFeed
+  // ✅ Dùng useFeedWithType
   const { 
     data, 
     isLoading, 
@@ -146,7 +146,7 @@ export default function Home() {
     setActiveCommentThreadId(threadId)
   }, [])
   
-  // ✅ SỬA: handlePostThread với force remount virtualizer
+  // ✅ FIXED: handlePostThread - CHỈ scroll về đầu, KHÔNG invalidate
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
     await createMutation.mutateAsync({ 
       content,
@@ -154,26 +154,17 @@ export default function Home() {
     })
     setShowModal(false)
     
-    // 1. Clear scroll cache TRƯỚC
+    // ✅ CHỈ scroll về đầu, cache đã được update trong onSuccess của useCreateThread
     hasRestoredScroll.current = false
-    
-    // 2. Invalidate feed
-    await queryClient.invalidateQueries({ 
-      queryKey: ['feed', feedType, user.id],
-      refetchType: 'active'
-    })
-    
-    // 3. Force remount virtualizer bằng key mới
     setVirtualizerKey(prev => prev + 1)
     
-    // 4. Scroll về đầu SAU khi remount xong
     setTimeout(() => {
       if (parentRef.current) {
         parentRef.current.scrollTop = 0
       }
     }, 150)
     
-  }, [createMutation, queryClient, feedType, user.id])
+  }, [createMutation])
   
   const handleOpenModal = useCallback(() => {
     setShowModal(true)
@@ -234,17 +225,19 @@ export default function Home() {
 
   return (
     <>
-      {/* ✅ CustomScrollbar bọc TẤT CẢ: CreateThreadInput + Feed */}
+      {/* ✅ CustomScrollbar bọc TẤT CẢ */}
       <CustomScrollbar className={styles.mainContainer}>
-        {/* ✅ THÊM key vào container của virtualizer */}
+        {/* ✅ Key để force remount virtualizer */}
         <div ref={parentRef} key={`virtualizer-${virtualizerKey}`}>
-          {/* ✅ CreateThreadInput ở đầu, TRONG scroll container */}
+          {/* ✅ CreateThreadInput ở đầu */}
           <div onClick={handleOpenModal}>
-            <CreateThreadInput avatarText={user.avatar_text}  avatarBg={user.avatar_bg || '#0077B6'}
- />
+            <CreateThreadInput 
+              avatarText={user.avatar_text}  
+              avatarBg={user.avatar_bg || '#0077B6'}
+            />
           </div>
           
-          {/* ✅ THÊM: Empty state cho Following feed */}
+          {/* ✅ Empty state cho Following feed */}
           {feedType === 'following' && allThreads.length === 0 && !isLoading && (
             <div style={{
               padding: '40px 20px',
@@ -321,7 +314,7 @@ export default function Home() {
                     onCommentClick={handleCommentClick}
                   />
                   
-                  {/* ✅ ĐƯA LẠI CommentInput vào trong ThreadCard */}
+                  {/* ✅ CommentInput trong ThreadCard */}
                   {activeCommentThreadId === thread.id && (
                     <CommentInput
                       threadId={thread.id}
@@ -343,8 +336,7 @@ export default function Home() {
           onSubmit={handlePostThread}
           username={user.username}
           avatarText={user.avatar_text}
-            avatarBg={user.avatar_bg || '#0077B6'}  // ← THÊM
-
+          avatarBg={user.avatar_bg || '#0077B6'}
         />
       )}
     </>

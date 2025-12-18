@@ -237,21 +237,55 @@ export function useCreateThread() {
     },
     
     onSuccess: (newThread) => {
-      console.log('[CREATE] Invalidating caches...')
+      console.log('[CREATE] Updating cache for current user only...')
       
-      // Invalidate tất cả feed types
-      queryClient.invalidateQueries({ 
-        queryKey: ['feed', 'for-you', user.id] 
-      })
+      // ✅ CHỈ UPDATE CACHE, KHÔNG INVALIDATE (không trigger refetch)
       
-      queryClient.invalidateQueries({ 
-        queryKey: ['feed', 'following', user.id] 
-      })
+      // 1. Update For-You feed cache
+      queryClient.setQueryData<InfiniteData<FeedPage>>(
+        ['feed', 'for-you', user.id], 
+        (old) => {
+          if (!old) return old
+          
+          const firstPage = old.pages[0]
+          return {
+            ...old,
+            pages: [
+              {
+                ...firstPage,
+                threads: [newThread, ...firstPage.threads]
+              },
+              ...old.pages.slice(1)
+            ]
+          }
+        }
+      )
       
-      // Invalidate profile
-      queryClient.invalidateQueries({ 
-        queryKey: ['profile-threads', user.id]
-      })
+      // 2. Update Following feed cache (nếu có)
+      queryClient.setQueryData<InfiniteData<FeedPage>>(
+        ['feed', 'following', user.id],
+        (old) => {
+          if (!old) return old
+          
+          const firstPage = old.pages[0]
+          return {
+            ...old,
+            pages: [
+              {
+                ...firstPage,
+                threads: [newThread, ...firstPage.threads]
+              },
+              ...old.pages.slice(1)
+            ]
+          }
+        }
+      )
+      
+      // 3. Update profile threads cache
+      queryClient.setQueryData<FeedThread[]>(
+        ['profile-threads', user.id],
+        (old) => old ? [newThread, ...old] : [newThread]
+      )
     },
 
     onError: (err) => {
@@ -288,7 +322,7 @@ export function useFeedWithType(feedType: 'for-you' | 'following') {
       const params = new URLSearchParams({
         user_id: user.id,
         limit: '20',
-        feed_type: feedType // THÊM param này
+        feed_type: feedType
       })
       
       if (pageParam) {
