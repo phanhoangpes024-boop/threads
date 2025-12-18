@@ -8,6 +8,8 @@ import SearchBar from '@/components/SearchBar';
 import UserCard from '@/components/UserCard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './Search.module.css';
+import UserCardSkeleton from '@/components/Skeletons/UserCardSkeleton'
+
 
 interface User {
   id: string;
@@ -109,7 +111,16 @@ export default function SearchPage() {
       </div>
 
       {isSearching ? (
-        <div className={styles.loading}>Đang tìm kiếm...</div>
+  <div className={styles.resultsSection}>
+    <h2 className={styles.sectionTitle}>Đang tìm kiếm...</h2>
+    <div className={styles.userList}>
+      <UserCardSkeleton />
+      <UserCardSkeleton />
+      <UserCardSkeleton />
+      <UserCardSkeleton />
+      <UserCardSkeleton />
+    </div>
+  </div>
       ) : matchingUsers.length > 0 ? (
         <div className={styles.resultsSection}>
           <h2 className={styles.sectionTitle}>Kết quả tìm kiếm</h2>

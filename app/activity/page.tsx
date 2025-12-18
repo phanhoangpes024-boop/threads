@@ -10,6 +10,7 @@ import { useFollowUser } from '@/hooks/useFollowUser'
 import { useIsFollowing } from '@/hooks/useIsFollowing'
 import type { Notification } from '@/hooks/useNotifications'
 import styles from './Activity.module.css'
+import NotificationSkeleton from '@/components/Skeletons/NotificationSkeleton'
 
 function getRelativeTime(dateString: string): string {
   const now = new Date()
@@ -167,14 +168,17 @@ export default function ActivityPage() {
     )
   }
 
-  if (notifications.length === 0) {
+  if (isLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.empty}>
-          <Heart size={48} stroke="#999" fill="none" />
-          <p>Chưa có thông báo nào</p>
+      <CustomScrollbar className={styles.container}>
+        <div className={styles.notificationsList}>
+          <NotificationSkeleton />
+          <NotificationSkeleton />
+          <NotificationSkeleton />
+          <NotificationSkeleton />
+          <NotificationSkeleton />
         </div>
-      </div>
+      </CustomScrollbar>
     )
   }
 

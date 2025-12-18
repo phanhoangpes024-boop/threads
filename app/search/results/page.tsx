@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import CustomScrollbar from '@/components/CustomScrollbar';
 import SearchResults from '@/components/SearchResults';
+import ThreadCardSkeleton from '@/components/Skeletons/ThreadCardSkeleton';
+import UserCardSkeleton from '@/components/Skeletons/UserCardSkeleton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './SearchResults.module.css';
 
@@ -17,7 +19,6 @@ export default function SearchResultsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['search-v2', query, user.id],
     queryFn: async () => {
-      // ✅ Đổi từ 2 → 1
       if (!query.trim() || query.trim().length < 1) {
         return { threads: [], users: [] };
       }
@@ -29,7 +30,7 @@ export default function SearchResultsPage() {
       if (!res.ok) throw new Error('Search failed');
       return res.json();
     },
-    enabled: query.trim().length >= 1,  // ✅ Đổi từ 2 → 1
+    enabled: query.trim().length >= 1,
     staleTime: 30000,
   });
 
@@ -41,7 +42,6 @@ export default function SearchResultsPage() {
     );
   }, [threads]);
 
-  // ✅ Đổi từ 2 → 1
   if (query.trim().length < 1) {
     return (
       <CustomScrollbar className={styles.container}>
@@ -55,7 +55,20 @@ export default function SearchResultsPage() {
   return (
     <CustomScrollbar className={styles.container}>
       {isLoading ? (
-        <div className={styles.loading}>Đang tìm kiếm...</div>
+        <div>
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Bài viết</h2>
+            <ThreadCardSkeleton />
+            <ThreadCardSkeleton hasImage />
+            <ThreadCardSkeleton />
+          </div>
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Tài khoản</h2>
+            <UserCardSkeleton />
+            <UserCardSkeleton />
+            <UserCardSkeleton />
+          </div>
+        </div>
       ) : (
         <SearchResults
           recentThreads={recentThreads}
