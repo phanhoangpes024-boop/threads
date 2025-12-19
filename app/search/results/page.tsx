@@ -1,7 +1,7 @@
 // app/search/results/page.tsx
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import CustomScrollbar from '@/components/CustomScrollbar';
@@ -11,10 +11,13 @@ import UserCardSkeleton from '@/components/Skeletons/UserCardSkeleton';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './SearchResults.module.css';
 
+type TabType = 'posts' | 'profiles';
+
 export default function SearchResultsPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
   const { user } = useCurrentUser();
+  const [activeTab, setActiveTab] = useState<TabType>('posts');
 
   const { data, isLoading } = useQuery({
     queryKey: ['search-v2', query, user.id],
@@ -54,25 +57,45 @@ export default function SearchResultsPage() {
 
   return (
     <CustomScrollbar className={styles.container}>
+      {/* ✅ TABS LUÔN HIỂN THỊ */}
+      <div className={styles.tabs}>
+        <button
+          className={`${styles.tab} ${activeTab === 'posts' ? styles.active : ''}`}
+          onClick={() => setActiveTab('posts')}
+        >
+          Bài viết
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'profiles' ? styles.active : ''}`}
+          onClick={() => setActiveTab('profiles')}
+        >
+          Trang cá nhân
+        </button>
+      </div>
+
+      {/* ✅ CONTENT DỰA VÀO LOADING STATE */}
       {isLoading ? (
         <div>
-          <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Bài viết</h2>
-            <ThreadCardSkeleton />
-            <ThreadCardSkeleton hasImage />
-            <ThreadCardSkeleton />
-          </div>
-          <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Tài khoản</h2>
-            <UserCardSkeleton />
-            <UserCardSkeleton />
-            <UserCardSkeleton />
-          </div>
+          {activeTab === 'posts' ? (
+            <div>
+              <ThreadCardSkeleton />
+              <ThreadCardSkeleton hasImage />
+              <ThreadCardSkeleton />
+            </div>
+          ) : (
+            <div>
+              <UserCardSkeleton />
+              <UserCardSkeleton />
+              <UserCardSkeleton />
+            </div>
+          )}
         </div>
       ) : (
         <SearchResults
           recentThreads={recentThreads}
           profileUsers={users}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
         />
       )}
     </CustomScrollbar>

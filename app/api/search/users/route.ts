@@ -5,25 +5,33 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const query = searchParams.get('q')
+  const currentUserId = searchParams.get('current_user_id')
   
-  // 1 ký tự cũng tìm được (cho instant search)
-  if (!query || query.trim().length < 1) {
+  // Validate query: phải có và không phải toàn space
+  const trimmedQuery = query?.trim()
+  if (!trimmedQuery || trimmedQuery.length < 1) {
     return NextResponse.json([])
   }
 
   try {
-    // Gọi hàm RPC thông minh (Chỉ tốn 1 request)
     const { data, error } = await supabase.rpc('search_users_smart', {
-      keyword: query.trim(),
+      keyword: trimmedQuery,
+      p_current_user_id: currentUserId || null,
       limit_count: 20
     })
 
-    if (error) throw error
+    if (error) {
+      console.error('[SEARCH USERS ERROR]', error)
+      throw error
+    }
 
-    return NextResponse.json(data)
+    return NextResponse.json(data || [])
     
   } catch (error: any) {
-    console.error('[SEARCH USERS ERROR]', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('[SEARCH USERS EXCEPTION]', error)
+    return NextResponse.json(
+      { error: error.message || 'Search failed' }, 
+      { status: 500 }
+    )
   }
 }

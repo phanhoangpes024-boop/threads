@@ -1,7 +1,7 @@
 // components/SearchBar/index.tsx
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import styles from './SearchBar.module.css';
 
 interface SearchBarProps {
@@ -10,7 +10,7 @@ interface SearchBarProps {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
-export default function SearchBar({ value, onChange, onKeyDown }: SearchBarProps) {
+function SearchBar({ value, onChange, onKeyDown }: SearchBarProps) {
   return (
     <div className={styles.searchBar}>
       <div className={styles.searchInputWrapper}>
@@ -25,6 +25,7 @@ export default function SearchBar({ value, onChange, onKeyDown }: SearchBarProps
           onKeyDown={onKeyDown}
           placeholder="Tìm kiếm"
           className={styles.searchInput}
+          autoComplete="off"
         />
         <svg className={styles.filterIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <line x1="4" y1="6" x2="20" y2="6" />
@@ -35,3 +36,5 @@ export default function SearchBar({ value, onChange, onKeyDown }: SearchBarProps
     </div>
   );
 }
+
+export default memo(SearchBar);

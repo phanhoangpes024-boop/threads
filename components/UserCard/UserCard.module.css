@@ -3,29 +3,29 @@
 .userCard {
   display: flex;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 16px;
   gap: 12px;
-  cursor: pointer;
-  transition: background 0.2s;
   background: #ffffff;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer; /* ✅ THÊM CURSOR */
+  transition: background-color 0.2s;
 }
 
 .userCard:hover {
-  background: #fafafa;
+  background-color: #f8f9fa; /* ✅ THÊM HOVER EFFECT */
 }
 
 .avatar {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   font-weight: 600;
-  font-size: 18px;
+  font-size: 16px;
+  color: #ffffff;
+  flex-shrink: 0;
 }
 
 .userInfo {
@@ -41,50 +41,53 @@
 }
 
 .userBio {
-  font-size: 14px;
-  color: #999999;
+  font-size: 13px;
+  color: #666666;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .followButton {
-  background: #000000;
-  color: #ffffff;
-  border: none;
+  padding: 6px 16px;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  padding: 8px 24px;
+  background: #ffffff;
   font-size: 14px;
   font-weight: 600;
+  color: #000000;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
   flex-shrink: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 .followButton:hover {
-  opacity: 0.8;
+  background-color: #f5f5f5;
+}
+
+.followButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .followButton.following {
-  background: transparent;
-  color: #000000;
-  border: 1px solid #e0e0e0;
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.followButton.following:hover {
+  background: #333333;
 }
 
 @media (max-width: 768px) {
   .userCard {
-    padding: 12px 16px;
+    padding: 10px 12px;
   }
-
+  
   .avatar {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-  }
-
-  .followButton {
-    padding: 6px 16px;
-    font-size: 13px;
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
   }
 }

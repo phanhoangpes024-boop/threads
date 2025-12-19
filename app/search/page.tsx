@@ -1,7 +1,7 @@
 // app/search/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import CustomScrollbar from '@/components/CustomScrollbar';
 import SearchBar from '@/components/SearchBar';
@@ -18,6 +18,7 @@ interface User {
   avatar_bg?: string;
   verified?: boolean;
   followers_count?: number;
+  is_following?: boolean;
 }
 
 export default function SearchPage() {
@@ -28,6 +29,9 @@ export default function SearchPage() {
   const [matchingUsers, setMatchingUsers] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  
+  // AbortController để hủy request cũ
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (user.id) {
@@ -36,6 +40,16 @@ export default function SearchPage() {
   }, [user.id]);
 
   useEffect(() => {
+    // Hủy request cũ nếu có
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // ✅ Clear kết quả cũ ngay khi query thay đổi
+    if (searchQuery.trim().length >= 1) {
+      setMatchingUsers([]);
+    }
+
     const timer = setTimeout(() => {
       if (searchQuery.trim().length >= 1) {
         searchMatchingUsers();
@@ -45,7 +59,12 @@ export default function SearchPage() {
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [searchQuery]);
 
   const fetchSuggestedUsers = async () => {
@@ -67,33 +86,55 @@ export default function SearchPage() {
 
   const searchMatchingUsers = async () => {
     setIsSearching(true);
+    
+    // Tạo AbortController mới cho request này
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
     try {
       const res = await fetch(
-        `/api/search/users?q=${encodeURIComponent(searchQuery)}`
+        `/api/search/users?q=${encodeURIComponent(searchQuery)}&current_user_id=${user.id}`,
+        { signal: controller.signal }
       );
       
       if (!res.ok) throw new Error('Search failed');
       
       const users = await res.json();
-      setMatchingUsers(users);
       
-    } catch (error) {
-      console.error('Error searching users:', error);
-      setMatchingUsers([]);
+      // Chỉ update nếu request này chưa bị hủy
+      if (!controller.signal.aborted) {
+        setMatchingUsers(users);
+      }
+      
+    } catch (error: any) {
+      // Không log AbortError (là bình thường khi user gõ nhanh)
+      if (error.name !== 'AbortError') {
+        console.error('Error searching users:', error);
+      }
+      
+      if (!controller.signal.aborted) {
+        setMatchingUsers([]);
+      }
     } finally {
-      setIsSearching(false);
+      if (!controller.signal.aborted) {
+        setIsSearching(false);
+      }
     }
   };
 
-  const handleUserClick = (username: string) => {
+  const handleUserClick = useCallback((username: string) => {
     router.push(`/profile/${username}`);
-  };
+  }, [router]);
 
-  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearch = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && searchQuery.trim()) {
       router.push(`/search/results?q=${encodeURIComponent(searchQuery.trim())}`);
     }
-  };
+  }, [searchQuery, router]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+  }, []);
 
   if (userLoading) {
     return (
@@ -108,73 +149,66 @@ export default function SearchPage() {
       <div className={styles.searchWrapper}>
         <SearchBar
           value={searchQuery}
-          onChange={setSearchQuery}
+          onChange={handleSearchChange}
           onKeyDown={handleSearch}
         />
       </div>
 
       {isSearching ? (
         <div className={styles.resultsSection}>
-          <h2 className={styles.sectionTitle}>Đang tìm kiếm...</h2>
-          <div className={styles.userList}>
-            <UserCardSkeleton />
-            <UserCardSkeleton />
-            <UserCardSkeleton />
-            <UserCardSkeleton />
-            <UserCardSkeleton />
-          </div>
-        </div>
-      ) : matchingUsers.length > 0 ? (
-        <div className={styles.resultsSection}>
-          <h2 className={styles.sectionTitle}>Kết quả tìm kiếm</h2>
-          <div className={styles.userList}>
-            {matchingUsers.map((user) => (
-              <div key={user.id} onClick={() => handleUserClick(user.username)}>
-                <UserCard
-                  id={user.id}
-                  username={user.username}
-                  bio={user.bio}
-                  avatarText={user.avatar_text}
-                  gradient={user.avatar_bg || '#0077B6'}
-                />
-              </div>
-            ))}
-          </div>
+          <div className={styles.sectionTitle}>Kết quả tìm kiếm</div>
+          <UserCardSkeleton />
+          <UserCardSkeleton />
+          <UserCardSkeleton />
         </div>
       ) : searchQuery.trim() ? (
-        <div className={styles.empty}>Không tìm thấy kết quả</div>
+        <div className={styles.resultsSection}>
+          <div className={styles.sectionTitle}>Kết quả tìm kiếm</div>
+          {matchingUsers.length === 0 ? (
+            <div className={styles.empty}>Không tìm thấy người dùng</div>
+          ) : (
+            <div className={styles.userList}>
+              {matchingUsers.map((matchedUser) => (
+                <UserCard
+                  key={matchedUser.id}
+                  id={matchedUser.id}
+                  username={matchedUser.username}
+                  bio={matchedUser.bio || ''}
+                  avatarText={matchedUser.avatar_text}
+                  gradient={matchedUser.avatar_bg}
+                  initialFollowing={matchedUser.is_following || false}
+                  onClick={() => handleUserClick(matchedUser.username)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       ) : (
         <div className={styles.suggestionsSection}>
-          <h2 className={styles.sectionTitle}>Gợi ý theo dõi</h2>
-          <div className={styles.userList}>
-            {isLoadingSuggestions ? (
-              <>
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-                <UserCardSkeleton />
-              </>
-            ) : suggestedUsers.length > 0 ? (
-              suggestedUsers.map((user) => (
-                <div key={user.id} onClick={() => handleUserClick(user.username)}>
-                  <UserCard
-                    id={user.id}
-                    username={user.username}
-                    bio={user.bio}
-                    avatarText={user.avatar_text}
-                    gradient={user.avatar_bg || '#0077B6'}
-                    initialFollowing={false}
-                  />
-                </div>
-              ))
-            ) : (
-              <div className={styles.empty}>Không có gợi ý</div>
-            )}
-          </div>
+          <div className={styles.sectionHeader}>Gợi ý theo dõi</div>
+          {isLoadingSuggestions ? (
+            <div className={styles.userList}>
+              <UserCardSkeleton />
+              <UserCardSkeleton />
+              <UserCardSkeleton />
+            </div>
+          ) : suggestedUsers.length === 0 ? (
+            <div className={styles.empty}>Không có gợi ý</div>
+          ) : (
+            <div className={styles.userList}>
+              {suggestedUsers.map((suggestedUser) => (
+                <UserCard
+                  key={suggestedUser.id}
+                  id={suggestedUser.id}
+                  username={suggestedUser.username}
+                  bio={suggestedUser.bio || ''}
+                  avatarText={suggestedUser.avatar_text}
+                  gradient={suggestedUser.avatar_bg}
+                  onClick={() => handleUserClick(suggestedUser.username)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </CustomScrollbar>
