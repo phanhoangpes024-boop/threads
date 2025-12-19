@@ -268,6 +268,24 @@ main {
   background-color: var(--bg-primary) !important;
 }
 
+[data-theme="dark"] div[class*="Search_container"],
+[data-theme="dark"] div[class*="Search_content"],
+[data-theme="dark"] div[class*="Search_state"],
+[data-theme="dark"] div[class*="searchWrapper"] {
+  background-color: var(--bg-primary) !important;
+}
+
+[data-theme="dark"] h2[class*="sectionTitle"] {
+  color: var(--text-primary) !important;
+  background-color: var(--bg-primary) !important;
+}
+
+[data-theme="dark"] div[class*="resultsSection"],
+[data-theme="dark"] div[class*="suggestionsSection"],
+[data-theme="dark"] div[class*="userList"] {
+  background-color: var(--bg-primary) !important;
+}
+
 /* ========== USER CARD ========== */
 
 [data-theme="dark"] div[class*="userCard"] {

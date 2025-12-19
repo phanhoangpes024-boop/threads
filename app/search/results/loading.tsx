@@ -1,8 +1,12 @@
-// app/search/results/loading.tsx
+import UserCardSkeleton from '@/components/Skeletons/UserCardSkeleton'
+
 export default function Loading() {
   return (
-    <div style={{ padding: '40px 20px', textAlign: 'center', color: '#999' }}>
-      Đang tải...
+    <div style={{ padding: '20px' }}>
+      <UserCardSkeleton />
+      <UserCardSkeleton />
+      <UserCardSkeleton />
+      <UserCardSkeleton />
     </div>
-  );
+  )
 }

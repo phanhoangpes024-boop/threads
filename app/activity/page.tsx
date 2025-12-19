@@ -160,13 +160,6 @@ export default function ActivityPage() {
     }
   }, [markViewedMutation])
 
-  if (isLoading) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>Đang tải...</div>
-      </div>
-    )
-  }
 
   if (isLoading) {
     return (

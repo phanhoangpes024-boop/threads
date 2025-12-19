@@ -39,6 +39,30 @@
   }
 }
 
+
+.sectionTitle {
+  padding: 20px 16px 12px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000000;
+}
+
+.searchWrapper {
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 10;
+}
+
+.resultsSection,
+.suggestionsSection {
+  animation: fadeIn 0.3s ease;
+}
+
+.userList {
+  background: #ffffff;
+}
+
 .sectionHeader {
   padding: 20px 16px 12px 16px;
   font-size: 16px;

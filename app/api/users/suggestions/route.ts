@@ -6,23 +6,19 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const currentUserId = searchParams.get('current_user_id')
   
-  // ✅ Validate limit
   const limitParam = searchParams.get('limit')
   const limit = limitParam ? Math.min(parseInt(limitParam), 20) : 8
 
+  if (!currentUserId || currentUserId === 'undefined') {
+    return NextResponse.json([])
+  }
+
   try {
-    let query = supabase
-      .from('users')
-      .select('id, username, bio, avatar_text, avatar_bg,verified, followers_count')
-      .order('followers_count', { ascending: false })
-      .limit(limit)
-
-    // ✅ Loại trừ user hiện tại
-    if (currentUserId && currentUserId !== 'undefined') {
-      query = query.neq('id', currentUserId)
-    }
-
-    const { data: users, error } = await query
+    // ✅ Dùng RPC - 1 query, loại luôn users đã follow
+    const { data: users, error } = await supabase.rpc('get_user_suggestions_not_followed', {
+      p_current_user_id: currentUserId,
+      p_limit: limit
+    })
 
     if (error) throw error
 

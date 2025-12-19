@@ -1,4 +1,4 @@
-// app/search/page.tsx - CẬP NHẬT
+// app/search/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,8 +8,7 @@ import SearchBar from '@/components/SearchBar';
 import UserCard from '@/components/UserCard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import styles from './Search.module.css';
-import UserCardSkeleton from '@/components/Skeletons/UserCardSkeleton'
-
+import UserCardSkeleton from '@/components/Skeletons/UserCardSkeleton';
 
 interface User {
   id: string;
@@ -28,6 +27,7 @@ export default function SearchPage() {
   const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
   const [matchingUsers, setMatchingUsers] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
 
   useEffect(() => {
     if (user.id) {
@@ -49,6 +49,7 @@ export default function SearchPage() {
   }, [searchQuery]);
 
   const fetchSuggestedUsers = async () => {
+    setIsLoadingSuggestions(true);
     try {
       const res = await fetch(
         `/api/users/suggestions?current_user_id=${user.id}&limit=8`
@@ -59,6 +60,8 @@ export default function SearchPage() {
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error);
+    } finally {
+      setIsLoadingSuggestions(false);
     }
   };
 
@@ -111,16 +114,16 @@ export default function SearchPage() {
       </div>
 
       {isSearching ? (
-  <div className={styles.resultsSection}>
-    <h2 className={styles.sectionTitle}>Đang tìm kiếm...</h2>
-    <div className={styles.userList}>
-      <UserCardSkeleton />
-      <UserCardSkeleton />
-      <UserCardSkeleton />
-      <UserCardSkeleton />
-      <UserCardSkeleton />
-    </div>
-  </div>
+        <div className={styles.resultsSection}>
+          <h2 className={styles.sectionTitle}>Đang tìm kiếm...</h2>
+          <div className={styles.userList}>
+            <UserCardSkeleton />
+            <UserCardSkeleton />
+            <UserCardSkeleton />
+            <UserCardSkeleton />
+            <UserCardSkeleton />
+          </div>
+        </div>
       ) : matchingUsers.length > 0 ? (
         <div className={styles.resultsSection}>
           <h2 className={styles.sectionTitle}>Kết quả tìm kiếm</h2>
@@ -144,17 +147,33 @@ export default function SearchPage() {
         <div className={styles.suggestionsSection}>
           <h2 className={styles.sectionTitle}>Gợi ý theo dõi</h2>
           <div className={styles.userList}>
-            {suggestedUsers.map((user) => (
-              <div key={user.id} onClick={() => handleUserClick(user.username)}>
-                <UserCard
-                  id={user.id}
-                  username={user.username}
-                  bio={user.bio}
-                  avatarText={user.avatar_text}
-                  gradient={user.avatar_bg || '#0077B6'}
-                />
-              </div>
-            ))}
+            {isLoadingSuggestions ? (
+              <>
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+                <UserCardSkeleton />
+              </>
+            ) : suggestedUsers.length > 0 ? (
+              suggestedUsers.map((user) => (
+                <div key={user.id} onClick={() => handleUserClick(user.username)}>
+                  <UserCard
+                    id={user.id}
+                    username={user.username}
+                    bio={user.bio}
+                    avatarText={user.avatar_text}
+                    gradient={user.avatar_bg || '#0077B6'}
+                    initialFollowing={false}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className={styles.empty}>Không có gợi ý</div>
+            )}
           </div>
         </div>
       )}
