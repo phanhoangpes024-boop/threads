@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ThreadCard from '@/components/ThreadCard';
 import CommentInput from '@/components/CommentInput';
 import UserGrid from '@/components/UserGrid';
@@ -22,12 +23,26 @@ export default function SearchResults({
   profileUsers,
   activeTab,
 }: SearchResultsProps) {
+  const router = useRouter();
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
   const toggleLikeMutation = useToggleLike();
 
   const handleLike = (threadId: string) => {
     toggleLikeMutation.mutate(threadId);
   };
+
+  // ✅ THÊM HANDLER
+  const handleUserClick = (username: string) => {
+    router.push(`/profile/${username}`);
+  };
+
+  const mappedUsers = profileUsers.map(u => ({
+    id: u.id,
+    username: u.username,
+    bio: u.bio || '',
+    avatarText: u.avatar_text,
+    avatar_bg: u.avatar_bg
+  }));
 
   return (
     <>
@@ -72,7 +87,10 @@ export default function SearchResults({
         profileUsers.length === 0 ? (
           <div className={styles.empty}>Không tìm thấy tài khoản</div>
         ) : (
-          <UserGrid users={profileUsers} />
+          <UserGrid 
+            users={mappedUsers}
+            onUserClick={handleUserClick} // ✅ PASS HANDLER
+          />
         )
       )}
     </>

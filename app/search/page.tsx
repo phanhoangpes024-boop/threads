@@ -30,7 +30,6 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   
-  // AbortController để hủy request cũ
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -40,21 +39,23 @@ export default function SearchPage() {
   }, [user.id]);
 
   useEffect(() => {
-    // Hủy request cũ nếu có
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // ✅ Clear kết quả cũ ngay khi query thay đổi
+    // ✅ BẬT SKELETON NGAY KHI CÓ TEXT
     if (searchQuery.trim().length >= 1) {
       setMatchingUsers([]);
+      setIsSearching(true); // ← BẬT NGAY
+    } else {
+      setMatchingUsers([]);
+      setIsSearching(false);
     }
 
     const timer = setTimeout(() => {
       if (searchQuery.trim().length >= 1) {
         searchMatchingUsers();
       } else {
-        setMatchingUsers([]);
         setIsSearching(false);
       }
     }, 300);
@@ -85,9 +86,6 @@ export default function SearchPage() {
   };
 
   const searchMatchingUsers = async () => {
-    setIsSearching(true);
-    
-    // Tạo AbortController mới cho request này
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
@@ -101,22 +99,18 @@ export default function SearchPage() {
       
       const users = await res.json();
       
-      // Chỉ update nếu request này chưa bị hủy
       if (!controller.signal.aborted) {
         setMatchingUsers(users);
+        setIsSearching(false); // ← TẮT SAU KHI CÓ DATA
       }
       
     } catch (error: any) {
-      // Không log AbortError (là bình thường khi user gõ nhanh)
       if (error.name !== 'AbortError') {
         console.error('Error searching users:', error);
       }
       
       if (!controller.signal.aborted) {
         setMatchingUsers([]);
-      }
-    } finally {
-      if (!controller.signal.aborted) {
         setIsSearching(false);
       }
     }

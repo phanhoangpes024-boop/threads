@@ -7,7 +7,6 @@ export async function GET(request: Request) {
   const query = searchParams.get('q')
   const userId = searchParams.get('user_id')
   
-  // ✅ Đổi từ 2 → 1
   if (!query || query.trim().length < 1) {
     return NextResponse.json({ threads: [], users: [] })
   }
@@ -36,6 +35,7 @@ export async function GET(request: Request) {
         reposts_count: r.thread_reposts_count,
         username: r.author_username,
         avatar_text: r.author_avatar_text,
+        avatar_bg: r.author_avatar_bg || '#0077B6', // ✅ THÊM
         verified: r.author_verified,
         medias: r.medias || [],
         isLiked: r.is_liked
@@ -48,6 +48,7 @@ export async function GET(request: Request) {
         username: r.user_username,
         bio: r.user_bio,
         avatar_text: r.user_avatar_text,
+        avatar_bg: r.user_avatar_bg || '#0077B6', // ✅ THÊM
         verified: r.user_verified,
         followers_count: r.user_followers_count
       })) || []
