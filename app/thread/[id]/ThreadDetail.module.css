@@ -208,7 +208,6 @@
     border: none;
     border-radius: 0;
     box-shadow: none;
-    margin-top: 60px;
     width: 100% !important;
     max-width: 100% !important;
     height: calc(100dvh - 60px);

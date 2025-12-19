@@ -1,4 +1,4 @@
-// app/page.tsx - OPTIMIZED WITH VIRTUALIZATION + CUSTOM SCROLLBAR + URL-BASED FEED TYPE
+// app/page.tsx - FIXED: Virtual scroll + Layout issues
 'use client'
 
 import CreateThreadInputSkeleton from '@/components/Skeletons/CreateThreadInputSkeleton'
@@ -29,10 +29,8 @@ export default function Home() {
   const searchParams = useSearchParams()
   const feedType = (searchParams.get('feed') || 'for-you') as FeedType
   
-  // ✅ Key để force remount virtualizer
   const [virtualizerKey, setVirtualizerKey] = useState(0)
   
-  // ✅ Dùng useFeedWithType
   const { 
     data, 
     isLoading, 
@@ -49,14 +47,11 @@ export default function Home() {
   const [showModal, setShowModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   
-  // ✅ Container ref cho virtualizer
   const parentRef = useRef<HTMLDivElement>(null)
   const hasRestoredScroll = useRef(false)
   
-  // ✅ Flatten threads từ pages
   const allThreads = (data?.pages?.flatMap((page: any) => page.threads) ?? [])
   
-  // ✅ VIRTUALIZER - Chỉ render items trong viewport
   const virtualizer = useVirtualizer({
     count: allThreads.length + (hasNextPage ? 1 : 0),
     getScrollElement: () => parentRef.current,
@@ -65,15 +60,15 @@ export default function Home() {
     measureElement: (el) => el?.getBoundingClientRect().height ?? 400,
   })
   
-  // Reset scroll khi đổi feed type
+  // ✅ FIX 1: Reset virtualizer khi đổi feed type
   useEffect(() => {
+    setVirtualizerKey(prev => prev + 1)  // ← THÊM DÒNG NÀY
     hasRestoredScroll.current = false
     if (parentRef.current) {
       parentRef.current.scrollTop = 0
     }
   }, [feedType])
   
-  // ✅ SCROLL RESTORATION
   useEffect(() => {
     if (!hasRestoredScroll.current && allThreads.length > 0) {
       const savedPosition = getScrollPosition()
@@ -99,7 +94,6 @@ export default function Home() {
     }
   }, [allThreads.length, virtualizer])
   
-  // ✅ LƯU vị trí scroll
   useEffect(() => {
     const handleBeforeUnload = () => {
       const items = virtualizer.getVirtualItems()
@@ -116,7 +110,6 @@ export default function Home() {
     }
   }, [virtualizer])
   
-  // ✅ PREFETCH - Load trước khi scroll tới
   useEffect(() => {
     const [lastItem] = [...virtualizer.getVirtualItems()].reverse()
     
@@ -139,7 +132,6 @@ export default function Home() {
     fetchNextPage
   ])
   
-  // ✅ STABLE CALLBACKS
   const handleLikeClick = useCallback((threadId: string) => {
     toggleLikeMutation.mutate(threadId)
   }, [toggleLikeMutation])
@@ -148,7 +140,6 @@ export default function Home() {
     setActiveCommentThreadId(threadId)
   }, [])
   
-  // ✅ FIXED: handlePostThread - CHỈ scroll về đầu, KHÔNG invalidate
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
     await createMutation.mutateAsync({ 
       content,
@@ -156,7 +147,6 @@ export default function Home() {
     })
     setShowModal(false)
     
-    // ✅ CHỈ scroll về đầu, cache đã được update trong onSuccess của useCreateThread
     hasRestoredScroll.current = false
     setVirtualizerKey(prev => prev + 1)
     
@@ -176,7 +166,6 @@ export default function Home() {
     setShowModal(false)
   }, [])
   
-  // ✅ Pull to refresh
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -188,36 +177,31 @@ export default function Home() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [refreshFeed])
   
-  // ✅ Register Service Worker cho cache ảnh
   useEffect(() => {
     registerServiceWorker()
   }, [])
 
-// ✅ MỚI - ĐƠN GIẢN VÀ SẠCH
-if (isLoading || userLoading) {
-  return (
-    <CustomScrollbar className={styles.mainContainer}>
-      <div>
-        <CreateThreadInputSkeleton />
-        <ThreadCardSkeleton />
-        <ThreadCardSkeleton hasImage />
-        <ThreadCardSkeleton />
-        <ThreadCardSkeleton hasImage />
-        <ThreadCardSkeleton />
-      </div>
-    </CustomScrollbar>
-  )
-}
+  if (isLoading || userLoading) {
+    return (
+      <CustomScrollbar className={styles.mainContainer}>
+        <div>
+          <CreateThreadInputSkeleton />
+          <ThreadCardSkeleton />
+          <ThreadCardSkeleton hasImage />
+          <ThreadCardSkeleton />
+          <ThreadCardSkeleton hasImage />
+          <ThreadCardSkeleton />
+        </div>
+      </CustomScrollbar>
+    )
+  }
 
   const virtualItems = virtualizer.getVirtualItems()
 
   return (
     <>
-      {/* ✅ CustomScrollbar bọc TẤT CẢ */}
       <CustomScrollbar className={styles.mainContainer}>
-        {/* ✅ Key để force remount virtualizer */}
         <div ref={parentRef} key={`virtualizer-${virtualizerKey}`}>
-          {/* ✅ CreateThreadInput ở đầu */}
           <div onClick={handleOpenModal}>
             <CreateThreadInput 
               avatarText={user.avatar_text}  
@@ -225,7 +209,6 @@ if (isLoading || userLoading) {
             />
           </div>
           
-          {/* ✅ Empty state cho Following feed */}
           {feedType === 'following' && allThreads.length === 0 && !isLoading && (
             <div style={{
               padding: '40px 20px',
@@ -236,12 +219,13 @@ if (isLoading || userLoading) {
             </div>
           )}
           
-          {/* ✅ Virtual List */}
+          {/* ✅ FIX 2: Thêm paddingBottom */}
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,
               width: '100%',
-              position: 'relative'
+              position: 'relative',
+              paddingBottom: '100px'  // ← THÊM DÒNG NÀY
             }}
           >
             {virtualItems.map((virtualItem) => {
@@ -271,7 +255,7 @@ if (isLoading || userLoading) {
                   </div>
                 )
               }
-              
+
               return (
                 <div
                   key={thread.id}
@@ -316,7 +300,7 @@ if (isLoading || userLoading) {
           </div>
         </div>
       </CustomScrollbar>
-      
+
       {showModal && (
         <CreateThreadModal
           isOpen={showModal}
