@@ -7,34 +7,36 @@ export function useThreadDetail(threadId: string, userId?: string) {
   const queryClient = useQueryClient()
 
   return useQuery({
-    queryKey: ['thread-detail', threadId, userId || 'guest'],
+    queryKey: ['thread-detail', threadId],
       
     initialData: () => {
-      // ✅ Guest không có cache
-      if (!userId || userId === 'guest') return undefined
   
-      const feedKeys = [
-        ['feed', 'for-you', userId],
-        ['feed', 'following', userId]
-      ]
-  
-      for (const key of feedKeys) {
-        const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>(key)
-        const feedThread = feedData?.pages
+      // ✅ TÌM TẤT CẢ feed queries (for-you, following)
+      const feedQueries = queryClient.getQueriesData<InfiniteData<FeedPage>>({ 
+        queryKey: ['feed'] 
+      })
+      
+      for (const [_, feedData] of feedQueries) {
+        if (!feedData?.pages) continue
+        
+        const feedThread = feedData.pages
           .flatMap(p => p.threads)
           .find(t => t.id === threadId)
-    
+        
         if (feedThread) {
           return { thread: feedThread, comments: [] }
         }
       }
       
-      const profileKeys = queryClient.getQueryCache()
-        .findAll({ queryKey: ['profile-threads'] })
+      // ✅ TÌM trong profile cache
+      const profileQueries = queryClient.getQueriesData<FeedThread[]>({ 
+        queryKey: ['profile-threads'] 
+      })
       
-      for (const query of profileKeys) {
-        const threads = query.state.data as any[]
-        const profileThread = threads?.find((t: any) => t.id === threadId)
+      for (const [_, threads] of profileQueries) {
+        if (!Array.isArray(threads)) continue
+        
+        const profileThread = threads.find(t => t.id === threadId)
         if (profileThread) {
           return { thread: profileThread, comments: [] }
         }
@@ -44,7 +46,6 @@ export function useThreadDetail(threadId: string, userId?: string) {
     },
     
     queryFn: async () => {
-      // ✅ FIX: 'guest' không phải UUID, không pass lên API
       const params = (userId && userId !== 'guest') ? `?user_id=${userId}` : ''
       
       const [threadRes, commentsRes] = await Promise.all([
@@ -61,6 +62,6 @@ export function useThreadDetail(threadId: string, userId?: string) {
     },
     
     enabled: !!threadId,
-    staleTime: 0,
+    staleTime: 30000,
   })
 }

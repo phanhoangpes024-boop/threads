@@ -8,12 +8,12 @@ export async function GET(
 ) {
   const { id } = await context.params
   const { searchParams } = new URL(request.url)
-  const userId = searchParams.get('user_id') // ✅ Có thể null
+  const userId = searchParams.get('user_id')
 
   try {
     const { data, error } = await supabase.rpc('get_thread_detail', {
       p_thread_id: id,
-      p_user_id: userId || null // ✅ Cho phép null
+      p_user_id: userId || null
     })
 
     if (error) {
@@ -21,31 +21,34 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    if (!data) {
+    // ✅ FIX: RPC return TABLE = array, lấy phần tử đầu
+    const thread = Array.isArray(data) ? data[0] : data
+
+    if (!thread) {
       return NextResponse.json({ error: 'Thread not found' }, { status: 404 })
     }
 
     const result = {
-      id: data.id,
-      user_id: data.user_id,
-      content: data.content,
-      created_at: data.created_at,
-      likes_count: data.likes_count || 0,
-      comments_count: data.comments_count || 0,
-      reposts_count: data.reposts_count || 0,
-      username: data.username,
-      avatar_text: data.avatar_text,
-      avatar_bg: data.avatar_bg || '#0077B6',
-      verified: data.verified || false,
-      is_liked: data.is_liked || false, // ✅ False khi guest
-      medias: Array.isArray(data.medias)
-        ? data.medias.map((m: any) => ({
+      id: thread.id,
+      user_id: thread.user_id,
+      content: thread.content,
+      created_at: thread.created_at,
+      likes_count: thread.likes_count || 0,
+      comments_count: thread.comments_count || 0,
+      reposts_count: thread.reposts_count || 0,
+      username: thread.username,
+      avatar_text: thread.avatar_text,
+      avatar_bg: thread.avatar_bg || '#0077B6',
+      verified: thread.verified || false,
+      is_liked: thread.is_liked || false,
+      medias: Array.isArray(thread.medias)
+        ? thread.medias.map((m: any) => ({
             id: m.id,
             url: m.url,
-            type: m.type || 'image',
+            type: m.media_type || 'image',
             width: m.width || null,
             height: m.height || null,
-            order: m.order || 0
+            order: m.order_index || 0
           }))
         : []
     }
