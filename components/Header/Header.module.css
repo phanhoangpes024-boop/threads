@@ -117,9 +117,9 @@
 }
 
 .mobileLogo {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--text-primary, #000000);
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
 
 .mobileMenuButton {

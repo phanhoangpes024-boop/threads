@@ -1,4 +1,4 @@
-// app/api/feed/route.ts - FIXED WITH FEED TYPE SUPPORT
+// app/api/feed/route.ts
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -36,29 +36,19 @@ interface FeedResponse {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   
-  const userId = searchParams.get('user_id')
+  const userId = searchParams.get('user_id') // ✅ Có thể null cho guest
   const cursorTime = searchParams.get('cursor_time')
   const cursorId = searchParams.get('cursor_id')
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
-  
-  // ✅ THÊM: Parse feed_type param
   const feedType = searchParams.get('feed_type') || 'for-you'
 
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'user_id is required' }, 
-      { status: 400 }
-    )
-  }
-
   try {
-    // ✅ THAY ĐỔI: Chọn RPC function dựa vào feed_type
     const rpcFunction = feedType === 'following' 
       ? 'get_following_feed' 
       : 'get_feed_optimized'
 
     const { data, error } = await supabase.rpc(rpcFunction, {
-      p_user_id: userId,
+      p_user_id: userId || null, // ✅ Cho phép null
       p_cursor_time: cursorTime || null,
       p_cursor_id: cursorId || null,
       p_limit: limit
@@ -72,7 +62,6 @@ export async function GET(request: Request) {
       )
     }
 
-    // Map data với avatar_bg
     const threads: FeedThread[] = (data || []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
@@ -87,7 +76,7 @@ export async function GET(request: Request) {
       avatar_text: t.avatar_text,
       avatar_bg: t.avatar_bg || '#0077B6',
       verified: t.verified ?? false,
-      is_liked: t.is_liked ?? false,
+      is_liked: t.is_liked ?? false, // ✅ Luôn false khi guest
       
       medias: Array.isArray(t.medias) 
         ? t.medias.map((m: any) => ({

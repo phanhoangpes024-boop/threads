@@ -1,4 +1,4 @@
-// app/api/threads/[id]/route.ts - UPDATED WITH RPC
+// app/api/threads/[id]/route.ts
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -8,12 +8,12 @@ export async function GET(
 ) {
   const { id } = await context.params
   const { searchParams } = new URL(request.url)
-  const userId = searchParams.get('user_id')
+  const userId = searchParams.get('user_id') // ✅ Có thể null
 
   try {
     const { data, error } = await supabase.rpc('get_thread_detail', {
       p_thread_id: id,
-      p_user_id: userId || null
+      p_user_id: userId || null // ✅ Cho phép null
     })
 
     if (error) {
@@ -25,7 +25,6 @@ export async function GET(
       return NextResponse.json({ error: 'Thread not found' }, { status: 404 })
     }
 
-    // Map để giữ format cũ
     const result = {
       id: data.id,
       user_id: data.user_id,
@@ -38,7 +37,7 @@ export async function GET(
       avatar_text: data.avatar_text,
       avatar_bg: data.avatar_bg || '#0077B6',
       verified: data.verified || false,
-      is_liked: data.is_liked || false,
+      is_liked: data.is_liked || false, // ✅ False khi guest
       medias: Array.isArray(data.medias)
         ? data.medias.map((m: any) => ({
             id: m.id,

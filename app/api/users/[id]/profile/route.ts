@@ -1,6 +1,6 @@
 // app/api/users/[id]/profile/route.ts
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase'
 
 export async function PATCH(
   request: Request,
@@ -34,7 +34,7 @@ export async function PATCH(
       updateData.avatar_bg = avatar_bg
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseServer
       .from('users')
       .update(updateData)
       .eq('id', userId)

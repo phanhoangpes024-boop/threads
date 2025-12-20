@@ -1,12 +1,15 @@
+// components/Navbar/Navbar.tsx
 'use client'
 
 import React, { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useCreateThread } from '@/hooks/useThreads'
 import { useUnreadNotifications } from '@/hooks/useUnreadNotifications'
-import { getCurrentUser } from '@/lib/currentUser'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useAuthGuard } from '@/hooks/useAuthGuard'
+import LoginPromptModal from '@/components/LoginPromptModal'
 import MenuPopup from '@/components/MenuPopup'
 import styles from './Navbar.module.css'
 
@@ -14,10 +17,13 @@ const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal')
 
 export default function Navbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const createMutation = useCreateThread()
+  const { user, isGuest } = useCurrentUser()
+  const { requireAuth, showLoginPrompt, closePrompt } = useAuthGuard()
+  
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
-  const currentUser = getCurrentUser()
   
   const { data: unreadCount = 0 } = useUnreadNotifications()
 
@@ -26,9 +32,21 @@ export default function Navbar() {
     return pathname?.startsWith(path)
   }
 
-  const handleCreateThread = async (content: string) => {
-    await createMutation.mutateAsync({ content })
+  const handleCreateThread = async (content: string, imageUrls?: string[]) => {
+    await createMutation.mutateAsync({ content, imageUrls: imageUrls || [] })
     setShowCreateModal(false)
+  }
+
+  // ✅ Auth guard cho navigation
+  const handleNavClick = (e: React.MouseEvent, path: string) => {
+    if (path === '/' || path === '/search') return // Guest được phép
+    
+    e.preventDefault()
+    requireAuth(() => router.push(path))
+  }
+
+  const handleCreateClick = () => {
+    requireAuth(() => setShowCreateModal(true))
   }
 
   return (
@@ -58,28 +76,36 @@ export default function Navbar() {
             </svg>
           </Link>
           
-          <button className={styles.navItem} onClick={() => setShowCreateModal(true)}>
+          <button className={styles.navItem} onClick={handleCreateClick}>
             <svg viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
           
-          <Link href="/activity" className={`${styles.navItem} ${isActive('/activity') ? styles.active : ''}`}>
+          <Link 
+            href="/activity" 
+            className={`${styles.navItem} ${isActive('/activity') ? styles.active : ''}`}
+            onClick={(e) => handleNavClick(e, '/activity')}
+          >
             <div className={styles.iconWrapper}>
               <svg viewBox="0 0 24 24">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
-              {unreadCount > 0 && <span className={styles.badge}></span>}
+              {!isGuest && unreadCount > 0 && <span className={styles.badge}></span>}
             </div>
           </Link>
           
-          <Link href={`/profile/${currentUser.username}`} className={`${styles.navItem} ${isActive('/profile') ? styles.active : ''}`}>
+          <Link 
+            href={`/profile/${user.username}`} 
+            className={`${styles.navItem} ${isActive('/profile') ? styles.active : ''}`}
+            onClick={(e) => handleNavClick(e, `/profile/${user.username}`)}
+          >
             <div 
               className={styles.avatar}
-              style={{ backgroundColor: currentUser.avatar_bg }}
+              style={{ backgroundColor: user.avatar_bg }}
             >
-              {currentUser.avatar_text}
+              {user.avatar_text}
             </div>
           </Link>
         </div>
@@ -119,43 +145,53 @@ export default function Navbar() {
             </svg>
           </Link>
 
-          <button className={`${styles.mobileNavItem} ${styles.plusBtn}`} onClick={() => setShowCreateModal(true)}>
+          <button className={`${styles.mobileNavItem} ${styles.plusBtn}`} onClick={handleCreateClick}>
             <svg viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
 
-          <Link href="/activity" className={`${styles.mobileNavItem} ${isActive('/activity') ? styles.active : ''}`}>
+          <Link 
+            href="/activity" 
+            className={`${styles.mobileNavItem} ${isActive('/activity') ? styles.active : ''}`}
+            onClick={(e) => handleNavClick(e, '/activity')}
+          >
             <div className={styles.iconWrapper}>
               <svg viewBox="0 0 24 24">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
-              {unreadCount > 0 && <span className={styles.badge}></span>}
+              {!isGuest && unreadCount > 0 && <span className={styles.badge}></span>}
             </div>
           </Link>
 
-          <Link href={`/profile/${currentUser.username}`} className={`${styles.mobileNavItem} ${isActive('/profile') ? styles.active : ''}`}>
+          <Link 
+            href={`/profile/${user.username}`} 
+            className={`${styles.mobileNavItem} ${isActive('/profile') ? styles.active : ''}`}
+            onClick={(e) => handleNavClick(e, `/profile/${user.username}`)}
+          >
             <div 
               className={styles.avatar}
-              style={{ backgroundColor: currentUser.avatar_bg }}
+              style={{ backgroundColor: user.avatar_bg }}
             >
-              {currentUser.avatar_text}
+              {user.avatar_text}
             </div>
           </Link>
         </div>
       </nav>
 
-      {showCreateModal && (
+      {!isGuest && showCreateModal && (
         <CreateThreadModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSubmit={handleCreateThread}
-          username={currentUser.username}
-          avatarText={currentUser.avatar_text}
-          avatarBg={currentUser.avatar_bg}
+          username={user.username}
+          avatarText={user.avatar_text}
+          avatarBg={user.avatar_bg}
         />
       )}
+
+      <LoginPromptModal isOpen={showLoginPrompt} onClose={closePrompt} />
     </>
   )
 }

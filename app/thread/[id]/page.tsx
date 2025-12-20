@@ -12,7 +12,6 @@ import { useToggleLike } from '@/hooks/useFeed'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import styles from './ThreadDetail.module.css'
 
-// Component Skeleton Loader cho Comments
 function CommentSkeleton() {
   return (
     <div className={styles.commentItem}>
@@ -39,13 +38,22 @@ export default function ThreadDetailPage() {
   
   const isFetchingComments = useIsFetching({ queryKey: ['thread-detail', threadId] })
   
-  const { data, isLoading, isError } = useThreadDetail(threadId, user?.id)
+  // ✅ FIX: Pass 'guest' khi user.id rỗng để khớp với query key
+  const { data, isLoading, isError } = useThreadDetail(threadId, user.id || 'guest')
   const toggleLikeMutation = useToggleLike()
   const [showCommentInput, setShowCommentInput] = useState(false)
 
-  // OPTIMISTIC UI - Đổi màu tim
+  // 🔍 DEBUG
+  console.log('[THREAD DETAIL] Data:', data)
+  console.log('[THREAD DETAIL] isLoading:', isLoading)
+  console.log('[THREAD DETAIL] isError:', isError)
+  console.log('[THREAD DETAIL] threadId:', threadId)
+  console.log('[THREAD DETAIL] userId:', user.id || 'guest')
+
   const handleLike = useCallback((id: string) => {
-    queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
+    const userId = user.id || 'guest'
+    
+    queryClient.setQueryData<any>(['thread-detail', threadId, userId], (old: any) => {
       if (!old?.thread) return old
       
       const newIsLiked = !old.thread.is_liked
@@ -66,18 +74,18 @@ export default function ThreadDetailPage() {
         queryClient.invalidateQueries({ queryKey: ['thread-detail', threadId] })
       }
     })
-  }, [threadId, toggleLikeMutation, queryClient, user?.id])
+  }, [threadId, toggleLikeMutation, queryClient, user.id])
 
   const handleCommentClick = useCallback(() => {
     setShowCommentInput(true)
   }, [])
 
-  // OPTIMISTIC UPDATE COMMENT
   const handleCommentSubmit = useCallback((content?: string) => {
     setShowCommentInput(false)
     
-    if (content && user) {
+    if (content && user.id) {
       const fakeId = `temp-${Date.now()}`
+      const userId = user.id || 'guest'
       
       const newOptimisticComment = {
         id: fakeId,
@@ -88,7 +96,7 @@ export default function ThreadDetailPage() {
         is_optimistic: true
       }
 
-      queryClient.setQueryData<any>(['thread-detail', threadId, user?.id], (old: any) => {
+      queryClient.setQueryData<any>(['thread-detail', threadId, userId], (old: any) => {
         if (!old) return old
         
         return {
@@ -144,7 +152,7 @@ export default function ThreadDetailPage() {
         onCommentClick={handleCommentClick}
       />
       
-      {showCommentInput && (
+      {showCommentInput && user.id && (
         <CommentInput
           threadId={threadId}
           onCommentSubmit={handleCommentSubmit}
@@ -162,51 +170,35 @@ export default function ThreadDetailPage() {
           )}
         </div>
         
-        {(() => {
-          // 1. Nếu chưa có comments HOẶC (comments rỗng NHƯNG đang fetch)
-          // -> Hiện Skeleton Loader
-          if (!comments || (comments.length === 0 && isFetchingComments > 0)) {
-            return (
-              <div className={styles.commentsList}>
-                <CommentSkeleton />
-                <CommentSkeleton />
-                <CommentSkeleton />
-              </div>
-            )
-          }
-
-          // 2. Khi chắc chắn không fetch nữa mà vẫn rỗng -> Hiện No comments
-          if (comments.length === 0) {
-            return <div className={styles.noComments}>No comments yet</div>
-          }
-
-          // 3. Có data -> Render List
-          return (
-            <div 
-              className={styles.commentsList} 
-              style={{ opacity: isFetchingComments > 0 ? 0.7 : 1, transition: 'opacity 0.2s' }}
-            >
-              {comments.map((comment: any) => (
-                <div key={comment.id} className={styles.commentItem}>
-                  <div className={styles.commentAvatar}>
-                    <div className={styles.avatar}>{comment.avatar_text}</div>
-                  </div>
-                  <div className={styles.commentContent}>
-                    <div className={styles.commentHeader}>
-                      <span className={styles.commentUsername}>{comment.username}</span>
-                      <span className={styles.commentTime}>
-                        {comment.id.toString().startsWith('temp-') 
-                          ? 'Just now' 
-                          : new Date(comment.created_at).toLocaleDateString('vi-VN')}
-                      </span>
-                    </div>
-                    <div className={styles.commentText}>{comment.content}</div>
-                  </div>
+        {isLoading || isFetchingComments > 0 ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <CommentSkeleton key={i} />
+          ))
+        ) : comments && comments.length > 0 ? (
+          comments.map((comment: any) => (
+            <div key={comment.id} className={styles.commentItem}>
+              <div className={styles.commentAvatar}>
+                <div 
+                  className={styles.avatar}
+                  style={{ background: comment.avatar_bg || '#0077B6' }}
+                >
+                  {comment.avatar_text || comment.username?.[0]?.toUpperCase() || 'U'}
                 </div>
-              ))}
+              </div>
+              <div className={styles.commentContent}>
+                <div className={styles.commentHeader}>
+                  <span className={styles.commentUsername}>{comment.username || 'Unknown'}</span>
+                  <span className={styles.commentTime}>
+                    {new Date(comment.created_at).toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+                <p className={styles.commentText}>{comment.content}</p>
+              </div>
             </div>
-          )
-        })()}
+          ))
+        ) : (
+          <div className={styles.noComments}>Chưa có bình luận nào</div>
+        )}
       </div>
     </CustomScrollbar>
   )

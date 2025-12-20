@@ -1,4 +1,4 @@
-// components/ProfileHeader/index.tsx - CẬP NHẬT
+// components/ProfileHeader/index.tsx
 'use client';
 
 import React from 'react';
@@ -36,7 +36,6 @@ export default function ProfileHeader({
   currentUserId,
   onEditClick,
 }: ProfileHeaderProps) {
-  // ✅ Fetch trạng thái từ server
   const { data: isFollowing = false, isLoading } = useIsFollowing(userId);
   const followMutation = useFollowUser();
 
@@ -65,8 +64,8 @@ export default function ProfileHeader({
             <h1 className={styles.name}>{name}</h1>
             {verified && (
               <div className={styles.verifiedBadge}>
-                <svg viewBox="0 0 24 24">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" fill="#0095f6" />
+                <svg viewBox="0 0 24 24" fill="#0095f6">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
                 </svg>
               </div>
             )}

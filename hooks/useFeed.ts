@@ -1,11 +1,9 @@
-// hooks/useFeed.ts - PRODUCTION READY với RPC & Helper Cache
+// hooks/useFeed.ts
 import { useInfiniteQuery, useMutation, useQueryClient, InfiniteData } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import { updateThreadInCaches, captureAllCachesSnapshot, restoreCachesSnapshot } from '@/lib/cache-helper'
 import { supabase } from '@/lib/supabase'
 import { useCallback } from 'react'
-
-// ==================== TYPES ====================
 
 export interface FeedMedia {
   id: string
@@ -43,8 +41,6 @@ export interface FeedCursor {
   id: string
 }
 
-// ==================== SCROLL POSITION CACHE ====================
-
 let scrollPositionCache: { pageIndex: number; offset: number } | null = null
 
 export function saveScrollPosition(pageIndex: number, offset: number) {
@@ -58,8 +54,6 @@ export function getScrollPosition() {
 export function clearScrollPosition() {
   scrollPositionCache = null
 }
-
-// ==================== MAIN FEED QUERY ====================
 
 export function useFeed() {
   const { user } = useCurrentUser()
@@ -106,14 +100,14 @@ export function useFeed() {
   })
 }
 
-// ==================== TOGGLE LIKE (Dùng Helper) ====================
-
 export function useToggleLike() {
   const queryClient = useQueryClient()
-  const { user } = useCurrentUser()
+  const { user, isGuest } = useCurrentUser()
   
   return useMutation({
     mutationFn: async (threadId: string) => {
+      if (isGuest) throw new Error('Guest cannot like')
+      
       const res = await fetch(`/api/threads/${threadId}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,14 +129,11 @@ export function useToggleLike() {
     },
     
     onMutate: async (threadId) => {
-      // Cancel queries để tránh conflict
       await queryClient.cancelQueries({ queryKey: ['feed'] })
       await queryClient.cancelQueries({ queryKey: ['profile-threads'] })
       
-      // Lưu snapshot để rollback nếu lỗi
       const snapshot = captureAllCachesSnapshot(queryClient)
       
-      // Optimistic update - Dùng helper (3 dòng thay vì 50 dòng)
       updateThreadInCaches(queryClient, threadId, (thread) => {
         const newIsLiked = !thread.is_liked
         return {
@@ -160,7 +151,6 @@ export function useToggleLike() {
     onError: (err, threadId, context) => {
       console.error('[LIKE ERROR]', err)
       
-      // Rollback về trạng thái cũ
       if (context?.snapshot) {
         restoreCachesSnapshot(queryClient, context.snapshot)
       }
@@ -169,7 +159,6 @@ export function useToggleLike() {
     onSuccess: (data, threadId) => {
       const { likes_count, action } = data
       
-      // Sync với server response (đảm bảo đúng 100%)
       updateThreadInCaches(queryClient, threadId, (thread) => ({
         ...thread,
         is_liked: action === 'liked',
@@ -181,11 +170,9 @@ export function useToggleLike() {
   })
 }
 
-// ==================== CREATE THREAD với RPC ====================
-
 export function useCreateThread() {
   const queryClient = useQueryClient()
-  const { user } = useCurrentUser()
+  const { user, isGuest } = useCurrentUser()
   
   return useMutation({
     mutationFn: async ({ 
@@ -195,11 +182,8 @@ export function useCreateThread() {
       content: string
       imageUrls?: string[] 
     }) => {
-      if (!user.id) throw new Error('No user ID')
+      if (isGuest) throw new Error('Guest cannot create thread')
       
-      console.log('[CREATE] Using RPC with', imageUrls.length, 'images')
-      
-      // Gọi RPC - 1 request duy nhất, atomic transaction
       const { data, error } = await supabase.rpc('create_full_thread', {
         p_user_id: user.id,
         p_content: content.trim(),
@@ -207,7 +191,6 @@ export function useCreateThread() {
       })
       
       if (error) {
-        console.error('[CREATE] RPC Error:', error)
         throw new Error(error.message || 'Failed to create thread')
       }
       
@@ -216,9 +199,7 @@ export function useCreateThread() {
       }
       
       const result = data[0]
-      console.log('[CREATE] RPC Success:', result)
       
-      // Format về FeedThread
       return {
         id: result.thread_id,
         user_id: user.id,
@@ -237,11 +218,6 @@ export function useCreateThread() {
     },
     
     onSuccess: (newThread) => {
-      console.log('[CREATE] Updating cache for current user only...')
-      
-      // ✅ CHỈ UPDATE CACHE, KHÔNG INVALIDATE (không trigger refetch)
-      
-      // 1. Update For-You feed cache
       queryClient.setQueryData<InfiniteData<FeedPage>>(
         ['feed', 'for-you', user.id], 
         (old) => {
@@ -261,7 +237,6 @@ export function useCreateThread() {
         }
       )
       
-      // 2. Update Following feed cache (nếu có)
       queryClient.setQueryData<InfiniteData<FeedPage>>(
         ['feed', 'following', user.id],
         (old) => {
@@ -281,7 +256,6 @@ export function useCreateThread() {
         }
       )
       
-      // 3. Update profile threads cache
       queryClient.setQueryData<FeedThread[]>(
         ['profile-threads', user.id],
         (old) => old ? [newThread, ...old] : [newThread]
@@ -294,66 +268,18 @@ export function useCreateThread() {
   })
 }
 
-// ==================== REFRESH FEED ====================
-
 export function useRefreshFeed() {
   const queryClient = useQueryClient()
-  const { user } = useCurrentUser()
+  const { user, isGuest } = useCurrentUser()
   
   return useCallback(() => {
+    if (isGuest) return
+    
     queryClient.invalidateQueries({ 
       queryKey: ['feed', 'for-you', user.id] 
     })
     queryClient.invalidateQueries({ 
       queryKey: ['feed', 'following', user.id] 
     })
-  }, [queryClient, user.id])
-}
-
-// ==================== FEED WITH TYPE ====================
-
-export function useFeedWithType(feedType: 'for-you' | 'following') {
-  const { user } = useCurrentUser()
-  
-  return useInfiniteQuery<FeedPage, Error, InfiniteData<FeedPage>, string[], FeedCursor | undefined>({
-    queryKey: ['feed', feedType, user.id],
-    
-    queryFn: async ({ pageParam }): Promise<FeedPage> => {
-      const params = new URLSearchParams({
-        user_id: user.id,
-        limit: '20',
-        feed_type: feedType
-      })
-      
-      if (pageParam) {
-        params.append('cursor_time', pageParam.time)
-        params.append('cursor_id', pageParam.id)
-      }
-      
-      const res = await fetch(`/api/feed?${params}`, { 
-        cache: 'no-store' 
-      })
-      
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ message: 'Failed to fetch feed' }))
-        throw new Error(error.message)
-      }
-      
-      return res.json()
-    },
-    
-    initialPageParam: undefined,
-    
-    getNextPageParam: (lastPage): FeedCursor | undefined => {
-      return lastPage.hasMore && lastPage.nextCursor 
-        ? lastPage.nextCursor 
-        : undefined
-    },
-    
-    enabled: !!user.id,
-    staleTime: 1000 * 60,
-    gcTime: 1000 * 60 * 10,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  })
+  }, [queryClient, user.id, isGuest])
 }

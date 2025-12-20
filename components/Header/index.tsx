@@ -109,7 +109,7 @@ export default function Header() {
             </>
           ) : (
             <>
-              <div className={styles.mobileLogo}>@</div>
+              <img src="/logo.svg" alt="Logo" className={styles.mobileLogo} />
               <button className={styles.mobileMenuButton} onClick={() => setShowMenu(!showMenu)}>
                 <svg viewBox="0 0 24 24">
                   <line x1="3" y1="12" x2="21" y2="12" />

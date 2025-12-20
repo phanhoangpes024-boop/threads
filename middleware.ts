@@ -1,4 +1,4 @@
-// middleware.ts - FIXED VERSION
+// middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
@@ -13,12 +13,21 @@ export async function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('sb-refresh-token')?.value
   const path = request.nextUrl.pathname
 
+  // ✅ Cho phép guest xem homepage và thread detail
+  const guestAllowedPaths = ['/', '/thread']
+  const isGuestAllowed = guestAllowedPaths.some(p => path === p || path.startsWith('/thread/'))
+
   // Bỏ qua auth routes
   if (path.startsWith('/auth') || path.startsWith('/api/auth')) {
     return NextResponse.next()
   }
 
-  // Không có token
+  // ✅ Guest được xem homepage và thread detail
+  if (isGuestAllowed && !accessToken && !refreshToken) {
+    return NextResponse.next()
+  }
+
+  // Không có token và KHÔNG phải guest route → redirect login
   if (!accessToken && !refreshToken) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
@@ -27,7 +36,6 @@ export async function middleware(request: NextRequest) {
     let currentUser = null
     let newSession = null
 
-    // Thử dùng access token
     if (accessToken) {
       const { data: { user }, error } = await supabase.auth.getUser(accessToken)
       if (!error && user) {
@@ -35,21 +43,18 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Access token hết hạn → dùng refresh token
     if (!currentUser && refreshToken) {
       const { data, error: refreshError } = await supabase.auth.refreshSession({
         refresh_token: refreshToken
       })
 
       if (refreshError || !data.session) {
-        // Refresh thất bại → redirect login
         const response = NextResponse.redirect(new URL('/auth/login', request.url))
         response.cookies.delete('sb-access-token')
         response.cookies.delete('sb-refresh-token')
         return response
       }
 
-      // ✅ Refresh thành công
       currentUser = data.user
       newSession = data.session
     }
@@ -58,7 +63,6 @@ export async function middleware(request: NextRequest) {
       throw new Error('No valid session')
     }
 
-    // Set header với user_id
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('x-user-id', currentUser.id)
 
@@ -66,7 +70,6 @@ export async function middleware(request: NextRequest) {
       request: { headers: requestHeaders }
     })
 
-    // ✅ Nếu có session mới → cập nhật cookies
     if (newSession) {
       response.cookies.set('sb-access-token', newSession.access_token, {
         httpOnly: true,

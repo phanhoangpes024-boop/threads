@@ -1,17 +1,14 @@
-// hooks/useThreads.ts - Dùng Helper Cache
+// hooks/useThreads.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCurrentUser } from './useCurrentUser'
 import { updateThreadInCaches } from '@/lib/cache-helper'
 import type { FeedThread } from './useFeed'
 
-// Export hooks từ useFeed
 export { useFeed, useToggleLike, useRefreshFeed, useCreateThread } from './useFeed'
-
-// ==================== SINGLE THREAD ====================
 
 export function useThread(threadId: string) {
   const queryClient = useQueryClient()
-  const { user } = useCurrentUser()
+  const { user, isGuest } = useCurrentUser()
   
   return useQuery({
     queryKey: ['thread', threadId],
@@ -31,7 +28,8 @@ export function useThread(threadId: string) {
     enabled: !!threadId,
     
     initialData: () => {
-      // Tìm trong tất cả feed caches
+      if (isGuest) return undefined
+      
       const feedKeys = [
         ['feed', 'for-you', user.id],
         ['feed', 'following', user.id]
@@ -51,8 +49,6 @@ export function useThread(threadId: string) {
   })
 }
 
-// ==================== COMMENTS ====================
-
 export function useComments(threadId: string) {
   return useQuery({
     queryKey: ['comments', threadId],
@@ -68,15 +64,13 @@ export function useComments(threadId: string) {
   })
 }
 
-// ==================== CREATE COMMENT (Dùng Helper) ====================
-
 export function useCreateComment(threadId: string) {
   const queryClient = useQueryClient()
-  const { user } = useCurrentUser()
+  const { user, isGuest } = useCurrentUser()
   
   return useMutation({
     mutationFn: async (content: string) => {
-      if (!user.id) throw new Error('No user ID')
+      if (isGuest) throw new Error('Guest cannot comment')
       
       const res = await fetch(`/api/threads/${threadId}/comments`, {
         method: 'POST',
@@ -100,10 +94,8 @@ export function useCreateComment(threadId: string) {
     },
     
     onSuccess: () => {
-      // Invalidate comments list
       queryClient.invalidateQueries({ queryKey: ['comments', threadId] })
       
-      // Update comments_count - Dùng helper (3 dòng thay vì 30 dòng)
       updateThreadInCaches(queryClient, threadId, (thread) => ({
         ...thread,
         comments_count: thread.comments_count + 1

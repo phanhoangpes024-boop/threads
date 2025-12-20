@@ -42,8 +42,7 @@ export default function Home() {
   const toggleLikeMutation = useToggleLike()
   const createMutation = useCreateThread()
   const refreshFeed = useRefreshFeed()
-  const { user, loading: userLoading } = useCurrentUser()
-  
+const { user, loading: userLoading, isGuest } = useCurrentUser()  
   const [showModal, setShowModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   
@@ -202,12 +201,14 @@ export default function Home() {
     <>
       <CustomScrollbar className={styles.mainContainer}>
         <div ref={parentRef} key={`virtualizer-${virtualizerKey}`}>
-          <div onClick={handleOpenModal}>
-            <CreateThreadInput 
-              avatarText={user.avatar_text}  
-              avatarBg={user.avatar_bg || '#0077B6'}
-            />
-          </div>
+          {!isGuest && (
+  <div onClick={handleOpenModal}>
+    <CreateThreadInput 
+      avatarText={user.avatar_text}  
+      avatarBg={user.avatar_bg || '#0077B6'}
+    />
+  </div>
+)}
           
           {feedType === 'following' && allThreads.length === 0 && !isLoading && (
             <div style={{

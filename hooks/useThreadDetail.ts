@@ -1,3 +1,4 @@
+// hooks/useThreadDetail.ts
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { FeedThread, FeedPage } from './useFeed'
 import type { InfiniteData } from '@tanstack/react-query'
@@ -6,29 +7,28 @@ export function useThreadDetail(threadId: string, userId?: string) {
   const queryClient = useQueryClient()
 
   return useQuery({
-    queryKey: ['thread-detail', threadId, userId],
+    queryKey: ['thread-detail', threadId, userId || 'guest'],
       
-      initialData: () => {
-  if (!userId) return undefined
+    initialData: () => {
+      // ✅ Guest không có cache
+      if (!userId || userId === 'guest') return undefined
   
-  // ✅ 1. Check CẢ 2 feed caches
-  const feedKeys = [
-    ['feed', 'for-you', userId],
-    ['feed', 'following', userId]
-  ]
+      const feedKeys = [
+        ['feed', 'for-you', userId],
+        ['feed', 'following', userId]
+      ]
   
-  for (const key of feedKeys) {
-    const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>(key)
-    const feedThread = feedData?.pages
-      .flatMap(p => p.threads)
-      .find(t => t.id === threadId)
+      for (const key of feedKeys) {
+        const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>(key)
+        const feedThread = feedData?.pages
+          .flatMap(p => p.threads)
+          .find(t => t.id === threadId)
     
-    if (feedThread) {
-      return { thread: feedThread, comments: [] }
-    }
-  }
+        if (feedThread) {
+          return { thread: feedThread, comments: [] }
+        }
+      }
       
-      // ✅ 2. Check profile cache (THÊM MỚI)
       const profileKeys = queryClient.getQueryCache()
         .findAll({ queryKey: ['profile-threads'] })
       
@@ -44,7 +44,8 @@ export function useThreadDetail(threadId: string, userId?: string) {
     },
     
     queryFn: async () => {
-      const params = userId ? `?user_id=${userId}` : ''
+      // ✅ FIX: 'guest' không phải UUID, không pass lên API
+      const params = (userId && userId !== 'guest') ? `?user_id=${userId}` : ''
       
       const [threadRes, commentsRes] = await Promise.all([
         fetch(`/api/threads/${threadId}${params}`),

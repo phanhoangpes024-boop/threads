@@ -12,38 +12,42 @@ export interface User {
   bio?: string;
 }
 
+const GUEST_USER: User = {
+  id: '',
+  username: 'Guest',
+  email: '',
+  avatar_text: 'G',
+  avatar_bg: '#999999',
+  verified: false,
+  bio: ''
+}
+
 export function useCurrentUser() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User>(GUEST_USER);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
 
   useEffect(() => {
     const stored = localStorage.getItem('currentUser');
+    const isGuestAllowed = pathname === '/' || pathname?.startsWith('/thread/');
+    
     if (stored) {
       const parsedUser = JSON.parse(stored);
-      // Fallback cho user cũ
       if (!parsedUser.avatar_bg) {
         parsedUser.avatar_bg = '#0077B6';
       }
       setUser(parsedUser);
-    } else {
-      if (!pathname?.startsWith('/auth')) {
-        window.location.href = '/auth/login';
-        return;
-      }
+    } else if (!isGuestAllowed && !pathname?.startsWith('/auth')) {
+      window.location.href = '/auth/login';
+      return;
     }
+    
     setLoading(false);
   }, [pathname]);
 
   return { 
-    user: user || { 
-      id: '', 
-      username: '', 
-      email: '', 
-      avatar_text: 'U',
-      avatar_bg: '#0077B6',
-      verified: false 
-    }, 
-    loading 
+    user,
+    loading,
+    isGuest: user.id === ''
   };
 }
