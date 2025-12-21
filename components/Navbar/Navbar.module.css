@@ -57,7 +57,8 @@
 
 .navItem.active svg {
   stroke: #000000;
-  fill: #000000;
+  fill: none; /* ← CHỈ TÔ VIỀN, KHÔNG TÔ ĐẦY */
+  stroke-width: 2.5; /* ← TĂNG ĐỘ DÀY VIỀN ĐỂ NỔI BẬT */
 }
 
 .navItem svg.filled {

@@ -54,12 +54,10 @@ export default function Navbar() {
       {/* Desktop Sidebar Navigation */}
       <nav className={styles.desktopNav}>
         <div className={styles.navLogo}>
-          <Link href="/" className={styles.navItem}>
-            <svg viewBox="0 0 24 24" className={styles.filled}>
-              <circle cx="12" cy="12" r="10" />
-            </svg>
-          </Link>
-        </div>
+  <Link href="/" className={styles.navItem}>
+    <img src="/logo.svg" alt="Logo" style={{ width: '40px', height: '40px' }} />
+  </Link>
+</div>
         
         <div className={styles.navItems}>
           <Link href="/" className={`${styles.navItem} ${isActive('/') && !pathname?.startsWith('/search') && !pathname?.startsWith('/profile') && !pathname?.startsWith('/activity') ? styles.active : ''}`}>
