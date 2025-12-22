@@ -37,9 +37,8 @@ export default function Navbar() {
     setShowCreateModal(false)
   }
 
-  // ✅ Auth guard cho navigation
   const handleNavClick = (e: React.MouseEvent, path: string) => {
-    if (path === '/' || path === '/search') return // Guest được phép
+    if (path === '/' || path === '/search') return
     
     e.preventDefault()
     requireAuth(() => router.push(path))
@@ -49,15 +48,25 @@ export default function Navbar() {
     requireAuth(() => setShowCreateModal(true))
   }
 
+  // ✅ Chặn guest click search
+  const handleSearchClick = (e: React.MouseEvent) => {
+    requireAuth(() => router.push('/search'))
+  }
+
+  // ✅ Chặn guest mở menu
+  const handleMenuClick = () => {
+    requireAuth(() => setShowMenu(!showMenu))
+  }
+
   return (
     <>
       {/* Desktop Sidebar Navigation */}
       <nav className={styles.desktopNav}>
         <div className={styles.navLogo}>
-  <Link href="/" className={styles.navItem}>
-    <img src="/logo.svg" alt="Logo" style={{ width: '40px', height: '40px' }} />
-  </Link>
-</div>
+          <Link href="/" className={styles.navItem}>
+            <img src="/logo.svg" alt="Logo" style={{ width: '40px', height: '40px' }} />
+          </Link>
+        </div>
         
         <div className={styles.navItems}>
           <Link href="/" className={`${styles.navItem} ${isActive('/') && !pathname?.startsWith('/search') && !pathname?.startsWith('/profile') && !pathname?.startsWith('/activity') ? styles.active : ''}`}>
@@ -67,12 +76,15 @@ export default function Navbar() {
             </svg>
           </Link>
           
-          <Link href="/search" className={`${styles.navItem} ${isActive('/search') ? styles.active : ''}`}>
+          <button 
+            className={`${styles.navItem} ${isActive('/search') ? styles.active : ''}`}
+            onClick={handleSearchClick}
+          >
             <svg viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-          </Link>
+          </button>
           
           <button className={styles.navItem} onClick={handleCreateClick}>
             <svg viewBox="0 0 24 24">
@@ -109,7 +121,7 @@ export default function Navbar() {
         </div>
 
         <div className={styles.navMenu}>
-          <button className={styles.navItem} onClick={() => setShowMenu(!showMenu)}>
+          <button className={styles.navItem} onClick={handleMenuClick}>
             <svg viewBox="0 0 24 24">
               <line x1="3" y1="12" x2="21" y2="12" />
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -136,12 +148,15 @@ export default function Navbar() {
             </svg>
           </Link>
 
-          <Link href="/search" className={`${styles.mobileNavItem} ${isActive('/search') ? styles.active : ''}`}>
+          <button 
+            className={`${styles.mobileNavItem} ${isActive('/search') ? styles.active : ''}`}
+            onClick={handleSearchClick}
+          >
             <svg viewBox="0 0 24 24">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
-          </Link>
+          </button>
 
           <button className={`${styles.mobileNavItem} ${styles.plusBtn}`} onClick={handleCreateClick}>
             <svg viewBox="0 0 24 24">

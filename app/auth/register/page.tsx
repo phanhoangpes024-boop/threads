@@ -3,10 +3,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import styles from '../login/auth.module.css'
+import Image from 'next/image'
+import styles from './register.module.css'
 
 const AVATAR_COLORS = [
-  '#0077B6',
+  '#1e3a8a',
   '#2A9D8F',
   '#E76F51',
   '#7B68EE',
@@ -20,10 +21,11 @@ export default function RegisterPage() {
     password: '',
     username: '',
     avatarText: '',
-    avatarBg: '#0077B6',
+    avatarBg: '#1e3a8a',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -33,12 +35,14 @@ export default function RegisterPage() {
     if (formData.password.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự')
       setLoading(false)
+      setTimeout(() => setError(''), 3000)
       return
     }
 
     if (formData.avatarText.length < 1 || formData.avatarText.length > 2) {
       setError('Avatar phải có 1-2 ký tự')
       setLoading(false)
+      setTimeout(() => setError(''), 3000)
       return
     }
 
@@ -55,13 +59,13 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Đăng ký thất bại')
       }
 
-      // ✅ CHỈ LƯU user info (không nhạy cảm)
       localStorage.setItem('currentUser', JSON.stringify(data.user))
       
       router.push('/')
       router.refresh()
     } catch (err: any) {
       setError(err.message)
+      setTimeout(() => setError(''), 3000)
     } finally {
       setLoading(false)
     }
@@ -80,61 +84,73 @@ export default function RegisterPage() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <div className={styles.logo}>@</div>
-        <h1 className={styles.title}>Đăng ký</h1>
-        
+        {/* Logo */}
+        <div className={styles.logoContainer}>
+          <Image 
+            src="/logo.svg" 
+            alt="Logo" 
+            width={48} 
+            height={48}
+            className={styles.logo}
+          />
+        </div>
+
+        {/* Header */}
+        <header className={styles.header}>
+          <h1 className={styles.title}>Đăng ký</h1>
+          <p className={styles.subtitle}>Tạo tài khoản mới để bắt đầu</p>
+        </header>
+
+        {/* Error Toast */}
         {error && <div className={styles.error}>{error}</div>}
         
+        {/* Form */}
         <form onSubmit={handleRegister} className={styles.form}>
           <div className={styles.field}>
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <input
               type="email"
+              id="email"
               value={formData.email}
               onChange={handleChange('email')}
               placeholder="your@email.com"
               required
               disabled={loading}
+              autoComplete="email"
             />
           </div>
 
           <div className={styles.field}>
-            <label>Username</label>
+            <label htmlFor="username">Username</label>
             <input
               type="text"
+              id="username"
               value={formData.username}
               onChange={handleChange('username')}
               placeholder="username"
               required
               disabled={loading}
+              autoComplete="username"
             />
           </div>
 
           <div className={styles.field}>
-            <label>Avatar (1-2 ký tự)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <label htmlFor="avatar">Avatar (1-2 ký tự)</label>
+            <div className={styles.avatarInput}>
               <input
                 type="text"
+                id="avatar"
                 value={formData.avatarText}
                 onChange={handleChange('avatarText')}
                 placeholder="AB"
                 required
                 maxLength={2}
                 disabled={loading}
-                style={{ flex: 1 }}
               />
-              <div style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '50%',
-                background: formData.avatarBg,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'white',
-                fontSize: '20px',
-                fontWeight: '600'
-              }}>
+              <div 
+                className={styles.avatarPreview}
+                style={{ background: formData.avatarBg }}
+              >
                 {formData.avatarText || 'AB'}
               </div>
             </div>
@@ -142,50 +158,69 @@ export default function RegisterPage() {
 
           <div className={styles.field}>
             <label>Màu nền Avatar</label>
-            <div style={{ 
-              display: 'flex', 
-              gap: '12px',
-              flexWrap: 'wrap'
-            }}>
+            <div className={styles.colorPicker}>
               {AVATAR_COLORS.map(color => (
                 <button
                   key={color}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, avatarBg: color }))}
-                  style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '50%',
-                    background: color,
-                    border: formData.avatarBg === color ? '3px solid #000' : '2px solid #e0e0e0',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
+                  className={`${styles.colorButton} ${formData.avatarBg === color ? styles.colorButtonActive : ''}`}
+                  style={{ background: color }}
                   disabled={loading}
+                  aria-label={`Chọn màu ${color}`}
                 />
               ))}
             </div>
           </div>
 
           <div className={styles.field}>
-            <label>Mật khẩu</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={handleChange('password')}
-              placeholder="••••••••"
-              required
-              disabled={loading}
-            />
+            <label htmlFor="password">Mật khẩu</label>
+            <div className={styles.passwordWrapper}>
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                value={formData.password}
+                onChange={handleChange('password')}
+                placeholder="••••••••"
+                required
+                disabled={loading}
+                autoComplete="new-password"
+              />
+              <button
+  type="button"
+  className={styles.togglePassword}
+  onClick={() => setShowPassword(!showPassword)}
+  disabled={loading}
+>
+  {showPassword ? (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+    </svg>
+  ) : (
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+    </svg>
+  )}
+</button>
+            </div>
           </div>
 
           <button type="submit" disabled={loading} className={styles.submitBtn}>
-            {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+            {loading ? (
+              <>
+                <span className={styles.spinner}></span>
+                <span>Đang đăng ký...</span>
+              </>
+            ) : (
+              'Đăng ký'
+            )}
           </button>
         </form>
 
+        {/* Footer */}
         <div className={styles.footer}>
-          Đã có tài khoản?{' '}
+          Đã có tài khoản?
           <a href="/auth/login" className={styles.link}>
             Đăng nhập
           </a>

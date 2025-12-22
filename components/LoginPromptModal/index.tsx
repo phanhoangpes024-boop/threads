@@ -1,4 +1,9 @@
+// components/LoginPromptModal/index.tsx
+'use client'
+
 import { useRouter } from 'next/navigation'
+import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 
 interface LoginPromptModalProps {
   isOpen: boolean
@@ -7,8 +12,13 @@ interface LoginPromptModalProps {
 
 export default function LoginPromptModal({ isOpen, onClose }: LoginPromptModalProps) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
 
-  if (!isOpen) return null
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!isOpen || !mounted) return null
 
   const handleLogin = () => {
     router.push('/auth/login')
@@ -18,7 +28,7 @@ export default function LoginPromptModal({ isOpen, onClose }: LoginPromptModalPr
     router.push('/auth/register')
   }
 
-  return (
+  const modalContent = (
     <div 
       style={{
         position: 'fixed',
@@ -123,4 +133,6 @@ export default function LoginPromptModal({ isOpen, onClose }: LoginPromptModalPr
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }
