@@ -195,6 +195,10 @@
   border-radius: 0; /* ← BỎ bo tròn */
   overflow: visible; /* ← Cho phép ảnh tràn ra */
 }
+.threadActions .actionButton:nth-child(3),
+.threadActions .actionButton:nth-child(4) {
+  display: none !important;
+}
 
 /* ============================================
    📱 MOBILE RESPONSIVE

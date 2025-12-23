@@ -1,14 +1,17 @@
+/* components/ProfileTabs/ProfileTabs.module.css */
 .tabs {
   display: flex;
   border-bottom: 1px solid #f0f0f0;
   background: #ffffff;
   top: 60px;
   z-index: 10;
+  justify-content: center; /* ✅ THÊM: CENTER TAB */
 }
 
 .tab {
-  flex: 1;
-  padding: 16px 12px;
+  /* ✅ SỬA: flex: 1 thành width cố định hoặc giữ flex */
+  /* flex: 1; */ /* Xóa để tab không chiếm toàn bộ width */
+  padding: 16px 40px; /* ✅ TĂNG PADDING */
   border: none;
   background: transparent;
   font-size: 15px;
@@ -39,6 +42,25 @@
   
   .tab {
     font-size: 14px;
-    padding: 14px 8px;
+    padding: 14px 20px; /* ✅ MOBILE: PADDING NHỎ HƠN */
   }
+}
+
+/* ✅ DARK MODE */
+[data-theme="dark"] .tabs {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-light, #1f1f1f);
+}
+
+[data-theme="dark"] .tab {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .tab.active {
+  color: var(--text-primary, #ffffff);
+  border-bottom-color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .tab:hover {
+  color: var(--text-primary, #ffffff);
 }

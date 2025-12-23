@@ -87,3 +87,7 @@
     font-size: 24px;
   }
 }
+/* ✅ THÊM VÀO CUỐI FILE */
+[data-theme="dark"] .avatar {
+  /* Không override background - giữ inline style */
+}

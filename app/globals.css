@@ -53,7 +53,6 @@ body {
   background-color: var(--bg-secondary) !important;
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 main {
@@ -164,7 +163,7 @@ main {
 
 [data-theme="dark"] div[class*="avatarInner"] {
   background-color: var(--bg-tertiary) !important;
-  color: var(--text-secondary) !important;
+  color: #ffffff !important;  /* ← ĐỔI TỪ var(--text-secondary) */
 }
 
 [data-theme="dark"] button[class*="editButton"] {
@@ -482,7 +481,6 @@ main {
 }
 
 [data-theme="dark"] div[class*="avatarPreview"] {
-  background: var(--avatar-gradient) !important;
 }
 
 /* ========== BUTTONS ========== */
@@ -552,7 +550,6 @@ main {
 
 [data-theme="dark"] div[class*="avatar"],
 [data-theme="dark"] div[class*="avatarCircle"] {
-  background: var(--avatar-gradient) !important;
 }
 
 /* ========== AUTH PAGES ========== */

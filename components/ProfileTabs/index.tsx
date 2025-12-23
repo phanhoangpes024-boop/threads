@@ -1,3 +1,4 @@
+// components/ProfileTabs/index.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -23,30 +24,26 @@ export default function ProfileTabs({
 
   return (
     <nav className={styles.tabs}>
+      {/* ✅ CHỈ GIỮ 1 TAB */}
       <button
-        className={`${styles.tab} ${active === 'threads' ? styles.active : ''}`}
+        className={`${styles.tab} ${styles.active}`}
         onClick={() => handleTabClick('threads')}
       >
-        Thread
+        Bài đăng của tôi
       </button>
-      <button
-        className={`${styles.tab} ${active === 'replies' ? styles.active : ''}`}
-        onClick={() => handleTabClick('replies')}
-      >
+      
+      {/* ❌ ẨN 3 TAB NÀY */}
+      {/* 
+      <button className={`${styles.tab} ${active === 'replies' ? styles.active : ''}`}>
         Thread trả lời
       </button>
-      <button
-        className={`${styles.tab} ${active === 'media' ? styles.active : ''}`}
-        onClick={() => handleTabClick('media')}
-      >
+      <button className={`${styles.tab} ${active === 'media' ? styles.active : ''}`}>
         File phương tiện
       </button>
-      <button
-        className={`${styles.tab} ${active === 'reposts' ? styles.active : ''}`}
-        onClick={() => handleTabClick('reposts')}
-      >
+      <button className={`${styles.tab} ${active === 'reposts' ? styles.active : ''}`}>
         Bài đăng lại
       </button>
+      */}
     </nav>
   );
 }
