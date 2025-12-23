@@ -15,6 +15,7 @@ import CommentInput from '@/components/CommentInput'
 import { useFeedWithType, type FeedType } from '@/hooks/useFeedWithType'
 import { useToggleLike, useRefreshFeed, saveScrollPosition, getScrollPosition } from '@/hooks/useFeed'
 import { useCreateThread } from '@/hooks/useThreads'
+import { useDeleteThread, useUpdateThread } from '@/hooks/useThreadMutations'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { registerServiceWorker } from '@/lib/registerSW'
 import styles from './page.module.css'
@@ -41,11 +42,18 @@ export default function Home() {
   
   const toggleLikeMutation = useToggleLike()
   const createMutation = useCreateThread()
+  const deleteMutation = useDeleteThread()
+  const updateMutation = useUpdateThread()
   const refreshFeed = useRefreshFeed()
   const { user, loading: userLoading, isGuest } = useCurrentUser()  
   
   const [showModal, setShowModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
+  
+  // ✅ Edit mode state
+  const [editThreadId, setEditThreadId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [editImageUrls, setEditImageUrls] = useState<string[]>([])
   
   const parentRef = useRef<HTMLDivElement>(null)
   const hasRestoredScroll = useRef(false)
@@ -144,29 +152,69 @@ export default function Home() {
   }, [])
   
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
-    await createMutation.mutateAsync({ 
-      content,
-      imageUrls: imageUrls || []
-    })
-    setShowModal(false)
-    
-    hasRestoredScroll.current = false
-    setVirtualizerKey(prev => prev + 1)
-    
-    setTimeout(() => {
-      if (parentRef.current) {
-        parentRef.current.scrollTop = 0
+    try {
+      if (editThreadId) {
+        // ✅ UPDATE mode
+        await updateMutation.mutateAsync({
+          threadId: editThreadId,
+          content,
+          imageUrls: imageUrls || []
+        })
+      } else {
+        // ✅ CREATE mode
+        await createMutation.mutateAsync({ 
+          content,
+          imageUrls: imageUrls || []
+        })
       }
-    }, 150)
-    
-  }, [createMutation])
+      
+      setShowModal(false)
+      setEditThreadId(null)
+      setEditContent('')
+      setEditImageUrls([])
+      
+      hasRestoredScroll.current = false
+      setVirtualizerKey(prev => prev + 1)
+      
+      setTimeout(() => {
+        if (parentRef.current) {
+          parentRef.current.scrollTop = 0
+        }
+      }, 150)
+    } catch (error) {
+      console.error('Error:', error)
+    }
+  }, [editThreadId, createMutation, updateMutation])
+
+  // ✅ Xử lý edit
+  const handleEdit = useCallback((threadId: string, content: string, imageUrls: string[]) => {
+    setEditThreadId(threadId)
+    setEditContent(content)
+    setEditImageUrls(imageUrls)
+    setShowModal(true)
+  }, [])
+
+  // ✅ Xử lý delete
+  const handleDelete = useCallback(async (threadId: string) => {
+    try {
+      await deleteMutation.mutateAsync(threadId)
+    } catch (error) {
+      console.error('Error deleting:', error)
+    }
+  }, [deleteMutation])
 
   const handleOpenModal = useCallback(() => {
+    setEditThreadId(null)
+    setEditContent('')
+    setEditImageUrls([])
     setShowModal(true)
   }, [])
   
   const handleCloseModal = useCallback(() => {
     setShowModal(false)
+    setEditThreadId(null)
+    setEditContent('')
+    setEditImageUrls([])
   }, [])
   
   // Refresh feed khi tab visible
@@ -291,6 +339,8 @@ export default function Home() {
                     isLiked={thread.is_liked}
                     onLikeClick={handleLikeClick}
                     onCommentClick={handleCommentClick}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
                   />
                   
                   {activeCommentThreadId === thread.id && (
@@ -315,6 +365,10 @@ export default function Home() {
           username={user.username}
           avatarText={user.avatar_text}
           avatarBg={user.avatar_bg || '#0077B6'}
+          editMode={!!editThreadId}
+          initialContent={editContent}
+          initialImageUrls={editImageUrls}
+          threadId={editThreadId || undefined}
         />
       )}
     </>

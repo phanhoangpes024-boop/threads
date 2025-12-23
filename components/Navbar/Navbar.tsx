@@ -1,7 +1,7 @@
 // components/Navbar/Navbar.tsx
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -32,11 +32,15 @@ export default function Navbar() {
     return pathname?.startsWith(path)
   }
 
-  const handleCreateThread = async (content: string, imageUrls?: string[]) => {
+  // ✅ FIX: Thêm useCallback để tránh vòng lặp re-render
+  const handleCreateThread = useCallback(async (content: string, imageUrls?: string[]) => {
     await createMutation.mutateAsync({ content, imageUrls: imageUrls || [] })
     setShowCreateModal(false)
-  }
-
+  }, [createMutation])
+// Thêm dòng này sau handleCreateThread
+const handleCloseModal = useCallback(() => {
+  setShowCreateModal(false)
+}, [])
   const handleNavClick = (e: React.MouseEvent, path: string) => {
     if (path === '/' || path === '/search') return
     
@@ -48,12 +52,10 @@ export default function Navbar() {
     requireAuth(() => setShowCreateModal(true))
   }
 
-  // ✅ Chặn guest click search
   const handleSearchClick = (e: React.MouseEvent) => {
     requireAuth(() => router.push('/search'))
   }
 
-  // ✅ Chặn guest mở menu
   const handleMenuClick = () => {
     requireAuth(() => setShowMenu(!showMenu))
   }
@@ -196,7 +198,7 @@ export default function Navbar() {
       {!isGuest && showCreateModal && (
         <CreateThreadModal
           isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
+onClose={handleCloseModal}
           onSubmit={handleCreateThread}
           username={user.username}
           avatarText={user.avatar_text}
