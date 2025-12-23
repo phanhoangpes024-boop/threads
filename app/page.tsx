@@ -184,7 +184,7 @@ export default function Home() {
     } catch (error) {
       console.error('Error:', error)
     }
-  }, [editThreadId, createMutation, updateMutation])
+  }, [editThreadId])
 
   // ✅ Xử lý edit
   const handleEdit = useCallback((threadId: string, content: string, imageUrls: string[]) => {

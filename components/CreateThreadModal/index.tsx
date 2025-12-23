@@ -62,15 +62,16 @@ export default function CreateThreadModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !posting) {
-        handleClose();
-      }
-    };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [isOpen, posting]);
+ // ✅ Gọi trực tiếp onClose, không qua handleClose
+useEffect(() => {
+  const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen && !posting && !uploading) {
+      onClose();
+    }
+  };
+  document.addEventListener('keydown', handleEsc);
+  return () => document.removeEventListener('keydown', handleEsc);
+}, [isOpen, posting, uploading, onClose]);
 
   useEffect(() => {
     if (isOpen) {

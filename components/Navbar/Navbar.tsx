@@ -15,6 +15,9 @@ import styles from './Navbar.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
 
+// ✅ Constant để tránh vòng lặp re-render
+const EMPTY_ARRAY: string[] = []
+
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
@@ -32,15 +35,16 @@ export default function Navbar() {
     return pathname?.startsWith(path)
   }
 
-  // ✅ FIX: Thêm useCallback để tránh vòng lặp re-render
+  // ✅ Bỏ createMutation khỏi dependency
   const handleCreateThread = useCallback(async (content: string, imageUrls?: string[]) => {
     await createMutation.mutateAsync({ content, imageUrls: imageUrls || [] })
     setShowCreateModal(false)
-  }, [createMutation])
-// Thêm dòng này sau handleCreateThread
-const handleCloseModal = useCallback(() => {
-  setShowCreateModal(false)
-}, [])
+  }, [])
+
+  const handleCloseModal = useCallback(() => {
+    setShowCreateModal(false)
+  }, [])
+
   const handleNavClick = (e: React.MouseEvent, path: string) => {
     if (path === '/' || path === '/search') return
     
@@ -198,11 +202,15 @@ const handleCloseModal = useCallback(() => {
       {!isGuest && showCreateModal && (
         <CreateThreadModal
           isOpen={showCreateModal}
-onClose={handleCloseModal}
+          onClose={handleCloseModal}
           onSubmit={handleCreateThread}
           username={user.username}
           avatarText={user.avatar_text}
           avatarBg={user.avatar_bg}
+          editMode={false}
+          initialContent=""
+          initialImageUrls={EMPTY_ARRAY}
+          threadId={undefined}
         />
       )}
 

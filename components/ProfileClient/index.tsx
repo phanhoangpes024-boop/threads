@@ -166,7 +166,7 @@ export default function ProfileClient({
       console.error('Failed to create/update thread:', error)
       alert('Không thể thực hiện. Vui lòng thử lại.')
     }
-  }, [editThreadId, createThreadMutation, updateMutation, router])
+  }, [editThreadId, router])
 
   // ✅ Xử lý edit
   const handleEdit = useCallback((threadId: string, content: string, imageUrls: string[]) => {
