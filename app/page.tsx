@@ -1,4 +1,4 @@
-// app/page.tsx - FIXED: Virtual scroll + Layout issues
+// app/page.tsx
 'use client'
 
 import CreateThreadInputSkeleton from '@/components/Skeletons/CreateThreadInputSkeleton'
@@ -42,7 +42,8 @@ export default function Home() {
   const toggleLikeMutation = useToggleLike()
   const createMutation = useCreateThread()
   const refreshFeed = useRefreshFeed()
-const { user, loading: userLoading, isGuest } = useCurrentUser()  
+  const { user, loading: userLoading, isGuest } = useCurrentUser()  
+  
   const [showModal, setShowModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
   
@@ -59,15 +60,16 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
     measureElement: (el) => el?.getBoundingClientRect().height ?? 400,
   })
   
-  // ✅ FIX 1: Reset virtualizer khi đổi feed type
+  // Reset virtualizer khi đổi feed type
   useEffect(() => {
-    setVirtualizerKey(prev => prev + 1)  // ← THÊM DÒNG NÀY
+    setVirtualizerKey(prev => prev + 1)
     hasRestoredScroll.current = false
     if (parentRef.current) {
       parentRef.current.scrollTop = 0
     }
   }, [feedType])
   
+  // Restore scroll position
   useEffect(() => {
     if (!hasRestoredScroll.current && allThreads.length > 0) {
       const savedPosition = getScrollPosition()
@@ -93,6 +95,7 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
     }
   }, [allThreads.length, virtualizer])
   
+  // Save scroll position before unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       const items = virtualizer.getVirtualItems()
@@ -109,6 +112,7 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
     }
   }, [virtualizer])
   
+  // Infinite scroll
   useEffect(() => {
     const [lastItem] = [...virtualizer.getVirtualItems()].reverse()
     
@@ -156,7 +160,7 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
     }, 150)
     
   }, [createMutation])
-  
+
   const handleOpenModal = useCallback(() => {
     setShowModal(true)
   }, [])
@@ -165,6 +169,7 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
     setShowModal(false)
   }, [])
   
+  // Refresh feed khi tab visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -176,6 +181,7 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [refreshFeed])
   
+  // Register service worker
   useEffect(() => {
     registerServiceWorker()
   }, [])
@@ -202,13 +208,13 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
       <CustomScrollbar className={styles.mainContainer}>
         <div ref={parentRef} key={`virtualizer-${virtualizerKey}`}>
           {!isGuest && (
-  <div onClick={handleOpenModal}>
-    <CreateThreadInput 
-      avatarText={user.avatar_text}  
-      avatarBg={user.avatar_bg || '#0077B6'}
-    />
-  </div>
-)}
+            <div onClick={handleOpenModal}>
+              <CreateThreadInput 
+                avatarText={user.avatar_text}  
+                avatarBg={user.avatar_bg || '#0077B6'}
+              />
+            </div>
+          )}
           
           {feedType === 'following' && allThreads.length === 0 && !isLoading && (
             <div style={{
@@ -220,13 +226,12 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
             </div>
           )}
           
-          {/* ✅ FIX 2: Thêm paddingBottom */}
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,
               width: '100%',
               position: 'relative',
-              paddingBottom: '100px'  // ← THÊM DÒNG NÀY
+              paddingBottom: '100px'
             }}
           >
             {virtualItems.map((virtualItem) => {
@@ -272,6 +277,7 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
                 >
                   <ThreadCard
                     id={thread.id}
+                    user_id={thread.user_id}
                     username={thread.username}
                     timestamp={thread.created_at}
                     content={thread.content}
@@ -287,7 +293,6 @@ const { user, loading: userLoading, isGuest } = useCurrentUser()
                     onCommentClick={handleCommentClick}
                   />
                   
-                  {/* ✅ CommentInput trong ThreadCard */}
                   {activeCommentThreadId === thread.id && (
                     <CommentInput
                       threadId={thread.id}

@@ -1,3 +1,4 @@
+// components/CreateThreadModal/index.tsx
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -12,7 +13,12 @@ interface CreateThreadModalProps {
   onSubmit: (content: string, imageUrls?: string[]) => Promise<void>;
   username: string;
   avatarText: string;
-    avatarBg?: string;  // ← THÊM
+  avatarBg?: string;
+  // ✅ EDIT MODE
+  editMode?: boolean;
+  initialContent?: string;
+  initialImageUrls?: string[];
+  threadId?: string;
 }
 
 export default function CreateThreadModal({
@@ -21,15 +27,32 @@ export default function CreateThreadModal({
   onSubmit,
   username,
   avatarText,
-  avatarBg = '#0077B6'  // ← THÊM
-
+  avatarBg = '#0077B6',
+  editMode = false,
+  initialContent = '',
+  initialImageUrls = [],
+  threadId
 }: CreateThreadModalProps) {
   const [content, setContent] = useState('');
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [posting, setPosting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageUploaderRef = useRef<ImageUploaderRef>(null);
+
+  // ✅ Khởi tạo data khi mở modal
+  useEffect(() => {
+    if (isOpen) {
+      if (editMode) {
+        setContent(initialContent);
+        setExistingImageUrls(initialImageUrls);
+      } else {
+        setContent('');
+        setExistingImageUrls([]);
+      }
+    }
+  }, [isOpen, editMode, initialContent, initialImageUrls]);
 
   useEffect(() => {
     if (isOpen && textareaRef.current) {
@@ -64,6 +87,7 @@ export default function CreateThreadModal({
     if (posting || uploading) return;
     setContent('');
     setImageFiles([]);
+    setExistingImageUrls([]);
     onClose();
   };
 
@@ -75,6 +99,19 @@ export default function CreateThreadModal({
     imageUploaderRef.current?.triggerFileInput();
   };
 
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
+  // ✅ Xóa ảnh cũ
+  const handleRemoveExistingImage = (index: number) => {
+    setExistingImageUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     if (!content.trim() || posting || uploading) return;
     
@@ -82,15 +119,19 @@ export default function CreateThreadModal({
     setUploading(true);
     
     try {
-      let imageUrls: string[] = [];
+      let finalImageUrls: string[] = [...existingImageUrls];
+      
+      // Upload ảnh mới nếu có
       if (imageFiles.length > 0) {
-        imageUrls = await uploadImagesToSupabase(imageFiles);
+        const newUrls = await uploadImagesToSupabase(imageFiles);
+        finalImageUrls = [...finalImageUrls, ...newUrls];
       }
 
-      await onSubmit(content.trim(), imageUrls);
+      await onSubmit(content.trim(), finalImageUrls);
       
       setContent('');
       setImageFiles([]);
+      setExistingImageUrls([]);
     } catch (error) {
       console.error('Lỗi khi đăng thread:', error);
       alert('Không thể đăng thread. Vui lòng thử lại.');
@@ -100,61 +141,63 @@ export default function CreateThreadModal({
     }
   };
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = '60px';
-    const scrollHeight = textarea.scrollHeight;
-    if (scrollHeight > 144) {
-      textarea.style.height = '144px';
-      textarea.style.overflowY = 'auto';
-    } else {
-      textarea.style.height = scrollHeight + 'px';
-      textarea.style.overflowY = 'hidden';
-    }
-  };
+  const canPost = content.trim().length > 0 && !posting && !uploading;
 
   if (!isOpen) return null;
-  if (typeof window === 'undefined') return null;
-
-  const canPost = content.trim() && !posting && !uploading;
 
   const modalContent = (
-    <div className={styles.overlay} onClick={handleClose}>
-      <div className={styles.container} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.overlay} onClick={(e) => {
+      if (e.target === e.currentTarget && !posting) handleClose();
+    }}>
+      <div className={styles.container}>
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <button 
-              className={styles.cancelBtn} 
-              onClick={handleClose}
-              disabled={posting || uploading}
-            >
+            <button className={styles.cancelBtn} onClick={handleClose}>
               Hủy
             </button>
           </div>
-          <div className={styles.headerCenter}>Thread mới</div>
-          <div className={styles.headerRight}>
+          <div className={styles.headerCenter}>
+            {editMode ? 'Chỉnh sửa thread' : 'Thread mới'}
           </div>
+          <div className={styles.headerRight}></div>
         </div>
 
         <div className={styles.body}>
           <div className={styles.inputSection}>
-<div className={styles.avatar} style={{ background: avatarBg }}>{avatarText}</div>            <div className={styles.inputContainer}>
-              <div className={styles.userInfo}>
-                <span className={styles.username}>{username}</span>
-                <span className={styles.addCaption}>Thêm chú đề</span>
-              </div>
+            <div className={styles.avatar} style={{ background: avatarBg }}>
+              {avatarText}
+            </div>
+            
+            <div className={styles.inputContainer}>
+              <div className={styles.username}>{username}</div>
+              <div className={styles.addCaption}>Thêm chú thích</div>
               
-              <div className={styles.textareaContainer}>
-                <textarea
-                  ref={textareaRef}
-                  className={styles.textarea}
-                  placeholder="Có gì mới?"
-                  value={content}
-                  onChange={handleTextareaChange}
-                  disabled={posting || uploading}
-                />
-              </div>
+              <textarea
+                ref={textareaRef}
+                className={styles.textarea}
+                placeholder={`Bạn đang nghĩ gì, ${username}?`}
+                value={content}
+                onChange={handleTextareaChange}
+                disabled={posting || uploading}
+              />
+
+              {/* ✅ Hiển thị ảnh cũ (existing) */}
+              {existingImageUrls.length > 0 && (
+                <div className={styles.existingImages}>
+                  {existingImageUrls.map((url, index) => (
+                    <div key={url} className={styles.existingImage}>
+                      <img src={url} alt={`Existing ${index + 1}`} />
+                      <button
+                        className={styles.removeBtn}
+                        onClick={() => handleRemoveExistingImage(index)}
+                        type="button"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className={styles.toolbar}>
                 <button 
@@ -197,7 +240,7 @@ export default function CreateThreadModal({
             disabled={!canPost}
             onClick={handleSubmit}
           >
-            {uploading ? 'Đang tải...' : posting ? 'Đang đăng...' : 'Đăng'}
+            {uploading ? 'Đang tải...' : posting ? 'Đang đăng...' : editMode ? 'Cập nhật' : 'Đăng'}
           </button>
         </div>
       </div>

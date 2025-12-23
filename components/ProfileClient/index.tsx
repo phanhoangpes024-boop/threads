@@ -1,4 +1,4 @@
-// components/ProfileClient/index.tsx - WITH OPTIMISTIC FOLLOWERS COUNT
+// components/ProfileClient/index.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
@@ -14,6 +14,7 @@ import CreateThreadInput from '@/components/CreateThreadInput'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useToggleLike } from '@/hooks/useFeed'
 import { useCreateThread } from '@/hooks/useThreads'
+import { useDeleteThread, useUpdateThread } from '@/hooks/useThreadMutations'
 import type { ProfileData, ProfileThread } from '@/lib/data'
 import type { InfiniteData } from '@tanstack/react-query'
 import styles from './ProfileClient.module.css'
@@ -41,12 +42,18 @@ export default function ProfileClient({
   const { user: currentUser } = useCurrentUser()
   const toggleLikeMutation = useToggleLike()
   const createThreadMutation = useCreateThread()
+  const deleteMutation = useDeleteThread()
+  const updateMutation = useUpdateThread()
   
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
 
-  // ✅ Query profile với query key chuẩn
+  // ✅ Edit mode state
+  const [editThreadId, setEditThreadId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [editImageUrls, setEditImageUrls] = useState<string[]>([])
+
   const { data: profile = initialProfile } = useQuery<ProfileData>({
     queryKey: ['profile', initialProfile.id],
     queryFn: async () => {
@@ -127,23 +134,57 @@ export default function ProfileClient({
 
   const handleOpenCreateModal = useCallback(() => {
     setShowCreateModal(true)
+    setEditThreadId(null)
+    setEditContent('')
+    setEditImageUrls([])
   }, [])
 
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
     try {
-      await createThreadMutation.mutateAsync({ 
-        content, 
-        imageUrls: imageUrls || [] 
-      })
+      if (editThreadId) {
+        // ✅ UPDATE mode
+        await updateMutation.mutateAsync({
+          threadId: editThreadId,
+          content,
+          imageUrls: imageUrls || []
+        })
+      } else {
+        // ✅ CREATE mode
+        await createThreadMutation.mutateAsync({ 
+          content, 
+          imageUrls: imageUrls || [] 
+        })
+      }
       
       setShowCreateModal(false)
+      setEditThreadId(null)
+      setEditContent('')
+      setEditImageUrls([])
       router.refresh()
       
     } catch (error) {
-      console.error('Failed to create thread:', error)
-      alert('Không thể tạo thread. Vui lòng thử lại.')
+      console.error('Failed to create/update thread:', error)
+      alert('Không thể thực hiện. Vui lòng thử lại.')
     }
-  }, [createThreadMutation, router])
+  }, [editThreadId, createThreadMutation, updateMutation, router])
+
+  // ✅ Xử lý edit
+  const handleEdit = useCallback((threadId: string, content: string, imageUrls: string[]) => {
+    setEditThreadId(threadId)
+    setEditContent(content)
+    setEditImageUrls(imageUrls)
+    setShowCreateModal(true)
+  }, [])
+
+  // ✅ Xử lý delete
+  const handleDelete = useCallback(async (threadId: string) => {
+    try {
+      await deleteMutation.mutateAsync(threadId)
+      router.refresh()
+    } catch (error) {
+      console.error('Failed to delete thread:', error)
+    }
+  }, [deleteMutation, router])
 
   const handleEditProfile = useCallback(() => {
     setShowEditModal(true)
@@ -163,6 +204,13 @@ export default function ProfileClient({
     
     router.refresh()
   }, [profile.id, router, queryClient])
+
+  const handleCloseModal = useCallback(() => {
+    setShowCreateModal(false)
+    setEditThreadId(null)
+    setEditContent('')
+    setEditImageUrls([])
+  }, [])
 
   return (
     <>
@@ -200,6 +248,7 @@ export default function ProfileClient({
               <div key={thread.id}>
                 <ThreadCard
                   id={thread.id}
+                  user_id={thread.user_id}
                   username={thread.username}
                   timestamp={thread.created_at}
                   content={thread.content}
@@ -213,6 +262,8 @@ export default function ProfileClient({
                   isLiked={thread.is_liked}
                   onLikeClick={handleLike}
                   onCommentClick={handleCommentClick}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
                 />
                 
                 {activeCommentThreadId === thread.id && (
@@ -231,11 +282,15 @@ export default function ProfileClient({
       {showCreateModal && isOwnProfile && (
         <CreateThreadModal
           isOpen={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
+          onClose={handleCloseModal}
           onSubmit={handlePostThread}
           username={currentUser?.username || ''}
           avatarText={currentUser?.avatar_text || 'U'}
           avatarBg={currentUser?.avatar_bg || '#0077B6'}
+          editMode={!!editThreadId}
+          initialContent={editContent}
+          initialImageUrls={editImageUrls}
+          threadId={editThreadId || undefined}
         />
       )}
 

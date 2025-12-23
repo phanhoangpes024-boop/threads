@@ -6,12 +6,16 @@ import { useRouter } from 'next/navigation'
 import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
 import LoginPromptModal from '@/components/LoginPromptModal'
+import ThreadMenu from '@/components/ThreadMenu'
+import ConfirmDialog from '@/components/ConfirmDialog'
 import { useAuthGuard } from '@/hooks/useAuthGuard'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 import type { FeedMedia } from '@/hooks/useFeed'
 import styles from './ThreadCard.module.css'
 
 interface ThreadCardProps {
   id: string
+  user_id?: string
   avatarBg?: string
   username: string
   timestamp: string
@@ -25,10 +29,13 @@ interface ThreadCardProps {
   isLiked?: boolean
   onLikeClick: (threadId: string) => void
   onCommentClick: (threadId: string) => void
+  onEdit?: (threadId: string, content: string, imageUrls: string[]) => void
+  onDelete?: (threadId: string) => void
 }
 
 function ThreadCard({
   id,
+  user_id,
   username,
   avatarBg, 
   timestamp,
@@ -42,19 +49,25 @@ function ThreadCard({
   isLiked = false,
   onLikeClick,
   onCommentClick,
+  onEdit,
+  onDelete,
 }: ThreadCardProps) {
   const router = useRouter()
+  const { user } = useCurrentUser()
   const { requireAuth, showLoginPrompt, closePrompt } = useAuthGuard()
+  
   const [showImageModal, setShowImageModal] = useState(false)
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // ✅ Like với auth guard
+  // ✅ Check thread thuộc user hiện tại
+  const isOwnThread = user.id && user_id ? user.id === user_id : false
+
   const handleLike = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     requireAuth(() => onLikeClick(id))
   }, [id, onLikeClick, requireAuth])
 
-  // ✅ Comment với auth guard
   const handleComment = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
     requireAuth(() => onCommentClick(id))
@@ -87,6 +100,26 @@ function ThreadCard({
     router.push(`/profile/${username}`)
   }, [username, router])
 
+  // ✅ Xử lý edit
+  const handleEdit = useCallback(() => {
+    const imageUrls = medias.map(m => m.url)
+    onEdit?.(id, content, imageUrls)
+  }, [id, content, medias, onEdit])
+
+  // ✅ Xử lý delete
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteConfirm(true)
+  }, [])
+
+  const handleDeleteConfirm = useCallback(() => {
+    onDelete?.(id)
+    setShowDeleteConfirm(false)
+  }, [id, onDelete])
+
+  const handleDeleteCancel = useCallback(() => {
+    setShowDeleteConfirm(false)
+  }, [])
+
   const formattedTime = useMemo(() => {
     const date = new Date(timestamp)
     const now = new Date()
@@ -112,15 +145,11 @@ function ThreadCard({
       .map(m => m.url)
   }, [medias])
 
-  const isSingleImage = imageUrls.length === 1
-  const hasImages = imageUrls.length > 0
-
   return (
     <>
       <article 
-        className={styles.threadCard} 
+        className={styles.threadCard}
         onClick={handleCardClick}
-        style={{ cursor: 'pointer' }}
       >
         <div className={styles.threadContainer}>
           <div className={styles.threadAvatar}>
@@ -133,64 +162,45 @@ function ThreadCard({
           </div>
 
           <div className={styles.threadContent}>
-            <header className={styles.threadHeader}>
+            <div className={styles.threadHeader}>
               <div className={styles.threadHeaderLeft}>
                 <span 
                   className={styles.username}
                   onClick={handleUsernameClick}
-                >{username}</span>
+                >
+                  {username}
+                </span>
+                
                 {verified && (
                   <div className={styles.verifiedBadge}>
-                    <svg viewBox="0 0 24 24">
-                      <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                    <svg viewBox="0 0 22 22">
+                      <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" />
                     </svg>
                   </div>
                 )}
+
                 <span className={styles.timestamp}>{formattedTime}</span>
               </div>
-              <div className={styles.menuButton}>
-                <svg viewBox="0 0 24 24">
-                  <circle cx="12" cy="5" r="1.5" />
-                  <circle cx="12" cy="12" r="1.5" />
-                  <circle cx="12" cy="19" r="1.5" />
-                </svg>
-              </div>
-            </header>
+
+              {/* ✅ ThreadMenu */}
+              <ThreadMenu
+                threadId={id}
+                isOwnThread={isOwnThread}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+              />
+            </div>
 
             <div className={styles.threadText}>{content}</div>
 
-            {hasImages && (
-              <>
-                {isSingleImage ? (
-                  <div 
-                    className={`${styles.threadMedia} ${styles.singleImage}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleImageClick(0)
-                    }}
-                  >
-                    <img 
-                      src={imageUrls[0]} 
-                      alt="Thread image"
-                      loading="lazy"
-                      style={{
-                        width: '100%',
-                        height: 'auto',
-                        display: 'block',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-                ) : (
-                  <div className={styles.threadMedia}>
-                    <ImageGallery
-                      images={imageUrls}
-                      mode="view"
-                      onImageClick={handleImageClick}
-                    />
-                  </div>
-                )}
-              </>
+            {imageUrls.length > 0 && (
+              <div className={`${styles.threadMedia} ${imageUrls.length === 1 ? styles.singleImage : ''}`}>
+                <ImageGallery
+                  images={imageUrls}
+                  medias={medias}
+                  onImageClick={handleImageClick}
+                />
+              </div>
             )}
 
             <div className={styles.threadActions}>
@@ -243,10 +253,8 @@ function ThreadCard({
         </div>
       </article>
 
-      {/* ✅ Login Prompt Modal */}
       <LoginPromptModal isOpen={showLoginPrompt} onClose={closePrompt} />
 
-      {/* Image Modal */}
       {showImageModal && imageUrls.length > 0 && (
         <ImageModal 
           images={imageUrls}
@@ -254,6 +262,17 @@ function ThreadCard({
           onClose={handleCloseModal} 
         />
       )}
+
+      {/* ✅ Confirm Delete Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Xóa thread?"
+        message="Bạn chắc chắn muốn xóa thread này chứ? Hành động này không thể hoàn tác."
+        confirmText="Xóa"
+        cancelText="Hủy"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+      />
     </>
   )
 }
