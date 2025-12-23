@@ -257,3 +257,67 @@
     width: 100%;
   }
 }
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] .container {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .header {
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .cancelBtn {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .cancelBtn:hover {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .headerCenter {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .iconBtn:hover {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .username {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .addCaption {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .textarea {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .textarea::placeholder {
+  color: var(--text-tertiary, #737373);
+}
+
+[data-theme="dark"] .toolbarIcon {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .toolbarIcon:hover {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .postBtn {
+  background: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .postBtn:hover:not(:disabled) {
+  background: #f5f5f5;
+}

@@ -90,3 +90,34 @@
     max-width: 100%;
   }
 }
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .container {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .content,
+[data-theme="dark"] .state {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .sectionTitle,
+[data-theme="dark"] .sectionHeader {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .searchWrapper {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .userList {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .empty,
+[data-theme="dark"] .loading {
+  color: var(--text-secondary, #a3a3a3);
+}

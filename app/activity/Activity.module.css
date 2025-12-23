@@ -201,3 +201,59 @@
     padding: 12px 16px;
   }
 }
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .container {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .notificationsList {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .notificationItem {
+  border-color: var(--border-light, #1f1f1f);
+}
+
+[data-theme="dark"] .notificationItem:hover {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .notificationItem.unread {
+  background: rgba(0, 149, 246, 0.1);
+}
+
+[data-theme="dark"] .avatar {
+  border-color: var(--bg-primary, #0a0a0a);
+  color: #ffffff; /* ← ĐẢM BẢO CHỮ TRẮNG */
+  /* ✅ KHÔNG override background - giữ nguyên gradient từ inline style */
+}
+
+[data-theme="dark"] .text {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .time {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .thumbnailPlaceholder {
+  background: var(--bg-tertiary, #1a1a1a);
+}
+
+[data-theme="dark"] .followButton {
+  background: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .followButton:hover {
+  background: #f5f5f5;
+}
+
+[data-theme="dark"] .loading,
+[data-theme="dark"] .empty {
+  color: var(--text-secondary, #a3a3a3);
+}

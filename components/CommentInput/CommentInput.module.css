@@ -105,3 +105,36 @@
     padding: 6px 12px;
   }
 }
+
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .commentInputContainer {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .avatarCircle {
+  background: var(--avatar-gradient);
+}
+
+[data-theme="dark"] .textarea {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .textarea::placeholder {
+  color: var(--text-tertiary, #737373);
+}
+
+[data-theme="dark"] .submitButton {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .submitButton.active {
+  color: var(--accent-color, #0095f6);
+}
+
+[data-theme="dark"] .submitButton:hover:not(:disabled) {
+  background: var(--bg-hover, #1a1a1a);
+}

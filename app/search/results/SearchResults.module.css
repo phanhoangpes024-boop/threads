@@ -83,3 +83,37 @@
     padding: 14px 8px;
   }
 }
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .container {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .tabs {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-light, #1f1f1f);
+}
+
+[data-theme="dark"] .tab {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .tab.active {
+  color: var(--text-primary, #ffffff);
+  border-bottom-color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .tab:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .tabContent {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .empty {
+  color: var(--text-secondary, #a3a3a3);
+}

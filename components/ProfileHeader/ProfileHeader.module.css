@@ -42,7 +42,7 @@
   justify-content: center;
   font-size: 32px;
   font-weight: 600;
-  color: #666;
+  color: #ffffff;  /* ← ĐỔI TỪ #666 SANG #ffffff */
 }
 
 .avatarImage {
@@ -240,4 +240,85 @@
   .actionButtons {
     flex-direction: column;
   }
+}
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .profileHeader {
+  background: var(--bg-primary, #0a0a0a);
+}
+
+[data-theme="dark"] .avatar {
+  /* ✅ KHÔNG override background - giữ gradient từ inline style */
+}
+
+[data-theme="dark"] .avatarInner {
+  background: var(--bg-tertiary, #1a1a1a);
+  color: #ffffff; /* ✅ ĐỔI TỪ #666 SANG WHITE */
+}
+
+[data-theme="dark"] .name {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .username {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .bio {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .statText {
+  color: var(--text-secondary, #a3a3a3);
+}
+
+[data-theme="dark"] .iconButton {
+  background: transparent;
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .iconButton:hover {
+  background: var(--bg-hover, #1a1a1a);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .editButton {
+  background: transparent;
+  color: var(--text-primary, #ffffff);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .editButton:hover {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .followButton {
+  background: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .followButton:hover:not(:disabled) {
+  background: #f5f5f5;
+}
+
+[data-theme="dark"] .followButton.following {
+  background: transparent;
+  color: var(--text-primary, #ffffff);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .followButton.following:hover:not(:disabled) {
+  background: var(--bg-hover, #1a1a1a);
+}
+
+[data-theme="dark"] .mentionButton {
+  background: transparent;
+  color: var(--text-primary, #ffffff);
+  border-color: var(--border-color, #262626);
+}
+
+[data-theme="dark"] .mentionButton:hover {
+  background: var(--bg-hover, #1a1a1a);
 }

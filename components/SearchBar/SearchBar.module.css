@@ -54,3 +54,28 @@
     padding: 8px 12px;
   }
 }
+/* ============================================
+   🌙 DARK MODE
+   ============================================ */
+
+[data-theme="dark"] .searchBar {
+  background: var(--bg-primary, #0a0a0a);
+  border-color: var(--border-light, #1f1f1f);
+}
+
+[data-theme="dark"] .searchInputWrapper {
+  background: var(--bg-tertiary, #1a1a1a);
+}
+
+[data-theme="dark"] .searchInput {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="dark"] .searchInput::placeholder {
+  color: var(--text-tertiary, #737373);
+}
+
+[data-theme="dark"] .searchIcon,
+[data-theme="dark"] .filterIcon {
+  color: var(--text-secondary, #a3a3a3);
+}

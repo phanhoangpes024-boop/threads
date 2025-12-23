@@ -1,9 +1,10 @@
 // components/MenuPopup/index.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { logout } from '@/lib/currentUser'
+import { useTheme } from '@/components/ThemeProvider'
 import styles from './MenuPopup.module.css'
 
 interface MenuPopupProps {
@@ -13,12 +14,8 @@ interface MenuPopupProps {
 }
 
 export default function MenuPopup({ isOpen, onClose, position = 'desktop' }: MenuPopupProps) {
-  const [darkMode, setDarkMode] = useState(false)
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme')
-    setDarkMode(savedTheme === 'dark')
-  }, [])
+  // ✅ Dùng theme từ ThemeProvider thay vì localStorage riêng
+  const { theme, toggleTheme } = useTheme()
 
   useEffect(() => {
     if (isOpen) {
@@ -30,11 +27,8 @@ export default function MenuPopup({ isOpen, onClose, position = 'desktop' }: Men
     }
   }, [isOpen, onClose])
 
-  const toggleDarkMode = () => {
-    const newMode = !darkMode
-    setDarkMode(newMode)
-    localStorage.setItem('theme', newMode ? 'dark' : 'light')
-    document.documentElement.setAttribute('data-theme', newMode ? 'dark' : 'light')
+  const handleToggle = () => {
+    toggleTheme()
   }
 
   const handleLogout = () => {
@@ -45,6 +39,8 @@ export default function MenuPopup({ isOpen, onClose, position = 'desktop' }: Men
   if (!isOpen) return null
   if (typeof window === 'undefined') return null
 
+  const isDark = theme === 'dark'
+
   const content = (
     <>
       {/* Overlay để click outside đóng menu */}
@@ -52,10 +48,10 @@ export default function MenuPopup({ isOpen, onClose, position = 'desktop' }: Men
       
       <div className={`${styles.popup} ${position === 'mobile' ? styles.mobile : styles.desktop}`}>
         {/* Chế độ sáng/tối */}
-        <div className={styles.menuItem} onClick={toggleDarkMode}>
+        <div className={styles.menuItem} onClick={handleToggle}>
           <div className={styles.menuItemLeft}>
             <svg viewBox="0 0 24 24" className={styles.menuIcon}>
-              {darkMode ? (
+              {isDark ? (
                 <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               ) : (
                 <>
@@ -71,10 +67,10 @@ export default function MenuPopup({ isOpen, onClose, position = 'desktop' }: Men
                 </>
               )}
             </svg>
-            <span>{darkMode ? 'Chế độ sáng' : 'Chế độ tối'}</span>
+            <span>{isDark ? 'Chế độ sáng' : 'Chế độ tối'}</span>
           </div>
           <div className={styles.toggle}>
-            <div className={`${styles.toggleTrack} ${darkMode ? styles.toggleActive : ''}`}>
+            <div className={`${styles.toggleTrack} ${isDark ? styles.toggleActive : ''}`}>
               <div className={styles.toggleThumb} />
             </div>
           </div>
