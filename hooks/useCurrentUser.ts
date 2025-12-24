@@ -29,7 +29,8 @@ export function useCurrentUser() {
 
   useEffect(() => {
     const stored = localStorage.getItem('currentUser');
-    const isGuestAllowed = pathname === '/' || pathname?.startsWith('/thread/');
+    // ✅ THÊM /profile/ vào danh sách guest được phép vào
+    const isGuestAllowed = pathname === '/' || pathname?.startsWith('/thread/') || pathname?.startsWith('/profile/');
     
     if (stored) {
       const parsedUser = JSON.parse(stored);

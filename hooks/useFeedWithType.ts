@@ -6,20 +6,19 @@ import type { FeedPage, FeedCursor } from './useFeed'
 export type FeedType = 'for-you' | 'following'
 
 export function useFeedWithType(feedType: FeedType) {
-  const { user } = useCurrentUser()
+  const { user, loading } = useCurrentUser()
   
   const endpoint = feedType === 'following' ? '/api/feed/following' : '/api/feed'
   
   return useInfiniteQuery<FeedPage, Error, any, string[], FeedCursor | undefined>({
-    queryKey: ['feed', feedType, user?.id || 'guest'],
+    queryKey: ['feed', feedType, user.id || 'guest'],
     
     queryFn: async ({ pageParam }): Promise<FeedPage> => {
       const params = new URLSearchParams({
         limit: '20'
       })
       
-      // ✅ Chỉ thêm user_id khi có user
-      if (user?.id) {
+      if (user.id) {
         params.append('user_id', user.id)
       }
       
@@ -48,11 +47,9 @@ export function useFeedWithType(feedType: FeedType) {
         : undefined
     },
     
-    // ✅ Guest có thể xem feed
-    enabled: true,
+    enabled: !loading,
     staleTime: 1000 * 60,
     gcTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
   })
 }

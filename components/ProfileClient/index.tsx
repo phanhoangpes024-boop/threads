@@ -89,13 +89,15 @@ export default function ProfileClient({
   })()
 
   const { data: threads = [] } = useQuery<ProfileThread[]>({
-    queryKey: ['profile-threads', initialProfile.id, currentUser?.id],
+    queryKey: ['profile-threads', initialProfile.id, currentUser?.id || 'guest'],
     
     queryFn: async () => {
-      if (!currentUser?.id) return initialThreads
+      // ✅ Guest cũng fetch được thread, nhưng không có is_liked
+      const userId = currentUser?.id || ''
+      const params = userId ? `?current_user_id=${userId}` : ''
       
       const res = await fetch(
-        `/api/users/${initialProfile.id}/threads?current_user_id=${currentUser.id}`
+        `/api/users/${initialProfile.id}/threads${params}`
       )
       
       if (!res.ok) return initialThreads
@@ -104,7 +106,7 @@ export default function ProfileClient({
     
     initialData: smartInitialThreads,
     staleTime: 0,
-    enabled: !!currentUser?.id,
+    // ✅ Bỏ enabled để guest vẫn fetch được
   })
 
   const isOwnProfile = currentUser?.id === profile.id

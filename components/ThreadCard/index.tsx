@@ -153,13 +153,14 @@ function ThreadCard({
       >
         <div className={styles.threadContainer}>
           <div className={styles.threadAvatar}>
-            <div 
-              className={styles.avatar}
-              style={{ background: avatarBg || '#0077B6' }}
-            >
-              {avatarText}
-            </div>
-          </div>
+  <div 
+    className={styles.avatar}
+    style={{ background: avatarBg || '#0077B6', cursor: 'pointer' }}
+    onClick={handleUsernameClick}
+  >
+    {avatarText}
+  </div>
+</div>
 
           <div className={styles.threadContent}>
             <div className={styles.threadHeader}>

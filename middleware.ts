@@ -13,21 +13,26 @@ export async function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('sb-refresh-token')?.value
   const path = request.nextUrl.pathname
 
-  // ✅ Cho phép guest xem homepage và thread detail
-  const guestAllowedPaths = ['/', '/thread']
-  const isGuestAllowed = guestAllowedPaths.some(p => path === p || path.startsWith('/thread/'))
-
-  // Bỏ qua auth routes
-  if (path.startsWith('/auth') || path.startsWith('/api/auth')) {
+  // ✅ 1. Public API routes - cho qua luôn
+  if (
+    path.startsWith('/auth') || 
+    path.startsWith('/api/auth') ||
+    path.startsWith('/api/feed') ||
+    path.startsWith('/api/threads') ||
+    path.startsWith('/api/users')
+  ) {
     return NextResponse.next()
   }
 
-  // ✅ Guest được xem homepage và thread detail
+  // ✅ 2. Guest được xem homepage và thread detail
+  const guestAllowedPaths = ['/', '/thread']
+  const isGuestAllowed = guestAllowedPaths.some(p => path === p || path.startsWith('/thread/'))
+
   if (isGuestAllowed && !accessToken && !refreshToken) {
     return NextResponse.next()
   }
 
-  // Không có token và KHÔNG phải guest route → redirect login
+  // 3. Không có token và KHÔNG phải guest route → redirect login
   if (!accessToken && !refreshToken) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
@@ -100,6 +105,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|api/auth|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ]
 }
