@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const refreshToken = request.cookies.get('sb-refresh-token')?.value
   const path = request.nextUrl.pathname
 
-  // ✅ 1. Public API routes - cho qua luôn
+  // ✅ 1. Public API routes
   if (
     path.startsWith('/auth') || 
     path.startsWith('/api/auth') ||
@@ -24,9 +24,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ✅ 2. Guest được xem homepage và thread detail
-  const guestAllowedPaths = ['/', '/thread']
-  const isGuestAllowed = guestAllowedPaths.some(p => path === p || path.startsWith('/thread/'))
+  // ✅ 2. Guest được xem homepage, thread detail VÀ PROFILE
+  const guestAllowedPaths = ['/', '/thread', '/profile']
+  const isGuestAllowed = guestAllowedPaths.some(p => 
+    path === p || 
+    path.startsWith('/thread/') ||
+    path.startsWith('/profile/')
+  )
 
   if (isGuestAllowed && !accessToken && !refreshToken) {
     return NextResponse.next()
