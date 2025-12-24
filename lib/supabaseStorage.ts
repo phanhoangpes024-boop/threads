@@ -4,8 +4,8 @@ import { supabase } from './supabase'
 const BUCKET_NAME = 'thread-images'
 
 /**
- * Helper: Resize & Compress ảnh bằng Canvas (Client-side only)
- * Giảm dung lượng trước khi upload
+ * ✅ Helper: Resize & Compress ảnh bằng Canvas (Client-side only)
+ * Giảm dung lượng trước khi upload - UPDATED theo Gemini
  */
 async function compressImage(file: File): Promise<File> {
   // Chỉ chạy trên browser và chỉ nén ảnh
@@ -13,47 +13,49 @@ async function compressImage(file: File): Promise<File> {
     return file
   }
 
-  // Bỏ qua nếu ảnh nhỏ (< 1MB)
-  if (file.size < 1024 * 1024) return file
+  // Bỏ qua nếu ảnh nhỏ (< 500KB) - giảm từ 1MB
+  if (file.size < 500 * 1024) return file
 
   return new Promise((resolve) => {
     const reader = new FileReader()
     reader.readAsDataURL(file)
-    reader.onload = (event) => {
+    reader.onload = (e) => {
       const img = new Image()
-      img.src = event.target?.result as string
+      img.src = e.target?.result as string
       img.onload = () => {
         const canvas = document.createElement('canvas')
-        const MAX_WIDTH = 1600 // Giảm từ 1920 xuống 1600 cho mobile
-        const scaleSize = MAX_WIDTH / img.width
+        const MAX_WIDTH = 1000 // Giảm từ 1600 xuống 1000 cho mobile
         
-        // Nếu ảnh nhỏ hơn max width thì giữ nguyên
-        if (scaleSize >= 1) {
-          resolve(file)
-          return
+        let width = img.width
+        let height = img.height
+        
+        // Resize nếu quá lớn
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width)
+          width = MAX_WIDTH
         }
 
-        canvas.width = MAX_WIDTH
-        canvas.height = img.height * scaleSize
+        canvas.width = width
+        canvas.height = height
         
         const ctx = canvas.getContext('2d')
-        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
+        ctx?.drawImage(img, 0, 0, width, height)
         
+        // ✅ Chuyển sang WebP (nhẹ hơn JPEG 30%)
         canvas.toBlob((blob) => {
-  if (blob) {
-    // ✅ Đổi extension thành .webp
-    const newFileName = file.name.replace(/\.(jpg|jpeg|png|gif)$/i, '.webp')
-    
-    const newFile = new File([blob], newFileName, {
-      type: 'image/webp',  // ✅ Đổi type
-      lastModified: Date.now(),
-    })
-    console.log(`[Compression] ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB (WebP)`)
-    resolve(newFile)
-  } else {
-    resolve(file)
-  }
-}, 'image/webp', 0.85)  // ✅ Format WebP, quality 85%
+          if (blob) {
+            const newFileName = file.name.replace(/\.(jpg|jpeg|png|gif)$/i, '.webp')
+            
+            const newFile = new File([blob], newFileName, {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            })
+            console.log(`[Compression] ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB (WebP)`)
+            resolve(newFile)
+          } else {
+            resolve(file)
+          }
+        }, 'image/webp', 0.8) // Quality 80%
       }
       img.onerror = () => resolve(file)
     }
@@ -88,78 +90,65 @@ export async function uploadImageToSupabase(file: File): Promise<string> {
     const processedFile = await compressImage(file)
 
     // 2. Generate unique filename
-    const fileExt = processedFile.name.split('.').pop() || 'jpg'
+    const fileExt = processedFile.name.split('.').pop() || 'webp'
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
     const filePath = `${fileName}`
 
-    // 3. Upload file với Retry logic
-    await withRetry(async () => {
-      const { error } = await supabase.storage
+    // 3. Upload với retry
+    const uploadFn = async () => {
+      const { data, error } = await supabase.storage
         .from(BUCKET_NAME)
         .upload(filePath, processedFile, {
-          cacheControl: '3600',
-          upsert: false,
+          cacheControl: '31536000',
+          upsert: false
         })
 
       if (error) throw error
-    })
+      return data
+    }
+
+    const uploadData = await withRetry(uploadFn)
 
     // 4. Get public URL
-    const { data: { publicUrl } } = supabase.storage
+    const { data: urlData } = supabase.storage
       .from(BUCKET_NAME)
-      .getPublicUrl(filePath)
+      .getPublicUrl(uploadData.path)
 
-    return publicUrl
+    return urlData.publicUrl
   } catch (error) {
-    console.error('Error uploading image:', error)
-    throw error
+    console.error('Upload error:', error)
+    throw new Error('Không thể upload ảnh')
   }
 }
 
 /**
- * Upload multiple images to Supabase Storage
+ * Upload multiple images
  */
 export async function uploadImagesToSupabase(files: File[]): Promise<string[]> {
   try {
     const uploadPromises = files.map(file => uploadImageToSupabase(file))
-    const urls = await Promise.all(uploadPromises)
-    return urls
+    return await Promise.all(uploadPromises)
   } catch (error) {
-    console.error('Error uploading images:', error)
-    throw error
+    console.error('Multiple upload error:', error)
+    throw new Error('Không thể upload ảnh')
   }
 }
 
 /**
- * Delete image from Supabase Storage
+ * Delete image from storage
  */
 export async function deleteImageFromSupabase(url: string): Promise<void> {
   try {
-    const urlParts = url.split('/')
-    const fileName = urlParts[urlParts.length - 1]
+    const path = url.split(`${BUCKET_NAME}/`)[1]
+    if (!path) throw new Error('Invalid URL')
 
-    await withRetry(async () => {
-      const { error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .remove([fileName])
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .remove([path])
 
-      if (error) throw error
-    })
+    if (error) throw error
   } catch (error) {
-    console.error('Error deleting image:', error)
-    throw error
-  }
-}
-
-/**
- * Delete multiple images from Supabase Storage
- */
-export async function deleteImagesFromSupabase(urls: string[]): Promise<void> {
-  try {
-    const deletePromises = urls.map(url => deleteImageFromSupabase(url))
-    await Promise.all(deletePromises)
-  } catch (error) {
-    console.error('Error deleting images:', error)
-    throw error
+    console.error('Delete error:', error)
+    throw new Error('Không thể xóa ảnh')
   }
 }

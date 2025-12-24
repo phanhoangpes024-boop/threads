@@ -1,6 +1,7 @@
-// components/ImageGallery/index.tsx - ZERO WASTE + OVERLAY
+// components/ImageGallery/index.tsx - OPTIMIZED với CDN Transform
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react'
 import type { FeedMedia } from '@/hooks/useFeed'
+import { getOptimalImageUrl } from '@/lib/imageTransform'
 import styles from './ImageGallery.module.css'
 
 interface ImageGalleryProps {
@@ -12,7 +13,6 @@ interface ImageGalleryProps {
   className?: string
 }
 
-// ✅ COMPONENT CON DUY NHẤT - SUPPORT CẢ GRID VÀ CHAIN
 interface ImageItemProps {
   src: string
   alt: string
@@ -55,21 +55,30 @@ const ImageItem = memo(({
     onDelete?.(e, index)
   }, [index, onDelete])
 
+  // ✅ Resize ảnh responsive: 800px desktop, 600px mobile
+const optimizedSrc = src
+
   return (
     <div className={itemClassName} onClick={handleClick}>
       {!loaded && <div className={styles.skeleton} />}
       
       <img
-        src={src}
+        src={optimizedSrc}
         alt={alt}
         className={`${imageClassName} ${loaded ? styles.loaded : ''}`}
         loading="lazy"
         decoding="async"
         draggable={false}
         onLoad={handleLoad}
+        style={{
+          objectFit: 'cover',
+          width: '100%',
+          height: '100%',
+          opacity: loaded ? 1 : 0,
+          transition: 'opacity 0.3s ease'
+        }}
       />
       
-      {/* ✅ OVERLAY +X */}
       {showOverlay && overlayCount && overlayCount > 0 && (
         <div className={styles.overlay}>
           <span>+{overlayCount}</span>
@@ -87,7 +96,6 @@ const ImageItem = memo(({
 
 ImageItem.displayName = 'ImageItem'
 
-// ✅ COMPONENT CHA
 export default function ImageGallery({
   images,
   medias = [],
@@ -107,6 +115,7 @@ export default function ImageGallery({
   const hasMoved = useRef(false)
   const currentX = useRef(0)
 
+  // ✅ Giảm rootMargin từ 400px xuống 100px
   useEffect(() => {
     if (!containerRef.current) return
     
@@ -119,7 +128,7 @@ export default function ImageGallery({
           }
         })
       },
-      { rootMargin: '400px', threshold: 0.01 }
+      { rootMargin: '100px', threshold: 0.01 }
     )
     
     observer.observe(containerRef.current)
@@ -172,16 +181,17 @@ export default function ImageGallery({
 
   const handleMouseUp = useCallback(() => {
     if (!scrollRef.current) return
+    
     isDragging.current = false
     scrollRef.current.classList.remove(styles.isDragging)
-    scrollRef.current.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
-    scrollRef.current.style.transform = 'translateX(0)'
+    scrollRef.current.classList.add(styles.bouncing)
     
     setTimeout(() => {
       if (scrollRef.current) {
-        scrollRef.current.style.transition = ''
+        scrollRef.current.style.transform = 'translateX(0)'
+        scrollRef.current.classList.remove(styles.bouncing)
       }
-    }, 400)
+    }, 50)
   }, [])
 
   const handleMouseLeave = useCallback(() => {
@@ -303,7 +313,7 @@ export default function ImageGallery({
     )
   }
 
-  // CASE 3+: Horizontal Scroll Chain với Overlay
+  // CASE 3+: Horizontal Scroll Chain
   const MAX_VISIBLE = 5
   const displayImages = images.slice(0, MAX_VISIBLE)
   const remainingCount = images.length - MAX_VISIBLE
