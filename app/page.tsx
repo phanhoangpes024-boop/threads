@@ -66,6 +66,15 @@ export default function Home() {
     estimateSize: () => 600,
     overscan: 5,
     measureElement: (el) => el?.getBoundingClientRect().height ?? 400,
+    
+    // 👇 THÊM DÒNG NÀY (QUAN TRỌNG NHẤT) 👇
+    getItemKey: (index) => {
+      // Nếu là item cuối cùng (loading spinner) thì dùng key riêng
+      if (index === allThreads.length) return 'loader';
+      // Trả về ID của thread để map chiều cao chính xác
+      return allThreads[index]?.id;
+    },
+    // 👆 --------------------------------- 👆
   })
   
   // Reset virtualizer khi đổi feed type
@@ -154,37 +163,38 @@ export default function Home() {
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
     try {
       if (editThreadId) {
-        // ✅ UPDATE mode
+        // UPDATE
         await updateMutation.mutateAsync({
           threadId: editThreadId,
           content,
           imageUrls: imageUrls || []
         })
+        // Không cần setVirtualizerKey, ResizeObserver của thư viện sẽ tự lo
       } else {
-        // ✅ CREATE mode
+        // CREATE
         await createMutation.mutateAsync({ 
           content,
           imageUrls: imageUrls || []
         })
+        
+        // Chỉ scroll lên đầu khi TẠO MỚI, không cần reset key
+        setTimeout(() => {
+          if (parentRef.current) {
+            parentRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+          }
+        }, 100)
       }
       
+      // Reset form state
       setShowModal(false)
       setEditThreadId(null)
       setEditContent('')
       setEditImageUrls([])
       
-      hasRestoredScroll.current = false
-      setVirtualizerKey(prev => prev + 1)
-      
-      setTimeout(() => {
-        if (parentRef.current) {
-          parentRef.current.scrollTop = 0
-        }
-      }, 150)
     } catch (error) {
       console.error('Error:', error)
     }
-  }, [editThreadId])
+  }, [editThreadId, createMutation, updateMutation]) // Bỏ setVirtualizerKey ra khỏi deps
 
   // ✅ Xử lý edit
   const handleEdit = useCallback((threadId: string, content: string, imageUrls: string[]) => {
