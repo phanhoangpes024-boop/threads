@@ -1,7 +1,7 @@
 // components/ProfileClient/index.tsx
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
@@ -16,7 +16,6 @@ import { useToggleLike } from '@/hooks/useFeed'
 import { useCreateThread } from '@/hooks/useThreads'
 import { useDeleteThread, useUpdateThread } from '@/hooks/useThreadMutations'
 import type { ProfileData, ProfileThread } from '@/lib/data'
-import type { InfiniteData } from '@tanstack/react-query'
 import styles from './ProfileClient.module.css'
 
 const CreateThreadModal = dynamic(() => import('@/components/CreateThreadModal'), { ssr: false })
@@ -28,18 +27,13 @@ interface ProfileClientProps {
   initialIsFollowing: boolean
 }
 
-interface FeedPage {
-  threads: ProfileThread[]
-  nextCursor: string | null
-}
-
 export default function ProfileClient({
   initialProfile,
   initialThreads,
 }: ProfileClientProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { user: currentUser } = useCurrentUser()
+  const { user: currentUser, loading: isUserLoading } = useCurrentUser()
   const toggleLikeMutation = useToggleLike()
   const createThreadMutation = useCreateThread()
   const deleteMutation = useDeleteThread()
@@ -48,8 +42,6 @@ export default function ProfileClient({
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null)
-
-  // ✅ Edit mode state
   const [editThreadId, setEditThreadId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [editImageUrls, setEditImageUrls] = useState<string[]>([])
@@ -65,48 +57,28 @@ export default function ProfileClient({
     staleTime: 1000 * 30,
   })
 
-  const smartInitialThreads = (() => {
-    if (typeof window === 'undefined' || !currentUser?.id) {
-      return initialThreads
-    }
-
-    const feedData = queryClient.getQueryData<InfiniteData<FeedPage>>([
-      'feed', 
-      currentUser.id
-    ])
-    
-    if (!feedData?.pages) return initialThreads
-
-    const likedMap = new Map<string, boolean>()
-    feedData.pages.forEach(page => {
-      page.threads.forEach(t => likedMap.set(t.id, t.is_liked))
-    })
-
-    return initialThreads.map(t => ({
-      ...t,
-      is_liked: likedMap.has(t.id) ? likedMap.get(t.id)! : t.is_liked
-    }))
-  })()
-
   const { data: threads = [] } = useQuery<ProfileThread[]>({
     queryKey: ['profile-threads', initialProfile.id, currentUser?.id || 'guest'],
-    
     queryFn: async () => {
-      // ✅ Guest cũng fetch được thread, nhưng không có is_liked
       const userId = currentUser?.id || ''
       const params = userId ? `?current_user_id=${userId}` : ''
+      const url = `/api/users/${initialProfile.id}/threads${params}`
       
-      const res = await fetch(
-        `/api/users/${initialProfile.id}/threads${params}`
-      )
+      const res = await fetch(url, { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      })
       
-      if (!res.ok) return initialThreads
+      if (!res.ok) return []
       return res.json()
     },
-    
-    initialData: smartInitialThreads,
+    enabled: !isUserLoading && !!initialProfile.id,
     staleTime: 0,
-    // ✅ Bỏ enabled để guest vẫn fetch được
+    gcTime: 0,
+    refetchOnMount: true,
   })
 
   const isOwnProfile = currentUser?.id === profile.id
@@ -144,14 +116,12 @@ export default function ProfileClient({
   const handlePostThread = useCallback(async (content: string, imageUrls?: string[]) => {
     try {
       if (editThreadId) {
-        // ✅ UPDATE mode
         await updateMutation.mutateAsync({
           threadId: editThreadId,
           content,
           imageUrls: imageUrls || []
         })
       } else {
-        // ✅ CREATE mode
         await createThreadMutation.mutateAsync({ 
           content, 
           imageUrls: imageUrls || [] 
@@ -168,9 +138,8 @@ export default function ProfileClient({
       console.error('Failed to create/update thread:', error)
       alert('Không thể thực hiện. Vui lòng thử lại.')
     }
-  }, [editThreadId, router])
+  }, [editThreadId, createThreadMutation, updateMutation, router])
 
-  // ✅ Xử lý edit
   const handleEdit = useCallback((threadId: string, content: string, imageUrls: string[]) => {
     setEditThreadId(threadId)
     setEditContent(content)
@@ -178,7 +147,6 @@ export default function ProfileClient({
     setShowCreateModal(true)
   }, [])
 
-  // ✅ Xử lý delete
   const handleDelete = useCallback(async (threadId: string) => {
     try {
       await deleteMutation.mutateAsync(threadId)

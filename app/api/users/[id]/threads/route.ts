@@ -1,6 +1,9 @@
-// app/api/users/[id]/threads/route.ts - UPDATED WITH RPC
+// app/api/users/[id]/threads/route.ts
 import { NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+// ✅ BẮT BUỘC: Không cache
+export const dynamic = 'force-dynamic'
 
 export async function GET(
   request: Request,
@@ -10,18 +13,42 @@ export async function GET(
   const { searchParams } = new URL(request.url)
   const currentUserId = searchParams.get('current_user_id')
 
+  console.log('🔍 [API] Profile Threads:', {
+    userId,
+    currentUserId,
+    url: request.url
+  })
+
+  // ✅ Tạo client mới mỗi request
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
   try {
+    // ✅ Xử lý viewerId an toàn
+    const viewerId = (currentUserId && currentUserId !== 'undefined' && currentUserId !== 'null') 
+      ? currentUserId 
+      : null
+
+    console.log('📡 [RPC] Calling get_user_threads:', { 
+      p_user_id: userId, 
+      p_viewer_id: viewerId 
+    })
+
     const { data, error } = await supabase.rpc('get_user_threads', {
       p_user_id: userId,
-      p_viewer_id: currentUserId || null
+      p_viewer_id: viewerId
     })
 
     if (error) {
-      console.error('Error:', error)
+      console.error('❌ [RPC] Error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Map để giữ format cũ
+    console.log('✅ [RPC] Success:', { threadsCount: data?.length || 0 })
+
+    // Map kết quả
     const threads = (data || []).map((t: any) => ({
       id: t.id,
       user_id: t.user_id,
@@ -47,9 +74,19 @@ export async function GET(
         : []
     }))
 
-    return NextResponse.json(threads)
+    console.log('🎯 [API] Returning threads:', threads.length)
+
+    return NextResponse.json(threads, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate',
+      }
+    })
+
   } catch (error) {
-    console.error('Error fetching user threads:', error)
-    return NextResponse.json({ error: 'Failed to fetch threads' }, { status: 500 })
+    console.error('💥 [API] Unexpected error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch threads' }, 
+      { status: 500 }
+    )
   }
 }
