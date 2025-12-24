@@ -40,17 +40,20 @@ async function compressImage(file: File): Promise<File> {
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height)
         
         canvas.toBlob((blob) => {
-          if (blob) {
-            const newFile = new File([blob], file.name, {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            })
-            console.log(`[Compression] ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB`)
-            resolve(newFile)
-          } else {
-            resolve(file)
-          }
-        }, 'image/jpeg', 0.8)
+  if (blob) {
+    // ✅ Đổi extension thành .webp
+    const newFileName = file.name.replace(/\.(jpg|jpeg|png|gif)$/i, '.webp')
+    
+    const newFile = new File([blob], newFileName, {
+      type: 'image/webp',  // ✅ Đổi type
+      lastModified: Date.now(),
+    })
+    console.log(`[Compression] ${(file.size/1024).toFixed(0)}KB → ${(newFile.size/1024).toFixed(0)}KB (WebP)`)
+    resolve(newFile)
+  } else {
+    resolve(file)
+  }
+}, 'image/webp', 0.85)  // ✅ Format WebP, quality 85%
       }
       img.onerror = () => resolve(file)
     }
