@@ -8,10 +8,8 @@ export function useThreadDetail(threadId: string, userId?: string) {
 
   return useQuery({
     queryKey: ['thread-detail', threadId],
-      
+    
     initialData: () => {
-  
-      // ✅ TÌM TẤT CẢ feed queries (for-you, following)
       const feedQueries = queryClient.getQueriesData<InfiniteData<FeedPage>>({ 
         queryKey: ['feed'] 
       })
@@ -24,11 +22,10 @@ export function useThreadDetail(threadId: string, userId?: string) {
           .find(t => t.id === threadId)
         
         if (feedThread) {
-          return { thread: feedThread, comments: [] }
+          return feedThread
         }
       }
       
-      // ✅ TÌM trong profile cache
       const profileQueries = queryClient.getQueriesData<FeedThread[]>({ 
         queryKey: ['profile-threads'] 
       })
@@ -38,27 +35,22 @@ export function useThreadDetail(threadId: string, userId?: string) {
         
         const profileThread = threads.find(t => t.id === threadId)
         if (profileThread) {
-          return { thread: profileThread, comments: [] }
+          return profileThread
         }
       }
       
       return undefined
     },
     
+    initialDataUpdatedAt: 0,
+    
     queryFn: async () => {
-      const params = (userId && userId !== 'guest') ? `?user_id=${userId}` : ''
-      
-      const [threadRes, commentsRes] = await Promise.all([
-        fetch(`/api/threads/${threadId}${params}`),
-        fetch(`/api/threads/${threadId}/comments`)
-      ])
+      const params = userId ? `?user_id=${userId}` : ''
+      const res = await fetch(`/api/threads/${threadId}${params}`)
 
-      if (!threadRes.ok) throw new Error('Thread not found')
+      if (!res.ok) throw new Error('Thread not found')
       
-      const thread = await threadRes.json()
-      const comments = commentsRes.ok ? await commentsRes.json() : []
-
-      return { thread, comments }
+      return res.json()
     },
     
     enabled: !!threadId,
