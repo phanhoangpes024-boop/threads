@@ -84,3 +84,59 @@ export async function GET(
     )
   }
 }
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: threadId } = await context.params
+    const body = await request.json()
+    const { user_id, content } = body
+
+    if (!user_id || !content) {
+      return NextResponse.json(
+        { error: 'Missing user_id or content' },
+        { status: 400 }
+      )
+    }
+
+    const { data, error } = await supabase
+      .from('comments')
+      .insert({
+        thread_id: threadId,
+        user_id,
+        content
+      })
+      .select(`
+        id,
+        content,
+        created_at,
+        users:user_id (
+          username,
+          avatar_text,
+          avatar_bg
+        )
+      `)
+      .single()
+
+    if (error) throw error
+
+    const comment = data as unknown as CommentRow
+
+    return NextResponse.json({
+      id: comment.id,
+      content: comment.content,
+      created_at: comment.created_at,
+      username: comment.users?.username || 'Unknown',
+      avatar_text: comment.users?.avatar_text || 'U',
+      avatar_bg: comment.users?.avatar_bg || '#0077B6'
+    })
+  } catch (error) {
+    console.error('Create comment error:', error)
+    return NextResponse.json(
+      { error: 'Failed to create comment' },
+      { status: 500 }
+    )
+  }
+}

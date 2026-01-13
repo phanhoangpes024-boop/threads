@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter} from 'next/navigation'
 import ImageGallery from '@/components/ImageGallery'
 import ImageModal from '@/components/ImageModal/ImageModal'
 import LoginPromptModal from '@/components/LoginPromptModal'
@@ -69,9 +69,9 @@ function ThreadCard({
   }, [id, onLikeClick, requireAuth])
 
   const handleComment = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    requireAuth(() => onCommentClick(id))
-  }, [id, onCommentClick, requireAuth])
+  e.stopPropagation()
+  router.push(`/thread/${id}?openComment=true`)
+  }, [id, router])
 
   const handleCardClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement

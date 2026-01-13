@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import CustomScrollbar from '@/components/CustomScrollbar'
 import ThreadCard from '@/components/ThreadCard'
 import CommentInput from '@/components/CommentInput'
@@ -32,6 +32,8 @@ function CommentSkeleton() {
 
 export default function ThreadDetailPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
+  const shouldOpenComment = searchParams.get('openComment') === 'true'
   const queryClient = useQueryClient()
   const { user, loading: userLoading } = useCurrentUser()
   const threadId = params.id as string
@@ -46,7 +48,7 @@ export default function ThreadDetailPage() {
   } = useComments(threadId)
   
   const toggleLikeMutation = useToggleLike()
-  const [showCommentInput, setShowCommentInput] = useState(false)
+  const [showCommentInput, setShowCommentInput] = useState(shouldOpenComment)
 
   const allComments = commentsData?.pages.flatMap((page: any) => page.comments) || []
 
@@ -81,7 +83,6 @@ export default function ThreadDetailPage() {
   }, [])
 
   const handleCommentSubmit = useCallback((content?: string) => {
-    setShowCommentInput(false)
     
     if (content && user?.id) {
       const fakeId = `temp-${Date.now()}`
