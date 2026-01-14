@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       { threads, total: threads.length },
       {
         headers: {
-          'Access-Control-Allow-Origin': 'https://hectorphan.com',
+          'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET',
           'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
         }
