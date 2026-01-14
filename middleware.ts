@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/auth') || 
     path.startsWith('/api/auth') ||
     path.startsWith('/api/feed') ||
+    path.startsWith('/api/public-feed') || // ← THÊM DÒNG NÀY
     path.startsWith('/api/threads') ||
     path.startsWith('/api/users')
   ) {
