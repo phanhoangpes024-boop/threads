@@ -26,6 +26,8 @@ export function useUnreadNotifications() {
       }
     },
     enabled: !!user?.id,
-    refetchInterval: 5000,
+    staleTime: 1000 * 60 * 60 * 24, // ✅ ĐỔI: 24 giờ
+    refetchInterval: false, // ✅ ĐỔI: TẮT auto-polling (trước đây 5s!)
+    refetchOnWindowFocus: true, // ✅ THÊM: Chỉ refetch khi focus window
   })
 }

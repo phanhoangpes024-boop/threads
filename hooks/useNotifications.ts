@@ -34,8 +34,9 @@ export function useNotifications() {
       return data.notifications
     },
     enabled: !!user.id,
-    staleTime: 1000 * 30,
-    refetchInterval: 1000 * 60,
+    staleTime: 1000 * 60 * 60 * 24, // ✅ ĐỔI: 24 giờ
+    refetchInterval: false, // ✅ ĐỔI: TẮT auto-polling
+    refetchOnWindowFocus: true, // ✅ THÊM: Chỉ refetch khi focus window
   })
 }
 

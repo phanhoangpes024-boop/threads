@@ -1,4 +1,4 @@
-// components/ImageGallery/index.tsx - OPTIMIZED với CDN Transform
+// components/ImageGallery/index.tsx - PREMIUM: Physics-based Momentum
 import React, { useState, useRef, useCallback, useEffect, memo } from 'react'
 import type { FeedMedia } from '@/hooks/useFeed'
 import { getOptimalImageUrl } from '@/lib/imageTransform'
@@ -55,8 +55,7 @@ const ImageItem = memo(({
     onDelete?.(e, index)
   }, [index, onDelete])
 
-  // ✅ Resize ảnh responsive: 800px desktop, 600px mobile
-const optimizedSrc = src
+  const optimizedSrc = src
 
   return (
     <div className={itemClassName} onClick={handleClick}>
@@ -109,13 +108,20 @@ export default function ImageGallery({
   const containerRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   
+  // Drag state (CHỈ cho Desktop/Mouse)
   const isDragging = useRef(false)
   const startX = useRef(0)
   const scrollLeft = useRef(0)
   const hasMoved = useRef(false)
-  const currentX = useRef(0)
+  
+  // Momentum state
+  const velocity = useRef(0)
+  const animationFrame = useRef<number | undefined>(undefined)
+  
+  // ✅ THÊM REF ĐỂ TÍNH TOÁN MƯỢT HƠN
+  const lastMousePosition = useRef<{ x: number; time: number } | null>(null)
 
-  // ✅ Giảm rootMargin từ 400px xuống 100px
+  // Lazy load observer
   useEffect(() => {
     if (!containerRef.current) return
     
@@ -136,46 +142,96 @@ export default function ImageGallery({
     return () => observer.disconnect()
   }, [])
 
-  const handleImageLoad = useCallback((index: number) => {
-    // Component con tự quản lý
+  // Cleanup animation frame
+  useEffect(() => {
+    return () => {
+      if (animationFrame.current !== undefined) {
+        cancelAnimationFrame(animationFrame.current)
+      }
+    }
   }, [])
+
+  const handleImageLoad = useCallback((index: number) => {
+    // Component tự quản lý
+  }, [])
+
+  // ✅ 1. TỐI ƯU HÓA HÀM MOMENTUM (VẬT LÝ TRÔI)
+  const applyMomentum = useCallback(() => {
+    if (!scrollRef.current) return
+    
+    // Ma sát thấp hơn (0.97) để trôi mượt và xa hơn (cảm giác "băng")
+    // Muốn trôi xa nữa thì tăng lên 0.98-0.99, muốn dừng nhanh thì giảm xuống 0.95
+    velocity.current *= 0.97
+    
+    // Ngưỡng dừng nhỏ hơn để nó trôi đến tận cùng lực
+    if (Math.abs(velocity.current) < 0.1) {
+      velocity.current = 0
+      if (animationFrame.current !== undefined) {
+        cancelAnimationFrame(animationFrame.current)
+      }
+      return
+    }
+
+    scrollRef.current.scrollLeft -= velocity.current
+    
+    animationFrame.current = requestAnimationFrame(applyMomentum)
+  }, [])
+
+  // --- LOGIC MOUSE (DESKTOP) ĐÃ NÂNG CẤP ---
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollRef.current) return
+    
+    // Dừng momentum cũ ngay lập tức
+    if (animationFrame.current !== undefined) {
+      cancelAnimationFrame(animationFrame.current)
+    }
+    
     isDragging.current = true
     hasMoved.current = false
+    
+    // Thêm class vào body để tránh cursor bị nhấp nháy khi kéo ra ngoài div
+    document.body.style.cursor = 'grabbing'
     scrollRef.current.classList.add(styles.isDragging)
+    
     startX.current = e.pageX
-    currentX.current = e.pageX
     scrollLeft.current = scrollRef.current.scrollLeft
+    
+    // Reset bộ đếm vận tốc
+    velocity.current = 0
+    lastMousePosition.current = { x: e.pageX, time: Date.now() }
   }, [])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging.current || !scrollRef.current) return
     e.preventDefault()
     
-    currentX.current = e.pageX
-    const deltaX = currentX.current - startX.current
-    const newScroll = scrollLeft.current - deltaX
+    const x = e.pageX
+    const walk = x - startX.current
     
-    const maxScroll = scrollRef.current.scrollWidth - scrollRef.current.clientWidth
-    const RESISTANCE = 0.3
+    if (Math.abs(walk) > 5) {
+      hasMoved.current = true
+    }
     
-    if (Math.abs(deltaX) > 5) hasMoved.current = true
+    scrollRef.current.scrollLeft = scrollLeft.current - walk
+
+    // ✅ TÍNH VẬN TỐC (CÔNG THỨC MỚI)
+    const now = Date.now()
     
-    if (newScroll < 0) {
-      const overscroll = Math.abs(newScroll)
-      const damped = overscroll * RESISTANCE
-      scrollRef.current.scrollLeft = 0
-      scrollRef.current.style.transform = `translateX(${Math.min(damped, 210)}px)`
-    } else if (newScroll > maxScroll) {
-      const overscroll = newScroll - maxScroll
-      const damped = overscroll * RESISTANCE
-      scrollRef.current.scrollLeft = maxScroll
-      scrollRef.current.style.transform = `translateX(-${Math.min(damped, 210)}px)`
-    } else {
-      scrollRef.current.scrollLeft = newScroll
-      scrollRef.current.style.transform = 'translateX(0)'
+    // Chỉ tính toán vận tốc mỗi ~16ms (1 frame) hoặc hơn để tránh nhiễu
+    if (lastMousePosition.current && now - lastMousePosition.current.time > 16) {
+      const dt = now - lastMousePosition.current.time
+      const dx = x - lastMousePosition.current.x
+      
+      // Vận tốc = quãng đường / thời gian
+      // Multiplier * 20 để tăng độ "văng" khi vuốt nhẹ
+      const newVelocity = (dx / dt) * 20
+
+      // Dùng Linear Interpolation (Lerp) để làm mượt vận tốc,
+      // tránh trường hợp vận tốc bị giật cục do mouse polling rate
+      velocity.current = velocity.current * 0.2 + newVelocity * 0.8
+      
+      lastMousePosition.current = { x, time: now }
     }
   }, [])
 
@@ -183,67 +239,41 @@ export default function ImageGallery({
     if (!scrollRef.current) return
     
     isDragging.current = false
+    document.body.style.cursor = '' // Trả lại cursor
     scrollRef.current.classList.remove(styles.isDragging)
-    scrollRef.current.classList.add(styles.bouncing)
     
-    setTimeout(() => {
-      if (scrollRef.current) {
-        scrollRef.current.style.transform = 'translateX(0)'
-        scrollRef.current.classList.remove(styles.bouncing)
-      }
-    }, 50)
-  }, [])
+    // Nếu vừa thả chuột, kiểm tra xem lần di chuyển cuối cùng cách đây bao lâu
+    // Nếu > 100ms nghĩa là người dùng đã dừng tay lại rồi mới thả -> Vận tốc = 0
+    const timeSinceLastMove = Date.now() - (lastMousePosition.current?.time || 0)
+    
+    if (timeSinceLastMove > 100) {
+      velocity.current = 0
+    }
+
+    // Kích hoạt momentum nếu còn vận tốc dư
+    if (Math.abs(velocity.current) > 1) {
+      applyMomentum()
+    }
+  }, [applyMomentum])
 
   const handleMouseLeave = useCallback(() => {
-    if (isDragging.current) handleMouseUp()
-  }, [handleMouseUp])
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (!scrollRef.current) return
-    isDragging.current = true
-    hasMoved.current = false
-    const touch = e.touches[0]
-    startX.current = touch.pageX
-    currentX.current = touch.pageX
-    scrollLeft.current = scrollRef.current.scrollLeft
-  }, [])
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current || !scrollRef.current) return
-    const touch = e.touches[0]
-    
-    currentX.current = touch.pageX
-    const deltaX = currentX.current - startX.current
-    const newScroll = scrollLeft.current - deltaX
-    
-    const maxScroll = scrollRef.current.scrollWidth - scrollRef.current.clientWidth
-    const RESISTANCE = 0.3
-    
-    if (Math.abs(deltaX) > 5) hasMoved.current = true
-    
-    if (newScroll < 0) {
-      const overscroll = Math.abs(newScroll)
-      const damped = overscroll * RESISTANCE
-      scrollRef.current.scrollLeft = 0
-      scrollRef.current.style.transform = `translateX(${Math.min(damped, 210)}px)`
-    } else if (newScroll > maxScroll) {
-      const overscroll = newScroll - maxScroll
-      const damped = overscroll * RESISTANCE
-      scrollRef.current.scrollLeft = maxScroll
-      scrollRef.current.style.transform = `translateX(-${Math.min(damped, 210)}px)`
-    } else {
-      scrollRef.current.scrollLeft = newScroll
-      scrollRef.current.style.transform = 'translateX(0)'
+    if (isDragging.current) {
+      handleMouseUp()
     }
-  }, [])
-
-  const handleTouchEnd = useCallback(() => {
-    handleMouseUp()
   }, [handleMouseUp])
+
+  // --- MOBILE: KHÔNG CẦN JS HANDLERS ---
+  // Browser native scroll làm tốt hơn chúng ta nhiều
+  // ❌ ĐÃ XÓA: onTouchStart, onTouchMove, onTouchEnd
 
   const handleImageClick = useCallback((index: number, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!hasMoved.current && mode === 'view' && onImageClick) {
+    // Nếu vừa drag thì không trigger click
+    if (hasMoved.current) {
+      e.stopPropagation()
+      return
+    }
+    
+    if (mode === 'view' && onImageClick) {
       onImageClick(index)
     }
   }, [mode, onImageClick])
@@ -313,7 +343,7 @@ export default function ImageGallery({
     )
   }
 
-  // CASE 3+: Horizontal Scroll Chain
+  // CASE 3+: Horizontal Scroll Chain - Physics-based momentum cho Desktop
   const MAX_VISIBLE = 5
   const displayImages = images.slice(0, MAX_VISIBLE)
   const remainingCount = images.length - MAX_VISIBLE
@@ -323,13 +353,13 @@ export default function ImageGallery({
       <div
         ref={scrollRef}
         className={styles.chainScroll}
+        // ✅ CHỈ GÁN SỰ KIỆN MOUSE CHO DESKTOP
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
+        // ❌ ĐÃ XÓA: onTouchStart, onTouchMove, onTouchEnd
+        // → Mobile dùng native scroll (mượt hơn nhiều)
       >
         {isInViewport && displayImages.map((url, index) => {
           const isLastVisible = index === MAX_VISIBLE - 1
