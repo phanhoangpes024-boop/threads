@@ -5,12 +5,13 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
-
+  const cursorTime = searchParams.get('cursor_time') || null
+  const cursorId = searchParams.get('cursor_id') || null
   try {
     const { data, error } = await supabase.rpc('get_feed_optimized', {
       p_user_id: null, // Guest mode
-      p_cursor_time: null,
-      p_cursor_id: null,
+      p_cursor_time: cursorTime,
+      p_cursor_id: cursorId,
       p_limit: limit
     })
 
