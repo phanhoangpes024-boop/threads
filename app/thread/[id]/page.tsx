@@ -155,6 +155,7 @@ export default function ThreadDetailPage() {
           reposts={thread.reposts_count}
           verified={thread.verified}
           avatarText={thread.avatar_text || 'U'}
+          avatarBg={thread.avatar_bg}
           isLiked={thread.is_liked}
           onLikeClick={handleLike}
           onCommentClick={handleCommentClick}
